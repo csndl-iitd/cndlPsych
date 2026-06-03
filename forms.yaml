@@ -1,0 +1,63 @@
+forms:
+  - id: "participant"
+    type: "survey-text"
+    data:
+      phase: "setup"
+    questions:
+      - prompt: "Participant ID:"
+        name: "participant_id"
+        required: true
+      - prompt: "Age:"
+        name: "age"
+        required: true
+      - prompt: "Gender:"
+        name: "gender"
+        required: false
+
+  - id: "session"
+    type: "survey-text"
+    data:
+      phase: "setup"
+    questions:
+      - prompt: "Session Number:"
+        name: "session_number"
+        required: true
+      - prompt: "Session Type:"
+        name: "session_type"
+        options:
+          - "Control"
+          - "Experimental"
+        required: true
+
+  - id: "psychometric"
+    type: "survey-multi-choice"
+    data:
+      phase: "psychometric"
+    questions:
+      - prompt: "How are you feeling today?"
+        name: "feeling"
+        options:
+          - "Very Bad"
+          - "Bad"
+          - "Neutral"
+          - "Good"
+          - "Very Good"
+        required: true
+      - prompt: "How are you thinking today?"
+        name: "thinking"
+        options:
+          - "Very Bad"
+          - "Bad"
+          - "Neutral"
+          - "Good"
+          - "Very Good"
+        required: true
+      - prompt: "How are you willing today?"
+        name: "willing"
+        options:
+          - "Very Bad"
+          - "Bad"
+          - "Neutral"
+          - "Good"
+          - "Very Good"
+        required: false

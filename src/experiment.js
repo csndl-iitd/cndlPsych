@@ -1,8 +1,8 @@
-import { getRegistrationTimeline, getPsychometricTimeline } from './forms.js';
+import { getRegistrationTimeline, getPsychometricTimeline, loadFormsFromYaml, generateTimelineFromForms } from './forms.js';
 import { logger } from './logger.js';
 import { stopRecording, downloadWebcam, downloadScreen } from './media.js';
 
-export function runExperiment() {
+export async function runExperiment() {
     // Scroll to top and add scroll event listener to lock page scroll position at 0, 0 during the experiment
     window.scrollTo(0, 0);
     const forceScrollTop = () => window.scrollTo(0, 0);
@@ -118,9 +118,22 @@ export function runExperiment() {
     };
     timeline.push(preload);
 
-    // Registration and Forms
-    timeline.push(getRegistrationTimeline());
-    timeline.push(getPsychometricTimeline());
+    // Load forms dynamically or fall back to static defaults
+    const formsList = await loadFormsFromYaml('forms.yaml');
+    if (formsList && formsList.length > 0) {
+        try {
+            const dynamicTimelines = generateTimelineFromForms(formsList);
+            dynamicTimelines.forEach(t => timeline.push(t));
+        } catch (e) {
+            console.error("Failed to generate dynamic timelines, using fallback static forms:", e);
+            timeline.push(getRegistrationTimeline());
+            timeline.push(getPsychometricTimeline());
+        }
+    } else {
+        console.log("No dynamic forms loaded, using fallback static forms.");
+        timeline.push(getRegistrationTimeline());
+        timeline.push(getPsychometricTimeline());
+    }
 
     // Dummy experimental trial with trigger
     const trial = {
