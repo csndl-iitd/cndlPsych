@@ -4,7 +4,7 @@ import { logDataToFirebase } from './firebase.js';
 
 export function objectifyFormWithSemicolons(formArray) {
     if (!formArray || !Array.isArray(formArray)) return formArray;
-    
+
     // Group values by name
     const grouped = {};
     formArray.forEach(item => {
@@ -58,7 +58,10 @@ export async function runExperiment() {
                 const response = data.response || {};
                 const rawParticipantId = response.participant_id || Object.values(response)[0];
                 if (rawParticipantId) {
-                    participantId = String(rawParticipantId).trim().replace(/\s+/g, '-').replace(/[^a-zA-Z0-9_-]/g, '');
+                    const parsedNum = parseInt(rawParticipantId, 10);
+                    const formattedId = "sub-" + (isNaN(parsedNum) ? "001" : String(parsedNum).padStart(3, '0'));
+                    response.participant_id = formattedId;
+                    participantId = formattedId;
                 }
                 await logDataToFirebase('participants', {
                     ...response,
@@ -71,7 +74,10 @@ export async function runExperiment() {
                 const response = data.response || {};
                 const rawSessionNumber = response.session_number || Object.values(response)[0];
                 if (rawSessionNumber) {
-                    sessionNumber = String(rawSessionNumber).trim().replace(/\s+/g, '-').replace(/[^a-zA-Z0-9_-]/g, '');
+                    const parsedNum = parseInt(rawSessionNumber, 10);
+                    const formattedSession = "ses-" + (isNaN(parsedNum) ? "01" : String(parsedNum).padStart(2, '0'));
+                    response.session_number = formattedSession;
+                    sessionNumber = formattedSession;
                 }
                 const sDocId = await logDataToFirebase('sessions', {
                     ...response,

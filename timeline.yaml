@@ -19,3 +19,12 @@ blocks:
           repetitions: 5
           post: 500
       randomize: true
+
+  - id: "stroop_task"
+    module: "stroop"
+    config:
+      repetitions: 1
+      randomize: true
+      post: [200, 500]
+      fixation_duration: 500
+      trial_duration: 2000
