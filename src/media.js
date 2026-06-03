@@ -108,7 +108,7 @@ export function stopRecording() {
         webcamRecorder.onstop = () => {
             if (webcamStream) {
                 webcamStream.getTracks().forEach(track => {
-                    try { track.stop(); } catch (e) {}
+                    try { track.stop(); } catch (e) { }
                 });
                 webcamStream = null;
             }
@@ -117,7 +117,7 @@ export function stopRecording() {
     } else {
         if (webcamStream) {
             webcamStream.getTracks().forEach(track => {
-                try { track.stop(); } catch (e) {}
+                try { track.stop(); } catch (e) { }
             });
             webcamStream = null;
         }
@@ -127,7 +127,7 @@ export function stopRecording() {
         screenRecorder.onstop = () => {
             if (screenStream) {
                 screenStream.getTracks().forEach(track => {
-                    try { track.stop(); } catch (e) {}
+                    try { track.stop(); } catch (e) { }
                 });
                 screenStream = null;
             }
@@ -136,7 +136,7 @@ export function stopRecording() {
     } else {
         if (screenStream) {
             screenStream.getTracks().forEach(track => {
-                try { track.stop(); } catch (e) {}
+                try { track.stop(); } catch (e) { }
             });
             screenStream = null;
         }
@@ -145,7 +145,7 @@ export function stopRecording() {
 
 export function downloadWebcam(participantId = 'subject') {
     if (webcamChunks.length > 0) {
-        downloadMedia(webcamChunks, `recordings/${participantId}_webcam.webm`);
+        downloadMedia(webcamChunks, `${participantId}_webcam.webm`);
     } else {
         console.warn("No webcam chunks recorded.");
     }
@@ -153,7 +153,7 @@ export function downloadWebcam(participantId = 'subject') {
 
 export function downloadScreen(participantId = 'subject') {
     if (screenChunks.length > 0) {
-        downloadMedia(screenChunks, `recordings/${participantId}_screen.webm`);
+        downloadMedia(screenChunks, `${participantId}_screen.webm`);
     } else {
         console.warn("No screen chunks recorded.");
     }

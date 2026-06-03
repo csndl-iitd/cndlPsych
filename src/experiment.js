@@ -22,7 +22,7 @@ export function runExperiment() {
         },
         on_finish: function () {
             logger.logEvent('experiment_finish');
-            
+
             // Remove the scroll lock listener
             window.removeEventListener('scroll', forceScrollTop);
 
@@ -97,7 +97,7 @@ export function runExperiment() {
             newCsvBtn.addEventListener('click', () => {
                 console.log("CSV download button clicked. Participant ID:", participantId);
                 try {
-                    jsPsych.data.get().localSave('csv', `recordings/${participantId}_data.csv`);
+                    jsPsych.data.get().localSave('csv', `${participantId}_data.csv`);
                     console.log("jsPsych.data.get().localSave CSV call completed.");
                 } catch (err) {
                     console.error("Error downloading CSV:", err);
