@@ -105,30 +105,47 @@ export function startRecording() {
 
 export function stopRecording() {
     if (webcamRecorder && webcamRecorder.state !== 'inactive') {
+        webcamRecorder.onstop = () => {
+            if (webcamStream) {
+                webcamStream.getTracks().forEach(track => {
+                    try { track.stop(); } catch (e) {}
+                });
+                webcamStream = null;
+            }
+        };
         webcamRecorder.stop();
-    }
-    if (screenRecorder && screenRecorder.state !== 'inactive') {
-        screenRecorder.stop();
+    } else {
+        if (webcamStream) {
+            webcamStream.getTracks().forEach(track => {
+                try { track.stop(); } catch (e) {}
+            });
+            webcamStream = null;
+        }
     }
 
-    // Stop streams immediately to turn off indicators (webcam light)
-    if (webcamStream) {
-        webcamStream.getTracks().forEach(track => {
-            try { track.stop(); } catch (e) {}
-        });
-        webcamStream = null;
-    }
-    if (screenStream) {
-        screenStream.getTracks().forEach(track => {
-            try { track.stop(); } catch (e) {}
-        });
-        screenStream = null;
+    if (screenRecorder && screenRecorder.state !== 'inactive') {
+        screenRecorder.onstop = () => {
+            if (screenStream) {
+                screenStream.getTracks().forEach(track => {
+                    try { track.stop(); } catch (e) {}
+                });
+                screenStream = null;
+            }
+        };
+        screenRecorder.stop();
+    } else {
+        if (screenStream) {
+            screenStream.getTracks().forEach(track => {
+                try { track.stop(); } catch (e) {}
+            });
+            screenStream = null;
+        }
     }
 }
 
 export function downloadWebcam(participantId = 'subject') {
     if (webcamChunks.length > 0) {
-        downloadMedia(webcamChunks, `${participantId}_webcam.webm`);
+        downloadMedia(webcamChunks, `recordings/${participantId}_webcam.webm`);
     } else {
         console.warn("No webcam chunks recorded.");
     }
@@ -136,7 +153,7 @@ export function downloadWebcam(participantId = 'subject') {
 
 export function downloadScreen(participantId = 'subject') {
     if (screenChunks.length > 0) {
-        downloadMedia(screenChunks, `${participantId}_screen.webm`);
+        downloadMedia(screenChunks, `recordings/${participantId}_screen.webm`);
     } else {
         console.warn("No screen chunks recorded.");
     }

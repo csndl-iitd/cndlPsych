@@ -9,7 +9,8 @@ export function runExperiment() {
     document.getElementById('app-background').classList.add('hidden');
     document.getElementById('jspsych-container').classList.remove('hidden');
 
-    const jsPsych = initJsPsych({
+    let jsPsych;
+    jsPsych = initJsPsych({
         display_element: 'jspsych-container',
         on_trial_finish: function(data) {
             logger.logEvent('trial_finish', data);
@@ -68,18 +69,35 @@ export function runExperiment() {
             
             // Add click listeners to trigger the downloads on demand
             newWebcamBtn.addEventListener('click', () => {
-                downloadWebcam(participantId);
+                console.log("Webcam download button clicked. Participant ID:", participantId);
+                try {
+                    downloadWebcam(participantId);
+                } catch (err) {
+                    console.error("Error downloading webcam:", err);
+                }
             });
             
             newScreenBtn.addEventListener('click', () => {
-                downloadScreen(participantId);
+                console.log("Screen download button clicked. Participant ID:", participantId);
+                try {
+                    downloadScreen(participantId);
+                } catch (err) {
+                    console.error("Error downloading screen:", err);
+                }
             });
             
             newCsvBtn.addEventListener('click', () => {
-                jsPsych.data.get().localSave('csv', `${participantId}_data.csv`);
+                console.log("CSV download button clicked. Participant ID:", participantId);
+                try {
+                    jsPsych.data.get().localSave('csv', `recordings/${participantId}_data.csv`);
+                    console.log("jsPsych.data.get().localSave CSV call completed.");
+                } catch (err) {
+                    console.error("Error downloading CSV:", err);
+                }
             });
         }
     });
+    window.jsPsych = jsPsych;
 
     const timeline = [];
 
