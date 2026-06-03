@@ -1,0 +1,27 @@
+stimuli:
+  - name: "fixation_plus"
+    stimulus: '<div style="font-size:48px;">+</div>'
+    choices:
+      - "j"
+      - "f"
+    duration: 500
+    trigger: 1
+    post: [100, 600] # Random delay between 400ms and 800ms after fixation cross
+
+  - name: "stimulus_F"
+    stimulus: '<div style="font-size:48px;">F</div>'
+    choices:
+      - "j"
+      - "f"
+    duration: 500
+    trigger: 2
+    post: 0
+
+  - name: "stimulus_J"
+    stimulus: '<div style="font-size:48px;">J</div>'
+    choices:
+      - "j"
+      - "f"
+    duration: 500
+    trigger: 3
+    post: 0

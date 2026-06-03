@@ -1,0 +1,21 @@
+blocks:
+  - id: "setup_surveys"
+    module: "survey"
+
+  - id: "main_task"
+    module: "keyboard_task"
+    config:
+      sequences:
+        - name: "F_trial"
+          sequence:
+            - "fixation_plus"
+            - "stimulus_F"
+          repetitions: 5
+          post: 500
+        - name: "J_trial"
+          sequence:
+            - "fixation_plus"
+            - "stimulus_J"
+          repetitions: 5
+          post: 500
+      randomize: true

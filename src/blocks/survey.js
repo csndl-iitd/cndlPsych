@@ -1,10 +1,10 @@
-// Defines jsPsych timelines for registration and psychometric forms using dynamic HTML5 rendering
+// Dynamic survey block module supporting text, radio, checkbox, dropdown, and Likert inputs
 
 export function generateHtmlForm(questions) {
     if (!questions || !Array.isArray(questions)) return '';
 
     let html = '<div class="custom-jspsych-form" style="text-align: left; max-width: 550px; margin: 0 auto; padding: 25px; background: rgba(15, 23, 42, 0.65); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 12px; box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37); backdrop-filter: blur(8px); color: #f8fafc; font-family: \'Inter\', sans-serif;">';
-    
+
     questions.forEach((q) => {
         const requiredAttr = q.required ? 'required' : '';
         const type = q.type || (q.options && q.options.length > 0 ? 'multi-choice' : 'text');
@@ -63,61 +63,53 @@ export function generateHtmlForm(questions) {
     return html;
 }
 
-export function getRegistrationTimeline() {
-    const questions = [
-        { prompt: "Participant ID:", name: 'participant_id', required: true },
-        { prompt: "Age:", name: 'age', required: true }
-    ];
-    return {
-        type: jsPsychSurveyHtmlForm,
-        html: generateHtmlForm(questions),
-        button_label: "Continue",
-        dataAsArray: true,
-        data: { phase: 'registration', formId: 'participant' }
-    };
-}
+export async function createTimeline(blockConfig) {
+    const timeline = [];
+    const formsFile = blockConfig.config?.forms_file || 'forms.yaml';
+    let formsList = [];
 
-export function getPsychometricTimeline() {
-    const questions = [
-        {
-            prompt: "How are you feeling today?", 
-            name: 'feeling', 
-            type: 'multi-choice',
-            options: ['Very Bad', 'Bad', 'Neutral', 'Good', 'Very Good'], 
-            required: true
-        }
-    ];
-    return {
-        type: jsPsychSurveyHtmlForm,
-        html: generateHtmlForm(questions),
-        button_label: "Continue",
-        dataAsArray: true,
-        data: { phase: 'psychometric', formId: 'psychometric' }
-    };
-}
-
-export async function loadFormsFromYaml(yamlPath = 'forms.yaml') {
     try {
-        const response = await fetch(yamlPath);
+        const response = await fetch(formsFile);
         if (!response.ok) {
-            throw new Error(`Failed to fetch ${yamlPath}: ${response.statusText}`);
+            throw new Error(`Failed to fetch ${formsFile}: ${response.statusText}`);
         }
         const yamlText = await response.text();
         if (typeof jsyaml === 'undefined') {
             throw new Error('jsyaml library is not loaded');
         }
         const parsed = jsyaml.load(yamlText);
-        return parsed.forms || [];
+        formsList = parsed.forms || [];
     } catch (error) {
-        console.error("Error loading forms from YAML:", error);
-        return null;
+        console.error("Error loading forms from YAML inside survey block, using defaults:", error);
+        // Resilient fallback
+        formsList = [
+            {
+                id: "participant",
+                questions: [
+                    { prompt: "Participant ID:", name: 'participant_id', required: true },
+                    { prompt: "Age:", name: 'age', required: true },
+                    {
+                        prompt: "Sex",
+                        name: 'sex',
+                        type: 'multi-choice',
+                        options: ['Male', 'Female'],
+                        required: true
+                    },
+                    {
+                        prompt: "Handedness",
+                        name: 'handedness',
+                        type: 'multi-choice',
+                        options: ['Left', 'Right', 'Ambidextrous'],
+                        required: true
+                    }
+                ]
+            }
+        ];
     }
-}
 
-export function generateTimelineFromForms(formsList) {
-    if (!formsList || !Array.isArray(formsList)) return [];
-    return formsList.map(form => {
-        return {
+    // Map forms to timeline trials
+    formsList.forEach(form => {
+        timeline.push({
             type: jsPsychSurveyHtmlForm,
             html: generateHtmlForm(form.questions),
             button_label: "Continue",
@@ -126,6 +118,8 @@ export function generateTimelineFromForms(formsList) {
                 ...(form.data || {}),
                 formId: form.id
             }
-        };
+        });
     });
+
+    return timeline;
 }

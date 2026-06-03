@@ -1,4 +1,3 @@
-import { getRegistrationTimeline, getPsychometricTimeline, loadFormsFromYaml, generateTimelineFromForms } from './forms.js';
 import { logger } from './logger.js';
 import { stopRecording, downloadWebcam, downloadScreen } from './media.js';
 import { logDataToFirebase } from './firebase.js';
@@ -182,39 +181,47 @@ export async function runExperiment() {
     };
     timeline.push(preload);
 
-    // Load forms dynamically or fall back to static defaults
-    const formsList = await loadFormsFromYaml('forms.yaml');
-    if (formsList && formsList.length > 0) {
-        try {
-            const dynamicTimelines = generateTimelineFromForms(formsList);
-            dynamicTimelines.forEach(t => timeline.push(t));
-        } catch (e) {
-            console.error("Failed to generate dynamic timelines, using fallback static forms:", e);
-            timeline.push(getRegistrationTimeline());
-            timeline.push(getPsychometricTimeline());
+    // Load blocks dynamically from timeline.yaml
+    let blocksConfig = null;
+    try {
+        const response = await fetch('timeline.yaml');
+        if (response.ok) {
+            const yamlText = await response.text();
+            if (typeof jsyaml !== 'undefined') {
+                const parsed = jsyaml.load(yamlText);
+                blocksConfig = parsed.blocks;
+            }
         }
-    } else {
-        console.log("No dynamic forms loaded, using fallback static forms.");
-        timeline.push(getRegistrationTimeline());
-        timeline.push(getPsychometricTimeline());
+    } catch (e) {
+        console.error("Failed to load timeline.yaml, using fallback configuration:", e);
     }
 
-    // Dummy experimental trial with trigger
-    const trial = {
-        type: jsPsychHtmlKeyboardResponse,
-        stimulus: '<div style="font-size:48px;">+</div>',
-        choices: ['j', 'f'],
-        trial_duration: 2000,
-        on_load: function () {
-            // Send trigger at the exact moment stimulus is presented
-            logger.dispatchTrigger(1); // 1 = Stimulus onset trigger
-        },
-        data: { phase: 'experiment_trial' }
-    };
+    if (!blocksConfig || !Array.isArray(blocksConfig)) {
+        console.log("Using built-in fallback timeline configuration.");
+        blocksConfig = [
+            {
+                id: "setup_surveys",
+                module: "survey",
+                config: { forms_file: "forms.yaml" }
+            },
+            {
+                id: "main_task",
+                module: "keyboard_task",
+                trials: null
+            }
+        ];
+    }
 
-    // Add a few trials
-    timeline.push(trial);
-    timeline.push({ ...trial, stimulus: '<div style="font-size:48px;">O</div>', on_load: () => logger.dispatchTrigger(2) });
+    // Dynamic import and build of each block
+    for (const block of blocksConfig) {
+        try {
+            const blockModule = await import(`./blocks/${block.module}.js`);
+            const blockTimeline = await blockModule.createTimeline(block);
+            timeline.push(...blockTimeline);
+        } catch (error) {
+            console.error(`Failed to dynamically load block "${block.id}" using module "${block.module}":`, error);
+        }
+    }
 
     jsPsych.run(timeline);
 }
