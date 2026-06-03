@@ -14,14 +14,60 @@ export function hasScreenStream() {
     return !!(screenStream && screenStream.active);
 }
 
-export async function requestMediaPermissions(recordWebcam, recordScreen) {
+export function getMediaTrackDetails() {
+    const details = {
+        webcam: { current: null, min: null, max: null },
+        screen: { current: null, min: null, max: null }
+    };
+
+    if (webcamStream) {
+        const track = webcamStream.getVideoTracks()[0];
+        if (track) {
+            const settings = track.getSettings();
+            details.webcam.current = settings.frameRate || null;
+
+            if (typeof track.getCapabilities === 'function') {
+                const caps = track.getCapabilities();
+                if (caps.frameRate) {
+                    details.webcam.min = caps.frameRate.min || null;
+                    details.webcam.max = caps.frameRate.max || null;
+                }
+            }
+        }
+    }
+
+    if (screenStream) {
+        const track = screenStream.getVideoTracks()[0];
+        if (track) {
+            const settings = track.getSettings();
+            details.screen.current = settings.frameRate || null;
+
+            if (typeof track.getCapabilities === 'function') {
+                const caps = track.getCapabilities();
+                if (caps.frameRate) {
+                    details.screen.min = caps.frameRate.min || null;
+                    details.screen.max = caps.frameRate.max || null;
+                }
+            }
+        }
+    }
+
+    return details;
+}
+
+export async function requestMediaPermissions(recordWebcam, recordScreen, webcamFps = null, screenFps = null) {
     try {
         if (recordWebcam) {
-            webcamStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+            const videoConstraints = webcamFps ? { frameRate: { ideal: Number(webcamFps) } } : true;
+            webcamStream = await navigator.mediaDevices.getUserMedia({
+                video: videoConstraints,
+                audio: true
+            });
         }
         if (recordScreen) {
+            const videoConstraints = screenFps ? { frameRate: { ideal: Number(screenFps) } } : true;
             screenStream = await navigator.mediaDevices.getDisplayMedia({
-                video: true,
+                video: videoConstraints,
                 audio: false,
                 preferCurrentTab: true
             });
@@ -57,17 +103,15 @@ export function startRecording() {
     }
 }
 
-export function stopRecordingAndDownload(participantId = 'subject') {
+export function stopRecording() {
     if (webcamRecorder && webcamRecorder.state !== 'inactive') {
-        webcamRecorder.onstop = () => downloadMedia(webcamChunks, `${participantId}_webcam.webm`);
         webcamRecorder.stop();
     }
     if (screenRecorder && screenRecorder.state !== 'inactive') {
-        screenRecorder.onstop = () => downloadMedia(screenChunks, `${participantId}_screen.webm`);
         screenRecorder.stop();
     }
 
-    // Stop streams
+    // Stop streams immediately to turn off indicators (webcam light)
     if (webcamStream) {
         webcamStream.getTracks().forEach(track => {
             try { track.stop(); } catch (e) {}
@@ -80,6 +124,27 @@ export function stopRecordingAndDownload(participantId = 'subject') {
         });
         screenStream = null;
     }
+}
+
+export function downloadWebcam(participantId = 'subject') {
+    if (webcamChunks.length > 0) {
+        downloadMedia(webcamChunks, `${participantId}_webcam.webm`);
+    } else {
+        console.warn("No webcam chunks recorded.");
+    }
+}
+
+export function downloadScreen(participantId = 'subject') {
+    if (screenChunks.length > 0) {
+        downloadMedia(screenChunks, `${participantId}_screen.webm`);
+    } else {
+        console.warn("No screen chunks recorded.");
+    }
+}
+
+export function resetRecordingChunks() {
+    webcamChunks = [];
+    screenChunks = [];
 }
 
 function downloadMedia(chunks, filename) {

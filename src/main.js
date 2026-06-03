@@ -1,6 +1,6 @@
 import { initFirebase } from './firebase.js';
 import { setTriggerMode, connectDevice, autoConnectDevice, isTriggerConnected, getTriggerMode, sendTrigger } from './triggers.js';
-import { requestMediaPermissions, startRecording, hasWebcamStream, hasScreenStream } from './media.js';
+import { requestMediaPermissions, startRecording, hasWebcamStream, hasScreenStream, getMediaTrackDetails, downloadWebcam, downloadScreen, resetRecordingChunks } from './media.js';
 import { runExperiment } from './experiment.js';
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -28,6 +28,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const settingsTestBtn = document.getElementById('trigger-test-btn');
     const dashboardTestBtn = document.getElementById('dashboard-test-btn');
 
+    // UI Elements - Target FPS inputs
+    const webcamTargetFps = document.getElementById('webcam-target-fps');
+    const screenTargetFps = document.getElementById('screen-target-fps');
+    const fpsConfigSection = document.getElementById('fps-config-section');
+
+    // UI Elements - Done Panel
+    const returnDashboardBtn = document.getElementById('return-dashboard-btn');
+
     // -------------------------------------------------------------
     // Configuration Caching Helpers
     // -------------------------------------------------------------
@@ -48,16 +56,19 @@ document.addEventListener('DOMContentLoaded', () => {
         const wsUrl = document.getElementById('ws-url').value.trim();
         const recordWebcam = document.getElementById('record-webcam').checked;
         const recordScreen = document.getElementById('record-screen').checked;
+        const webcamFps = webcamTargetFps.value.trim();
+        const screenFps = screenTargetFps.value.trim();
 
         const config = {
             firebase: { apiKey, authDomain, projectId },
             trigger: { mode, wsUrl },
-            media: { recordWebcam, recordScreen }
+            media: { recordWebcam, recordScreen, webcamFps, screenFps }
         };
         localStorage.setItem('cndlpsych_config', JSON.stringify(config));
         return config;
     }
 
+    // Checking if firebase is configured
     function isFirebaseConfigured(config) {
         return !!(config && config.firebase && config.firebase.apiKey && config.firebase.authDomain && config.firebase.projectId);
     }
@@ -87,6 +98,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (config.media) {
             document.getElementById('record-webcam').checked = !!config.media.recordWebcam;
             document.getElementById('record-screen').checked = !!config.media.recordScreen;
+            webcamTargetFps.value = config.media.webcamFps || '';
+            screenTargetFps.value = config.media.screenFps || '';
+            updateFpsConfigSectionVisibility();
         }
     }
 
@@ -160,6 +174,44 @@ document.addEventListener('DOMContentLoaded', () => {
         dbTriggerStatus.classList.add(addClass);
     }
 
+    function updateFpsConfigSectionVisibility() {
+        const recordWebcam = document.getElementById('record-webcam').checked;
+        const recordScreen = document.getElementById('record-screen').checked;
+        if (recordWebcam || recordScreen) {
+            fpsConfigSection.classList.remove('hidden');
+        } else {
+            fpsConfigSection.classList.add('hidden');
+        }
+    }
+
+    function updateFpsInfoLabels() {
+        const details = getMediaTrackDetails();
+        const webcamInfo = document.getElementById('webcam-fps-info');
+        const screenInfo = document.getElementById('screen-fps-info');
+        const recordWebcam = document.getElementById('record-webcam').checked;
+        const recordScreen = document.getElementById('record-screen').checked;
+
+        if (recordWebcam && details.webcam.current) {
+            let text = `Current: ${details.webcam.current} fps`;
+            if (details.webcam.min !== null && details.webcam.max !== null) {
+                text += ` (Range: ${details.webcam.min}-${details.webcam.max})`;
+            }
+            webcamInfo.textContent = text;
+        } else {
+            webcamInfo.textContent = "";
+        }
+
+        if (recordScreen && details.screen.current) {
+            let text = `Current: ${details.screen.current} fps`;
+            if (details.screen.min !== null && details.screen.max !== null) {
+                text += ` (Range: ${details.screen.min}-${details.screen.max})`;
+            }
+            screenInfo.textContent = text;
+        } else {
+            screenInfo.textContent = "";
+        }
+    }
+
     // -------------------------------------------------------------
     // Connection and Test Helpers
     // -------------------------------------------------------------
@@ -214,7 +266,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const needScreen = recordScreen && !hasScreenStream();
             
             if (needWebcam || needScreen) {
-                const success = await requestMediaPermissions(recordWebcam, recordScreen);
+                const webcamFps = webcamTargetFps.value.trim();
+                const screenFps = screenTargetFps.value.trim();
+                
+                const success = await requestMediaPermissions(recordWebcam, recordScreen, webcamFps, screenFps);
                 if (!success) {
                     alert("Media permissions are required to start the experiment with recording enabled.");
                     return;
@@ -334,8 +389,18 @@ document.addEventListener('DOMContentLoaded', () => {
     // Media Options changed auto-saves & visibility
     document.getElementById('record-webcam').addEventListener('change', () => {
         saveAllSettingsToCache();
+        updateFpsConfigSectionVisibility();
     });
     document.getElementById('record-screen').addEventListener('change', () => {
+        saveAllSettingsToCache();
+        updateFpsConfigSectionVisibility();
+    });
+
+    // Target FPS input changes auto-save
+    webcamTargetFps.addEventListener('input', () => {
+        saveAllSettingsToCache();
+    });
+    screenTargetFps.addEventListener('input', () => {
         saveAllSettingsToCache();
     });
 
@@ -360,12 +425,27 @@ document.addEventListener('DOMContentLoaded', () => {
             alert("Please select at least one media type to record.");
             return;
         }
+        
+        const webcamFps = webcamTargetFps.value.trim();
+        const screenFps = screenTargetFps.value.trim();
 
-        const success = await requestMediaPermissions(recordWebcam, recordScreen);
+        const success = await requestMediaPermissions(recordWebcam, recordScreen, webcamFps, screenFps);
         if (success) {
             mediaStatus.textContent = 'Ready';
             mediaStatus.classList.remove('disconnected');
             mediaStatus.classList.add('connected');
+
+            // Autodetect capabilities and show information
+            updateFpsInfoLabels();
+            
+            // Auto-populate target inputs with autodetected values if currently empty
+            const details = getMediaTrackDetails();
+            if (recordWebcam && details.webcam.current && !webcamTargetFps.value) {
+                webcamTargetFps.value = details.webcam.current;
+            }
+            if (recordScreen && details.screen.current && !screenTargetFps.value) {
+                screenTargetFps.value = details.screen.current;
+            }
             
             // Save settings to cache
             saveAllSettingsToCache();
@@ -376,12 +456,27 @@ document.addEventListener('DOMContentLoaded', () => {
     editSettingsBtn.addEventListener('click', () => {
         dashboardPanel.classList.add('hidden');
         settingsPanel.classList.remove('hidden');
+        updateFpsConfigSectionVisibility();
+        if (hasWebcamStream() || hasScreenStream()) {
+            updateFpsInfoLabels();
+        }
     });
 
     settingsBackBtn.addEventListener('click', () => {
         const currentConfig = saveAllSettingsToCache();
         updateDashboardSummary(currentConfig);
         settingsPanel.classList.add('hidden');
+        dashboardPanel.classList.remove('hidden');
+    });
+
+    // Return to Dashboard from Done Screen
+    returnDashboardBtn.addEventListener('click', () => {
+        // Reset recording chunks to free memory
+        resetRecordingChunks();
+        
+        // Show dashboard, hide done screen
+        document.getElementById('done-panel').classList.add('hidden');
+        document.getElementById('app-background').classList.remove('hidden');
         dashboardPanel.classList.remove('hidden');
     });
 

@@ -69,6 +69,21 @@
             </div>
             <button id="test-media-btn" class="btn secondary">Request Permissions</button>
             <span id="media-status" class="status-badge disconnected">Not Ready</span>
+            
+            <div id="fps-config-section" class="hidden" style="margin-top: 1.5rem; border-top: 1px solid rgba(255, 255, 255, 0.05); padding-top: 1.25rem;">
+                <div style="display: flex; gap: 1rem;">
+                    <div style="flex: 1;">
+                        <label style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 0.25rem;">Webcam Target FPS</label>
+                        <span id="webcam-fps-info" style="font-size: 0.75rem; color: var(--accent-color); display: block; margin-bottom: 0.25rem; min-height: 1rem;"></span>
+                        <input type="number" id="webcam-target-fps" placeholder="e.g. 30" style="width: 100%; padding: 0.5rem 0.75rem; background: rgba(0, 0, 0, 0.25); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 6px; color: white; font-size: 0.9rem;">
+                    </div>
+                    <div style="flex: 1;">
+                        <label style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 0.25rem;">Screen Target FPS</label>
+                        <span id="screen-fps-info" style="font-size: 0.75rem; color: var(--accent-color); display: block; margin-bottom: 0.25rem; min-height: 1rem;"></span>
+                        <input type="number" id="screen-target-fps" placeholder="e.g. 60" style="width: 100%; padding: 0.5rem 0.75rem; background: rgba(0, 0, 0, 0.25); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 6px; color: white; font-size: 0.9rem;">
+                    </div>
+                </div>
+            </div>
         </div>
 
         <div class="actions" style="display: flex; gap: 0.5rem; flex-direction: column;">
@@ -117,6 +132,30 @@
         <div class="actions" style="display: flex; gap: 1rem; flex-direction: column;">
             <button id="dashboard-start-btn" class="btn primary">Start Experiment</button>
             <button id="edit-settings-btn" class="btn secondary" style="width: 100%;">Edit Settings</button>
+        </div>
+    </div>
+
+    <div id="done-panel" class="glass-panel hidden">
+        <h1>Experiment Completed</h1>
+        
+        <div class="form-section" style="text-align: center; border-bottom: none; margin-bottom: 1.5rem; padding-bottom: 0;">
+            <div style="font-size: 3.5rem; margin-bottom: 0.5rem; color: var(--success-color); filter: drop-shadow(0 0 10px rgba(16, 185, 129, 0.3));">✓</div>
+            <p style="font-size: 1.05rem; color: #94a3b8; line-height: 1.6; margin-bottom: 0.5rem;">
+                Thank you! The experiment has concluded successfully. You can now download your recorded media and session data below.
+            </p>
+        </div>
+
+        <div class="form-section">
+            <h2>Download Results</h2>
+            <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                <button id="download-csv-btn" class="btn primary" style="margin-top: 0; background: linear-gradient(to right, #3b82f6, #8b5cf6); box-shadow: 0 4px 14px rgba(59, 130, 246, 0.3);">Download CSV Data 📊</button>
+                <button id="download-webcam-btn" class="btn secondary hidden" style="width: 100%;">Download Webcam Recording 📹</button>
+                <button id="download-screen-btn" class="btn secondary hidden" style="width: 100%;">Download Screen Recording 🖥️</button>
+            </div>
+        </div>
+
+        <div class="actions">
+            <button id="return-dashboard-btn" class="btn secondary" style="width: 100%;">Return to Dashboard</button>
         </div>
     </div>
 

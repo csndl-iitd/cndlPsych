@@ -1,10 +1,11 @@
 import { getRegistrationTimeline, getPsychometricTimeline } from './forms.js';
 import { logger } from './logger.js';
-import { stopRecordingAndDownload } from './media.js';
+import { stopRecording, downloadWebcam, downloadScreen } from './media.js';
 
 export function runExperiment() {
-    // Hide settings, show jsPsych container
+    // Hide settings and dashboard panels, show jsPsych container
     document.getElementById('settings-panel').classList.add('hidden');
+    document.getElementById('dashboard-panel').classList.add('hidden');
     document.getElementById('app-background').classList.add('hidden');
     document.getElementById('jspsych-container').classList.remove('hidden');
 
@@ -26,23 +27,57 @@ export function runExperiment() {
                 console.error("Failed to extract participant ID for media naming:", e);
             }
             
-            // Stop stream track immediately and trigger downloads
-            stopRecordingAndDownload(participantId);
-            
-            // Automatically download jsPsych data as CSV
-            jsPsych.data.get().localSave('csv', `${participantId}_data.csv`);
+            // Turn off camera and stop recorder immediately (turns off indicators)
+            stopRecording();
 
-            // Hide jspsych container and restore background + dashboard/settings
+            // Hide jspsych container and show done panel
             document.getElementById('jspsych-container').classList.add('hidden');
-            document.getElementById('app-background').classList.remove('hidden');
             
-            const cachedConfig = JSON.parse(localStorage.getItem('cndlpsych_config') || '{}');
-            const isConfigured = cachedConfig && cachedConfig.firebase && cachedConfig.firebase.apiKey && cachedConfig.firebase.authDomain && cachedConfig.firebase.projectId;
-            if (isConfigured) {
-                document.getElementById('dashboard-panel').classList.remove('hidden');
+            const donePanel = document.getElementById('done-panel');
+            donePanel.classList.remove('hidden');
+            
+            // Configure download buttons
+            const recordWebcam = document.getElementById('record-webcam').checked;
+            const recordScreen = document.getElementById('record-screen').checked;
+            
+            const webcamBtn = document.getElementById('download-webcam-btn');
+            const screenBtn = document.getElementById('download-screen-btn');
+            const csvBtn = document.getElementById('download-csv-btn');
+            
+            if (recordWebcam) {
+                webcamBtn.classList.remove('hidden');
             } else {
-                document.getElementById('settings-panel').classList.remove('hidden');
+                webcamBtn.classList.add('hidden');
             }
+            
+            if (recordScreen) {
+                screenBtn.classList.remove('hidden');
+            } else {
+                screenBtn.classList.add('hidden');
+            }
+            
+            // Clone buttons to clear previous event listeners from other runs
+            const newWebcamBtn = webcamBtn.cloneNode(true);
+            webcamBtn.parentNode.replaceChild(newWebcamBtn, webcamBtn);
+            
+            const newScreenBtn = screenBtn.cloneNode(true);
+            screenBtn.parentNode.replaceChild(newScreenBtn, screenBtn);
+            
+            const newCsvBtn = csvBtn.cloneNode(true);
+            csvBtn.parentNode.replaceChild(newCsvBtn, csvBtn);
+            
+            // Add click listeners to trigger the downloads on demand
+            newWebcamBtn.addEventListener('click', () => {
+                downloadWebcam(participantId);
+            });
+            
+            newScreenBtn.addEventListener('click', () => {
+                downloadScreen(participantId);
+            });
+            
+            newCsvBtn.addEventListener('click', () => {
+                jsPsych.data.get().localSave('csv', `${participantId}_data.csv`);
+            });
         }
     });
 
