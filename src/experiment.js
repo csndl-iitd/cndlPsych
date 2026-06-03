@@ -1,6 +1,32 @@
 import { getRegistrationTimeline, getPsychometricTimeline, loadFormsFromYaml, generateTimelineFromForms } from './forms.js';
 import { logger } from './logger.js';
 import { stopRecording, downloadWebcam, downloadScreen } from './media.js';
+import { logDataToFirebase } from './firebase.js';
+
+export function objectifyFormWithSemicolons(formArray) {
+    if (!formArray || !Array.isArray(formArray)) return formArray;
+    
+    // Group values by name
+    const grouped = {};
+    formArray.forEach(item => {
+        if (!grouped[item.name]) {
+            grouped[item.name] = [];
+        }
+        grouped[item.name].push(item.value);
+    });
+
+    // Objectify: if multiple values, sort them alphabetically and join with ';', otherwise take single value
+    const result = {};
+    Object.keys(grouped).forEach(key => {
+        const vals = grouped[key];
+        if (vals.length > 1) {
+            result[key] = vals.sort().join(';');
+        } else {
+            result[key] = vals[0];
+        }
+    });
+    return result;
+}
 
 export async function runExperiment() {
     // Scroll to top and add scroll event listener to lock page scroll position at 0, 0 during the experiment
@@ -14,11 +40,56 @@ export async function runExperiment() {
     document.getElementById('app-background').classList.add('hidden');
     document.getElementById('jspsych-container').classList.remove('hidden');
 
+    let participantId = null;
+    let sessionNumber = null;
+    let sessionDocId = null;
+
     let jsPsych;
     jsPsych = initJsPsych({
         display_element: 'jspsych-container',
-        on_trial_finish: function (data) {
+        on_trial_finish: async function (data) {
+            if (data && Array.isArray(data.response)) {
+                data.response = objectifyFormWithSemicolons(data.response);
+            }
+
             logger.logEvent('trial_finish', data);
+
+            // 1. Participant form completion: save responses dynamically to 'participants'
+            if (data.formId === 'participant') {
+                const response = data.response || {};
+                const rawParticipantId = response.participant_id || Object.values(response)[0];
+                if (rawParticipantId) {
+                    participantId = String(rawParticipantId).trim().replace(/\s+/g, '-').replace(/[^a-zA-Z0-9_-]/g, '');
+                }
+                await logDataToFirebase('participants', {
+                    ...response,
+                    timestamp: new Date().toISOString()
+                });
+            }
+
+            // 2. Session form completion: save responses dynamically to 'sessions' mapping participant_id
+            if (data.formId === 'session') {
+                const response = data.response || {};
+                const rawSessionNumber = response.session_number || Object.values(response)[0];
+                if (rawSessionNumber) {
+                    sessionNumber = String(rawSessionNumber).trim().replace(/\s+/g, '-').replace(/[^a-zA-Z0-9_-]/g, '');
+                }
+                const sDocId = await logDataToFirebase('sessions', {
+                    ...response,
+                    participant_id: participantId,
+                    timestamp: new Date().toISOString()
+                });
+                if (sDocId) {
+                    sessionDocId = sDocId;
+                }
+            }
+
+            // 3. Save individual trial metrics to 'trials'
+            await logDataToFirebase('trials', {
+                ...data,
+                participant_id: participantId,
+                session_id: sessionDocId || sessionNumber || null
+            });
         },
         on_finish: function () {
             logger.logEvent('experiment_finish');
@@ -26,15 +97,8 @@ export async function runExperiment() {
             // Remove the scroll lock listener
             window.removeEventListener('scroll', forceScrollTop);
 
-            let participantId = 'subject';
-            try {
-                const regData = jsPsych.data.get().filter({ phase: 'registration' }).values()[0];
-                if (regData && regData.response && regData.response.participant_id) {
-                    participantId = regData.response.participant_id.trim().replace(/\s+/g, '-').replace(/[^a-zA-Z0-9_-]/g, '');
-                }
-            } catch (e) {
-                console.error("Failed to extract participant ID for media naming:", e);
-            }
+            const finalParticipantId = participantId || 'subject';
+            const finalSessionId = sessionNumber || 'session';
 
             // Turn off camera and stop recorder immediately (turns off indicators)
             stopRecording();
@@ -77,27 +141,27 @@ export async function runExperiment() {
 
             // Add click listeners to trigger the downloads on demand
             newWebcamBtn.addEventListener('click', () => {
-                console.log("Webcam download button clicked. Participant ID:", participantId);
+                console.log("Webcam download button clicked. Participant ID:", finalParticipantId, "Session ID:", finalSessionId);
                 try {
-                    downloadWebcam(participantId);
+                    downloadWebcam(`${finalParticipantId}_${finalSessionId}`);
                 } catch (err) {
                     console.error("Error downloading webcam:", err);
                 }
             });
 
             newScreenBtn.addEventListener('click', () => {
-                console.log("Screen download button clicked. Participant ID:", participantId);
+                console.log("Screen download button clicked. Participant ID:", finalParticipantId, "Session ID:", finalSessionId);
                 try {
-                    downloadScreen(participantId);
+                    downloadScreen(`${finalParticipantId}_${finalSessionId}`);
                 } catch (err) {
                     console.error("Error downloading screen:", err);
                 }
             });
 
             newCsvBtn.addEventListener('click', () => {
-                console.log("CSV download button clicked. Participant ID:", participantId);
+                console.log("CSV download button clicked. Participant ID:", finalParticipantId, "Session ID:", finalSessionId);
                 try {
-                    jsPsych.data.get().localSave('csv', `${participantId}_data.csv`);
+                    jsPsych.data.get().localSave('csv', `${finalParticipantId}_${finalSessionId}_data.csv`);
                     console.log("jsPsych.data.get().localSave CSV call completed.");
                 } catch (err) {
                     console.error("Error downloading CSV:", err);
