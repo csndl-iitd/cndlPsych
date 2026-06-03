@@ -15,9 +15,34 @@ export function runExperiment() {
         },
         on_finish: function() {
             logger.logEvent('experiment_finish');
-            stopRecordingAndDownload();
+            
+            let participantId = 'subject';
+            try {
+                const regData = jsPsych.data.get().filter({ phase: 'registration' }).values()[0];
+                if (regData && regData.response && regData.response.participant_id) {
+                    participantId = regData.response.participant_id.trim().replace(/\s+/g, '-').replace(/[^a-zA-Z0-9_-]/g, '');
+                }
+            } catch (e) {
+                console.error("Failed to extract participant ID for media naming:", e);
+            }
+            
+            // Stop stream track immediately and trigger downloads
+            stopRecordingAndDownload(participantId);
+            
             // Automatically download jsPsych data as CSV
-            jsPsych.data.get().localSave('csv', 'experiment_data.csv');
+            jsPsych.data.get().localSave('csv', `${participantId}_data.csv`);
+
+            // Hide jspsych container and restore background + dashboard/settings
+            document.getElementById('jspsych-container').classList.add('hidden');
+            document.getElementById('app-background').classList.remove('hidden');
+            
+            const cachedConfig = JSON.parse(localStorage.getItem('cndlpsych_config') || '{}');
+            const isConfigured = cachedConfig && cachedConfig.firebase && cachedConfig.firebase.apiKey && cachedConfig.firebase.authDomain && cachedConfig.firebase.projectId;
+            if (isConfigured) {
+                document.getElementById('dashboard-panel').classList.remove('hidden');
+            } else {
+                document.getElementById('settings-panel').classList.remove('hidden');
+            }
         }
     });
 

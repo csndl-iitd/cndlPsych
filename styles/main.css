@@ -73,6 +73,7 @@ h1 {
     text-align: center;
     background: linear-gradient(to right, #60a5fa, #a78bfa);
     -webkit-background-clip: text;
+    background-clip: text;
     -webkit-text-fill-color: transparent;
 }
 
@@ -211,4 +212,46 @@ input[type="text"]:focus {
 .jspsych-display-element {
     background-color: #000;
     color: white;
+}
+
+/* Dashboard styles */
+.summary-details {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    background: rgba(0, 0, 0, 0.25);
+    padding: 1.25rem;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    margin-bottom: 1rem;
+}
+
+.summary-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.95rem;
+}
+
+.summary-row .label {
+    color: #94a3b8;
+    font-weight: 500;
+}
+
+.summary-row .value {
+    color: white;
+    font-weight: 600;
+}
+
+/* Status message colors */
+.text-success {
+    color: var(--success-color);
+}
+
+.text-error {
+    color: var(--error-color);
+}
+
+.text-accent {
+    color: var(--accent-color);
 }

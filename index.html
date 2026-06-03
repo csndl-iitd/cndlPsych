@@ -50,6 +50,15 @@
             </div>
             <button id="connect-trigger-btn" class="btn secondary">Connect Device</button>
             <span id="trigger-status" class="status-badge disconnected">Disconnected</span>
+            
+            <div id="trigger-test-section" class="input-group hidden" style="margin-top: 1.5rem;">
+                <label>Test Marker Connection</label>
+                <div style="display: flex; gap: 0.5rem; margin-top: 0.25rem;">
+                    <input type="text" id="trigger-test-input" placeholder="Marker Byte (e.g. 1)" value="1" style="flex: 1;">
+                    <button id="trigger-test-btn" class="btn secondary">Send Test Marker</button>
+                </div>
+                <span id="trigger-test-status" style="font-size: 0.85rem; margin-top: 0.5rem; display: block;"></span>
+            </div>
         </div>
 
         <div class="form-section">
@@ -62,10 +71,56 @@
             <span id="media-status" class="status-badge disconnected">Not Ready</span>
         </div>
 
-        <div class="actions">
+        <div class="actions" style="display: flex; gap: 0.5rem; flex-direction: column;">
             <button id="start-experiment-btn" class="btn primary">Start Experiment</button>
+            <button id="settings-back-btn" class="btn secondary hidden" style="width: 100%;">Back to Dashboard</button>
         </div>
     </div>
+
+    <div id="dashboard-panel" class="glass-panel hidden">
+        <h1>Experiment Dashboard</h1>
+        
+        <div class="form-section">
+            <h2>Active Configuration</h2>
+            <div class="summary-details">
+                <div class="summary-row">
+                    <span class="label">Firebase Project:</span>
+                    <span id="summary-firebase-project" class="value">Not Configured</span>
+                </div>
+                <div class="summary-row">
+                    <span class="label">Trigger Mode:</span>
+                    <span id="summary-trigger-mode" class="value">None</span>
+                </div>
+                <div class="summary-row">
+                    <span class="label">Media Recording:</span>
+                    <span id="summary-media-options" class="value">None</span>
+                </div>
+            </div>
+        </div>
+
+        <div id="dashboard-trigger-test" class="form-section hidden">
+            <h2>Trigger Device Status</h2>
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem;">
+                <span id="dashboard-trigger-status" class="status-badge disconnected">Disconnected</span>
+                <button id="dashboard-connect-btn" class="btn secondary">Connect Device</button>
+            </div>
+            <div id="dashboard-test-controls" class="input-group hidden">
+                <label>Test Marker Connection</label>
+                <div style="display: flex; gap: 0.5rem; margin-top: 0.25rem;">
+                    <input type="text" id="dashboard-test-input" placeholder="Marker Byte (e.g. 1)" value="1" style="flex: 1;">
+                    <button id="dashboard-test-btn" class="btn secondary">Send Test Marker</button>
+                </div>
+                <span id="dashboard-test-status" style="font-size: 0.85rem; margin-top: 0.5rem; display: block;"></span>
+            </div>
+        </div>
+
+        <div class="actions" style="display: flex; gap: 1rem; flex-direction: column;">
+            <button id="dashboard-start-btn" class="btn primary">Start Experiment</button>
+            <button id="edit-settings-btn" class="btn secondary" style="width: 100%;">Edit Settings</button>
+        </div>
+    </div>
+
+
 
     <!-- jsPsych container -->
     <div id="jspsych-container" class="hidden"></div>
