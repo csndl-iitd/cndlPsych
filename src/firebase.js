@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-app.js";
-import { getFirestore, collection, addDoc, getDocs, query, where } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore.js";
+import { getFirestore, collection, addDoc, getDocs, query, where, doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore.js";
 
 let app;
 let db;
@@ -104,6 +104,79 @@ export async function getParticipantDetails(participantId) {
         return latestDoc;
     } catch (error) {
         console.error("Error fetching participant details:", error);
+        return null;
+    }
+}
+
+export async function logOrUpdateParticipant(participantId, data) {
+    if (!db) {
+        console.warn("Firebase not initialized. Participant not logged.");
+        return null;
+    }
+    try {
+        const q = query(collection(db, "participants"), where("participant_id", "==", participantId));
+        const querySnapshot = await getDocs(q);
+        
+        let docId = null;
+        querySnapshot.forEach((doc) => {
+            docId = doc.id;
+        });
+        
+        const timestampedData = {
+            ...data,
+            timestamp: new Date().toISOString()
+        };
+        
+        if (docId) {
+            console.log(`[Firebase] Participant ${participantId} exists (doc ID: ${docId}). Updating...`);
+            await updateDoc(doc(db, "participants", docId), timestampedData);
+            return docId;
+        } else {
+            console.log(`[Firebase] Participant ${participantId} does not exist. Creating new...`);
+            const docRef = await addDoc(collection(db, "participants"), timestampedData);
+            return docRef.id;
+        }
+    } catch (e) {
+        console.error("Error logging/updating participant: ", e);
+        return null;
+    }
+}
+
+export async function logOrUpdateSession(participantId, sessionNumber, data) {
+    if (!db) {
+        console.warn("Firebase not initialized. Session not logged.");
+        return null;
+    }
+    try {
+        const q = query(
+            collection(db, "sessions"), 
+            where("participant_id", "==", participantId), 
+            where("session_number", "==", sessionNumber)
+        );
+        const querySnapshot = await getDocs(q);
+        
+        let docId = null;
+        querySnapshot.forEach((doc) => {
+            docId = doc.id;
+        });
+        
+        const timestampedData = {
+            ...data,
+            participant_id: participantId,
+            timestamp: new Date().toISOString()
+        };
+        
+        if (docId) {
+            console.log(`[Firebase] Session ${sessionNumber} for ${participantId} exists (doc ID: ${docId}). Updating...`);
+            await updateDoc(doc(db, "sessions", docId), timestampedData);
+            return docId;
+        } else {
+            console.log(`[Firebase] Session ${sessionNumber} for ${participantId} does not exist. Creating new...`);
+            const docRef = await addDoc(collection(db, "sessions"), timestampedData);
+            return docRef.id;
+        }
+    } catch (e) {
+        console.error("Error logging/updating session: ", e);
         return null;
     }
 }

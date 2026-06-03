@@ -1,6 +1,6 @@
 import { logger } from './logger.js';
 import { stopRecording, downloadWebcam, downloadScreen } from './media.js';
-import { logDataToFirebase } from './firebase.js';
+import { logDataToFirebase, logOrUpdateParticipant, logOrUpdateSession } from './firebase.js';
 
 export function objectifyFormWithSemicolons(formArray) {
     if (!formArray || !Array.isArray(formArray)) return formArray;
@@ -63,10 +63,7 @@ export async function runExperiment() {
                     response.participant_id = formattedId;
                     participantId = formattedId;
                 }
-                await logDataToFirebase('participants', {
-                    ...response,
-                    timestamp: new Date().toISOString()
-                });
+                await logOrUpdateParticipant(participantId, response);
             }
 
             // 2. Session form completion: save responses dynamically to 'sessions' mapping participant_id
@@ -79,11 +76,7 @@ export async function runExperiment() {
                     response.session_number = formattedSession;
                     sessionNumber = formattedSession;
                 }
-                const sDocId = await logDataToFirebase('sessions', {
-                    ...response,
-                    participant_id: participantId,
-                    timestamp: new Date().toISOString()
-                });
+                const sDocId = await logOrUpdateSession(participantId, sessionNumber, response);
                 if (sDocId) {
                     sessionDocId = sDocId;
                 }
