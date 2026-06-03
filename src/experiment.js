@@ -3,6 +3,11 @@ import { logger } from './logger.js';
 import { stopRecording, downloadWebcam, downloadScreen } from './media.js';
 
 export function runExperiment() {
+    // Scroll to top and add scroll event listener to lock page scroll position at 0, 0 during the experiment
+    window.scrollTo(0, 0);
+    const forceScrollTop = () => window.scrollTo(0, 0);
+    window.addEventListener('scroll', forceScrollTop);
+
     // Hide settings and dashboard panels, show jsPsych container
     document.getElementById('settings-panel').classList.add('hidden');
     document.getElementById('dashboard-panel').classList.add('hidden');
@@ -12,12 +17,15 @@ export function runExperiment() {
     let jsPsych;
     jsPsych = initJsPsych({
         display_element: 'jspsych-container',
-        on_trial_finish: function(data) {
+        on_trial_finish: function (data) {
             logger.logEvent('trial_finish', data);
         },
-        on_finish: function() {
+        on_finish: function () {
             logger.logEvent('experiment_finish');
             
+            // Remove the scroll lock listener
+            window.removeEventListener('scroll', forceScrollTop);
+
             let participantId = 'subject';
             try {
                 const regData = jsPsych.data.get().filter({ phase: 'registration' }).values()[0];
@@ -27,46 +35,46 @@ export function runExperiment() {
             } catch (e) {
                 console.error("Failed to extract participant ID for media naming:", e);
             }
-            
+
             // Turn off camera and stop recorder immediately (turns off indicators)
             stopRecording();
 
             // Hide jspsych container and show done panel
             document.getElementById('jspsych-container').classList.add('hidden');
-            
+
             const donePanel = document.getElementById('done-panel');
             donePanel.classList.remove('hidden');
-            
+
             // Configure download buttons
             const recordWebcam = document.getElementById('record-webcam').checked;
             const recordScreen = document.getElementById('record-screen').checked;
-            
+
             const webcamBtn = document.getElementById('download-webcam-btn');
             const screenBtn = document.getElementById('download-screen-btn');
             const csvBtn = document.getElementById('download-csv-btn');
-            
+
             if (recordWebcam) {
                 webcamBtn.classList.remove('hidden');
             } else {
                 webcamBtn.classList.add('hidden');
             }
-            
+
             if (recordScreen) {
                 screenBtn.classList.remove('hidden');
             } else {
                 screenBtn.classList.add('hidden');
             }
-            
+
             // Clone buttons to clear previous event listeners from other runs
             const newWebcamBtn = webcamBtn.cloneNode(true);
             webcamBtn.parentNode.replaceChild(newWebcamBtn, webcamBtn);
-            
+
             const newScreenBtn = screenBtn.cloneNode(true);
             screenBtn.parentNode.replaceChild(newScreenBtn, screenBtn);
-            
+
             const newCsvBtn = csvBtn.cloneNode(true);
             csvBtn.parentNode.replaceChild(newCsvBtn, csvBtn);
-            
+
             // Add click listeners to trigger the downloads on demand
             newWebcamBtn.addEventListener('click', () => {
                 console.log("Webcam download button clicked. Participant ID:", participantId);
@@ -76,7 +84,7 @@ export function runExperiment() {
                     console.error("Error downloading webcam:", err);
                 }
             });
-            
+
             newScreenBtn.addEventListener('click', () => {
                 console.log("Screen download button clicked. Participant ID:", participantId);
                 try {
@@ -85,7 +93,7 @@ export function runExperiment() {
                     console.error("Error downloading screen:", err);
                 }
             });
-            
+
             newCsvBtn.addEventListener('click', () => {
                 console.log("CSV download button clicked. Participant ID:", participantId);
                 try {
@@ -104,8 +112,8 @@ export function runExperiment() {
     // Preload trial
     const preload = {
         type: jsPsychPreload,
-        auto_preload: true, 
-        images: [], 
+        auto_preload: true,
+        images: [],
         audio: []
     };
     timeline.push(preload);
@@ -120,13 +128,13 @@ export function runExperiment() {
         stimulus: '<div style="font-size:48px;">+</div>',
         choices: ['j', 'f'],
         trial_duration: 2000,
-        on_load: function() {
+        on_load: function () {
             // Send trigger at the exact moment stimulus is presented
             logger.dispatchTrigger(1); // 1 = Stimulus onset trigger
         },
         data: { phase: 'experiment_trial' }
     };
-    
+
     // Add a few trials
     timeline.push(trial);
     timeline.push({ ...trial, stimulus: '<div style="font-size:48px;">O</div>', on_load: () => logger.dispatchTrigger(2) });
