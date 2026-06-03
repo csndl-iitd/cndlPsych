@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Psychophysics Experiment Platform</title>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- jsPsych Styles -->
+    <link href="https://unpkg.com/jspsych@8.0.0/css/jspsych.css" rel="stylesheet" type="text/css" />
+    <link rel="stylesheet" href="styles/main.css">
+</head>
+<body>
+    <div id="app-background"></div>
+    
+    <div id="settings-panel" class="glass-panel">
+        <h1>Experiment Configuration</h1>
+        
+        <div class="form-section">
+            <h2>1. Firebase Configuration</h2>
+            <div class="input-group">
+                <label>API Key</label>
+                <input type="text" id="fb-apikey" placeholder="AIzaSy...">
+            </div>
+            <div class="input-group">
+                <label>Auth Domain</label>
+                <input type="text" id="fb-authdomain" placeholder="project-id.firebaseapp.com">
+            </div>
+            <div class="input-group">
+                <label>Project ID</label>
+                <input type="text" id="fb-projectid" placeholder="project-id">
+            </div>
+            <button id="save-fb-btn" class="btn secondary">Save Config</button>
+            <span id="fb-status" class="status-badge disconnected">Unconfigured</span>
+        </div>
+
+        <div class="form-section">
+            <h2>2. Trigger Mechanism</h2>
+            <div class="radio-group">
+                <label><input type="radio" name="trigger-mode" value="none" checked> None</label>
+                <label><input type="radio" name="trigger-mode" value="webserial"> WebSerial (PC)</label>
+                <label><input type="radio" name="trigger-mode" value="webusb"> WebUSB (Android)</label>
+                <label><input type="radio" name="trigger-mode" value="websocket"> WebSocket</label>
+            </div>
+            <div id="websocket-config" class="hidden">
+                <div class="input-group">
+                    <label>WebSocket URL</label>
+                    <input type="text" id="ws-url" placeholder="ws://localhost:8080">
+                </div>
+            </div>
+            <button id="connect-trigger-btn" class="btn secondary">Connect Device</button>
+            <span id="trigger-status" class="status-badge disconnected">Disconnected</span>
+        </div>
+
+        <div class="form-section">
+            <h2>3. Media Recording</h2>
+            <div class="checkbox-group">
+                <label><input type="checkbox" id="record-webcam"> Record Webcam</label>
+                <label><input type="checkbox" id="record-screen"> Record Screen</label>
+            </div>
+            <button id="test-media-btn" class="btn secondary">Request Permissions</button>
+            <span id="media-status" class="status-badge disconnected">Not Ready</span>
+        </div>
+
+        <div class="actions">
+            <button id="start-experiment-btn" class="btn primary">Start Experiment</button>
+        </div>
+    </div>
+
+    <!-- jsPsych container -->
+    <div id="jspsych-container" class="hidden"></div>
+
+    <!-- jsPsych Library (latest v8) -->
+    <script src="https://unpkg.com/jspsych@8.0.0"></script>
+    <script src="https://unpkg.com/@jspsych/plugin-html-keyboard-response@2.0.0"></script>
+    <script src="https://unpkg.com/@jspsych/plugin-image-keyboard-response@2.0.0"></script>
+    <script src="https://unpkg.com/@jspsych/plugin-preload@2.0.0"></script>
+    <script src="https://unpkg.com/@jspsych/plugin-survey-text@2.0.0"></script>
+    <script src="https://unpkg.com/@jspsych/plugin-survey-multi-choice@2.0.0"></script>
+
+    <!-- Main Module -->
+    <script type="module" src="src/main.js"></script>
+</body>
+</html>
