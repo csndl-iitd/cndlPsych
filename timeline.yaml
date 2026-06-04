@@ -5,26 +5,42 @@ blocks:
   - id: "main_task"
     module: "keyboard_task"
     config:
-      sequences:
+      trials:
         - name: "F_trial"
+          start: "fixation_plus"
           sequence:
-            - "fixation_plus"
             - "stimulus_F"
+          shuffle: false
+          choices:
+            - "j"
+            - "f"
+          correct_response: "f"
+          response_stimuli:
+            correct: "feedback_correct"
+            incorrect: "feedback_incorrect"
+          post: [400, 800]
           repetitions: 5
-          post: 500
         - name: "J_trial"
+          start: "fixation_plus"
           sequence:
-            - "fixation_plus"
             - "stimulus_J"
+          shuffle: false
+          choices:
+            - "j"
+            - "f"
+          correct_response: "j"
+          response_stimuli:
+            correct: "feedback_correct"
+            incorrect: "feedback_incorrect"
+          post: [400, 800]
           repetitions: 5
-          post: 500
-      randomize: true
+      shuffle_trials: true
 
-  - id: "stroop_task"
-    module: "stroop"
-    config:
-      repetitions: 1
-      randomize: true
-      post: [200, 500]
-      fixation_duration: 500
-      trial_duration: 2000
+  # - id: "stroop_task"
+  #   module: "stroop"
+  #   config:
+  #     repetitions: 1
+  #     randomize: true
+  #     post: [200, 500]
+  #     fixation_duration: 500
+  #     trial_duration: 2000

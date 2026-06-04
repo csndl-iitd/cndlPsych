@@ -1,9 +1,13 @@
 let triggerMode = 'none'; // 'none', 'webserial', 'webusb', 'websocket'
+let triggerFormat = 'character'; // 'character', 'hex'
 let port = null; // Serial port or USB device
 let ws = null; // WebSocket
 
 export function setTriggerMode(mode, config = {}) {
     triggerMode = mode;
+    if (config.format) {
+        triggerFormat = config.format;
+    }
     if (mode === 'websocket' && config.url) {
         connectWebSocket(config.url);
     }
@@ -87,9 +91,23 @@ export async function sendTrigger(value) {
     if (triggerMode === 'none') return;
     const startTime = performance.now();
     
+    // Parse value as integer (handling hex string notation "0x...")
+    let triggerInt = parseInt(value, 10);
+    if (String(value).toLowerCase().startsWith("0x")) {
+        triggerInt = parseInt(value, 16);
+    }
+    
     let data;
     if (triggerMode === 'webserial' || triggerMode === 'webusb') {
-        data = new TextEncoder().encode(String(value) + "\n");
+        if (triggerFormat === 'hex') {
+            if (isNaN(triggerInt)) {
+                console.warn(`Invalid integer/hex value for trigger: ${value}`);
+                triggerInt = 0;
+            }
+            data = new Uint8Array([triggerInt]);
+        } else {
+            data = new TextEncoder().encode(String(value) + "\n");
+        }
     }
 
     try {
@@ -106,7 +124,15 @@ export async function sendTrigger(value) {
             await port.transferOut(1, data); 
         } else if (triggerMode === 'websocket') {
             if (!ws || ws.readyState !== WebSocket.OPEN) throw new Error("WebSocket not connected");
-            ws.send(JSON.stringify({ trigger: String(value) + "\n", time: startTime }));
+            if (triggerFormat === 'hex') {
+                ws.send(JSON.stringify({ 
+                    trigger: triggerInt, 
+                    hex: "0x" + (isNaN(triggerInt) ? "00" : triggerInt.toString(16).toUpperCase()), 
+                    time: startTime 
+                }));
+            } else {
+                ws.send(JSON.stringify({ trigger: String(value) + "\n", time: startTime }));
+            }
         }
     } catch (err) {
         console.error("Failed to send trigger:", err);

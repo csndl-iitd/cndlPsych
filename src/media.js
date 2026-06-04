@@ -58,16 +58,16 @@ export function getMediaTrackDetails() {
 export async function requestMediaPermissions(recordWebcam, recordScreen, webcamFps = null, screenFps = null) {
     try {
         if (recordWebcam) {
-            const videoConstraints = webcamFps ? { frameRate: { ideal: Number(webcamFps) } } : true;
+            const fps = webcamFps ? Number(webcamFps) : 30;
             webcamStream = await navigator.mediaDevices.getUserMedia({
-                video: videoConstraints,
+                video: { frameRate: { ideal: fps, exact: fps } },
                 audio: true
             });
         }
         if (recordScreen) {
-            const videoConstraints = screenFps ? { frameRate: { ideal: Number(screenFps) } } : true;
+            const fps = screenFps ? Number(screenFps) : 30;
             screenStream = await navigator.mediaDevices.getDisplayMedia({
-                video: videoConstraints,
+                video: { frameRate: { ideal: fps, exact: fps } },
                 audio: false,
                 preferCurrentTab: true
             });

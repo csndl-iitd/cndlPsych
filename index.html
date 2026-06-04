@@ -30,6 +30,11 @@
                 <label>Project ID</label>
                 <input type="text" id="fb-projectid" placeholder="project-id">
             </div>
+            <div class="checkbox-group" style="margin-bottom: 1.25rem;">
+                <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; color: #cbd5e1; user-select: none;">
+                    <input type="checkbox" id="fb-firestore-recording" checked style="width: 16px; height: 16px; accent-color: #8b5cf6;"> Enable Firestore Recording
+                </label>
+            </div>
             <button id="save-fb-btn" class="btn secondary">Save Config</button>
             <span id="fb-status" class="status-badge disconnected">Unconfigured</span>
         </div>
@@ -47,6 +52,13 @@
                     <label>WebSocket URL</label>
                     <input type="text" id="ws-url" placeholder="ws://localhost:8080">
                 </div>
+            </div>
+            <div class="input-group" style="margin-top: 1rem; margin-bottom: 1rem;">
+                <label style="font-size: 0.85rem; color: #94a3b8; display: block; margin-bottom: 0.25rem;">Trigger Format</label>
+                <select id="trigger-format" style="width: 100%; padding: 0.5rem 0.75rem; background: rgba(0, 0, 0, 0.25); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 6px; color: white; font-size: 0.9rem; outline: none; box-sizing: border-box; cursor: pointer;">
+                    <option value="character">Character (e.g. "10\n")</option>
+                    <option value="hex">Raw Hex Value (e.g. 0x0A)</option>
+                </select>
             </div>
             <button id="connect-trigger-btn" class="btn secondary">Connect Device</button>
             <span id="trigger-status" class="status-badge disconnected">Disconnected</span>

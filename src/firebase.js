@@ -3,8 +3,15 @@ import { getFirestore, collection, addDoc, getDocs, query, where, doc, updateDoc
 
 let app;
 let db;
+let enableFirestore = true;
 
 export function initFirebase(config) {
+    enableFirestore = config && config.enableFirestore !== false;
+    if (!enableFirestore) {
+        console.log("Firestore recording is disabled (Local-only mode).");
+        db = null;
+        return true;
+    }
     try {
         app = initializeApp(config);
         db = getFirestore(app);
@@ -13,6 +20,10 @@ export function initFirebase(config) {
         console.error("Firebase initialization error:", error);
         return false;
     }
+}
+
+export function isFirestoreEnabled() {
+    return !!(db && enableFirestore);
 }
 
 export async function logDataToFirebase(collectionName, data) {

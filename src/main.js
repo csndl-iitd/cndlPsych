@@ -52,16 +52,18 @@ document.addEventListener('DOMContentLoaded', () => {
         const apiKey = document.getElementById('fb-apikey').value.trim();
         const authDomain = document.getElementById('fb-authdomain').value.trim();
         const projectId = document.getElementById('fb-projectid').value.trim();
+        const enableFirestore = document.getElementById('fb-firestore-recording').checked;
         const mode = document.querySelector('input[name="trigger-mode"]:checked')?.value || 'none';
         const wsUrl = document.getElementById('ws-url').value.trim();
+        const format = document.getElementById('trigger-format').value;
         const recordWebcam = document.getElementById('record-webcam').checked;
         const recordScreen = document.getElementById('record-screen').checked;
         const webcamFps = webcamTargetFps.value.trim();
         const screenFps = screenTargetFps.value.trim();
 
         const config = {
-            firebase: { apiKey, authDomain, projectId },
-            trigger: { mode, wsUrl },
+            firebase: { apiKey, authDomain, projectId, enableFirestore },
+            trigger: { mode, wsUrl, format },
             media: { recordWebcam, recordScreen, webcamFps, screenFps }
         };
         localStorage.setItem('cndlpsych_config', JSON.stringify(config));
@@ -70,6 +72,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Checking if firebase is configured
     function isFirebaseConfigured(config) {
+        if (config && config.firebase && config.firebase.enableFirestore === false) {
+            return true; // Local-only mode: valid without credentials
+        }
         return !!(config && config.firebase && config.firebase.apiKey && config.firebase.authDomain && config.firebase.projectId);
     }
 
@@ -78,6 +83,7 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('fb-apikey').value = config.firebase.apiKey || '';
             document.getElementById('fb-authdomain').value = config.firebase.authDomain || '';
             document.getElementById('fb-projectid').value = config.firebase.projectId || '';
+            document.getElementById('fb-firestore-recording').checked = config.firebase.enableFirestore !== false;
         }
         
         if (config.trigger) {
@@ -87,6 +93,9 @@ document.addEventListener('DOMContentLoaded', () => {
             
             const wsUrl = document.getElementById('ws-url');
             if (wsUrl) wsUrl.value = config.trigger.wsUrl || '';
+            
+            const format = config.trigger.format || 'character';
+            document.getElementById('trigger-format').value = format;
             
             if (mode === 'websocket') {
                 wsConfig.classList.remove('hidden');
@@ -110,8 +119,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const mediaOptionsSpan = document.getElementById('summary-media-options');
 
         if (isFirebaseConfigured(config)) {
-            fbProjectSpan.textContent = config.firebase.projectId;
-            fbProjectSpan.className = "value text-success";
+            if (config.firebase && config.firebase.enableFirestore === false) {
+                fbProjectSpan.textContent = "Local Mode";
+                fbProjectSpan.className = "value text-success";
+            } else {
+                fbProjectSpan.textContent = config.firebase.projectId;
+                fbProjectSpan.className = "value text-success";
+            }
         } else {
             fbProjectSpan.textContent = "Not Configured";
             fbProjectSpan.className = "value text-error";
@@ -298,14 +312,18 @@ document.addEventListener('DOMContentLoaded', () => {
         // Init Firebase
         const fbSuccess = initFirebase(config.firebase);
         if (fbSuccess) {
-            fbStatus.textContent = 'Configured';
+            if (config.firebase && config.firebase.enableFirestore === false) {
+                fbStatus.textContent = 'Local Mode';
+            } else {
+                fbStatus.textContent = 'Configured';
+            }
             fbStatus.classList.remove('disconnected');
             fbStatus.classList.add('connected');
         }
 
         // Init Trigger mode
         const trigMode = config.trigger?.mode || 'none';
-        setTriggerMode(trigMode, { url: config.trigger?.wsUrl });
+        setTriggerMode(trigMode, { url: config.trigger?.wsUrl, format: config.trigger?.format });
         
         // Attempt Auto Connect
         autoConnectDevice().then(() => {
@@ -333,18 +351,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Firebase Config Save
     fbSaveBtn.addEventListener('click', () => {
+        const enableFirestore = document.getElementById('fb-firestore-recording').checked;
         const apiKey = document.getElementById('fb-apikey').value.trim();
         const authDomain = document.getElementById('fb-authdomain').value.trim();
         const projectId = document.getElementById('fb-projectid').value.trim();
         
-        if (!apiKey || !authDomain || !projectId) {
-            alert("Please fill all Firebase fields");
+        if (enableFirestore && (!apiKey || !authDomain || !projectId)) {
+            alert("Please fill all Firebase fields, or disable Firestore Recording for local-only mode.");
             return;
         }
 
-        const success = initFirebase({ apiKey, authDomain, projectId });
+        const success = initFirebase({ apiKey, authDomain, projectId, enableFirestore });
         if (success) {
-            fbStatus.textContent = 'Configured';
+            if (!enableFirestore) {
+                fbStatus.textContent = 'Local Mode';
+            } else {
+                fbStatus.textContent = 'Configured';
+            }
             fbStatus.classList.remove('disconnected');
             fbStatus.classList.add('connected');
 
