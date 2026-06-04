@@ -2,7 +2,7 @@ blocks:
   - id: "setup_surveys"
     module: "survey"
 
-  - id: "main_task"
+  - id: "reaction_task"
     module: "keyboard_task"
     config:
       trials:
@@ -36,11 +36,11 @@ blocks:
           repetitions: 5
       shuffle_trials: true
 
-  # - id: "stroop_task"
-  #   module: "stroop"
-  #   config:
-  #     repetitions: 1
-  #     randomize: true
-  #     post: [200, 500]
-  #     fixation_duration: 500
-  #     trial_duration: 2000
+  - id: "stroop_task"
+    module: "stroop"
+    config:
+      repetitions: 1
+      randomize: true
+      post: [200, 500]
+      fixation_duration: 500
+      trial_duration: 2000
