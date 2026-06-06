@@ -15,7 +15,9 @@ Use this repository as a boilerplate to develop, configure, and deploy BIDS-comp
 6. [BIDS Compatibility & Minimal Required Forms](#6-bids-compatibility--minimal-required-forms)
 7. [Creating Coded Blocks](#7-creating-coded-blocks)
 8. [Hardware Triggers & Event Logging](#8-hardware-triggers--event-logging)
-9. [Example Trigger Receivers](#9-example-trigger-receivers)
+9. [How to Write Custom Receivers](#9-how-to-write-custom-receivers)
+10. [Example Trigger Receivers](#10-example-trigger-receivers)
+11. [Setup Notes & Best Practices](#11-setup-notes--best-practices)
 
 ---
 
@@ -234,6 +236,18 @@ To create a new coded block:
     ```
 3.  Add the block ID and module name to `timeline.yaml` to include it in the experiment execution path.
 
+> [!WARNING]
+> **Dynamic ES Module Caching Gotcha:**
+> Modern browsers aggressively cache dynamically imported ES modules (e.g., `await import('./blocks/your_block.js')`) in an internal V8 module registry.
+> 
+> Even if you edit a custom JavaScript block file on disk and perform a **Hard Reload (Ctrl + F5)**, the browser may continue to run the old cached code from memory.
+> 
+> **How to bypass:** To ensure code changes to JavaScript blocks take effect immediately during development:
+> 1. Open the browser's **Developer Tools (F12)**.
+> 2. Navigate to the **Network** tab.
+> 3. Check **Disable cache**.
+> 4. Keep the Developer Tools panel open while testing.
+
 ### Template and Asset Loading
 You can fetch stimuli and trial templates from `stimuli.yaml` inside your custom module to decouple visual assets from code:
 
@@ -269,6 +283,25 @@ For EEG/MEG/fNIRS synchronization, send triggers at critical experimental milest
 logger.dispatchTrigger(11);
 ```
 
+### Under the Hood: Trigger Implementations
+Depending on your configuration in the UI settings panel, trigger dispatching behaves differently:
+
+#### A. Serial Port (WebSerial & WebUSB)
+When running in `WebSerial` or `WebUSB` mode, the platform writes raw data directly to the device interface:
+*   **Character Format:** Converts the value to a string, appends a newline character (`\n`), and transmits the ASCII/UTF-8 encoded bytes. For example, sending trigger `11` transmits `[49, 49, 10]`.
+*   **Hex Format:** Directly transmits the value as a single, unsigned 8-bit byte. For example, sending trigger `11` transmits `[11]` (which is `0x0B`).
+
+#### B. WebSockets
+When running in `WebSocket` mode, the platform dispatches a JSON-stringified packet containing timing and numeric metadata:
+*   **Character Format:** Sends `{"trigger": "11\n", "time": <performance_now_timestamp>}`.
+*   **Hex Format:** Sends `{"trigger": 11, "hex": "0x0B", "time": <performance_now_timestamp>}`.
+
+> [!NOTE]
+> **Understanding the `time` (time_offset) Parameter:**
+> The `time` value sent in WebSocket packets is captured using the browser's `performance.now()` API immediately before transmission. This timestamp represents the exact millisecond offset (with microsecond precision) relative to when the experiment page loaded.
+>
+> **Why this matters:** WebSocket transmission is asynchronous and prone to operating system context-switching or network queueing delays (jitter). By capturing the timestamp in the browser immediately at trigger invocation, the Python receiver can record the *exact* moment the event happened on the screen, compensating for any network transmission lag.
+
 #### Standard Marker Key (Example System):
 *   `10`: Fixation Cross Onset
 *   `11`: Congruent Stimulus Onset
@@ -279,12 +312,78 @@ logger.dispatchTrigger(11);
 
 ---
 
-## 9. Example Trigger Receivers
+## 9. How to Write Custom Receivers
 
-The [`examples/`](examples) folder contains utility Python scripts to receive and display triggers sent by the platform:
+If you are writing your own script, software interface, or hardware firmware (e.g., for Arduino, LabStreamingLayer, or custom EEG software) to receive triggers, you should follow these protocol rules:
 
-*   **Serial/COM Port Receiver ([read_serial_triggers.py](examples/read_serial_triggers.py))**: Listens on a local serial interface (Virtual COM port) for markers. This script can be used to listen to WebSerial (PC) or WebUSB (Android) emulated serial connections.
+### A. Implementing a Serial Port Receiver
+*   **Baud Rate & Settings:** Configure your serial port connection to **115,200 Baud**, 8 data bits, no parity, and 1 stop bit (8N1).
+*   **Handling Character Format:** 
+    *   The platform sends the trigger as an ASCII string followed by a newline byte (`10` / `0x0A` / `\n`).
+    *   **Implementation:** Accumulate incoming bytes into a buffer until you read the byte `10`. Then, decode the buffer (excluding the newline) as a UTF-8/ASCII string, strip whitespace, and parse the resulting text as an integer.
+*   **Handling Hex Format:** 
+    *   The platform sends a single, raw unsigned 8-bit byte representing the trigger value directly.
+    *   **Implementation:** Read individual bytes directly as they arrive. Each byte represents the integer trigger value (e.g., receiving `0x5A` translates directly to decimal trigger `90`).
+
+### B. Implementing a WebSocket Server Receiver
+*   **Network Role:** Your receiver must run a **WebSocket server** listening on a port configured in the platform (e.g., `ws://localhost:8080`). The browser experiment acts as the client and establishes the connection.
+*   **Data Format:** The browser sends all messages as text frames containing a JSON-stringified object.
+*   **Parsing JSON Objects:**
+    *   **In Character Mode:** The JSON object contains:
+        *   `trigger` (string): The trigger value with a trailing newline (e.g., `"11\n"`).
+        *   `time` (number): Browser-side high-resolution time offset in milliseconds.
+    *   **In Hex Mode:** The JSON object contains:
+        *   `trigger` (number): The integer trigger value (e.g., `11`).
+        *   `hex` (string): The hexadecimal string representation (e.g., `"0x0B"`).
+        *   `time` (number): Browser-side high-resolution time offset in milliseconds.
+
+---
+
+## 10. Example Trigger Receivers
+
+The [`examples/`](examples) folder contains utility Python scripts implementing the logic above:
+
+*   **Serial/COM Port Receiver ([read_serial_triggers.py](examples/read_serial_triggers.py))**: Listens on a local serial interface (Virtual COM port) for markers. Handles both character buffering and raw byte processing.
 *   **WebSocket Server Receiver ([read_websocket_triggers.py](examples/read_websocket_triggers.py))**: Runs a local WebSocket server that receives JSON packets containing triggers, hex values, and high-resolution timestamps.
 
 See the header documentation inside each script for installation requirements and usage guidelines.
+
+---
+
+## 11. Setup Notes & Best Practices
+
+Depending on the device running the experiment, use these guidelines to configure your environment:
+
+### Setup for Smartphone-Based Experiment Devices
+*   **WebUSB for Direct Hardware Triggering** `**[Android]**`**:**
+    *   To trigger external hardware (e.g., Arduinos or serial controllers) directly from a smartphone, connect the device to the phone's charging port using a **USB OTG (On-The-Go) cable/adapter**.
+    *   *Note on iOS:* iOS (Safari and other browsers) does not support WebUSB due to platform sandbox limitations. This direct method is only compatible with Android browsers like Chrome.
+*   **Wired USB Trigger Relay (USB Tethering / Hotspot + WebSocket)** `**[Android / iOS]**`**:**
+    *   If you need to send triggers from a smartphone to a host PC running recording/analysis software (without intermediate microcontrollers or local Wi-Fi):
+        1. Connect the phone to the PC with a USB cable.
+        2. Enable wired network sharing:
+            *   **Android:** Enable **USB Tethering** in your phone Settings (under *Network & Internet > Hotspot & Tethering*).
+            *   **iOS:** Enable **Personal Hotspot** under settings and connect the iPhone to the PC via USB (on Windows, this requires iTunes/Apple USB drivers installed).
+        3. Identify the IP address of this tethered/hotspot interface on the PC (e.g., via `ipconfig` on Windows or `ifconfig` on macOS/Linux).
+        4. Run `read_websocket_triggers.py` on the PC, binding it to that interface IP.
+        5. Enter `ws://<PC_INTERFACE_IP>:8080` in the experiment settings on the phone. Triggers will be transmitted over the wired USB connection.
+*   **Wireless Triggering (Wi-Fi + WebSocket)** `**[Android / iOS]**`**:**
+    *   Ensure the smartphone and the recording PC are on the same local Wi-Fi network.
+    *   Run the Python WebSocket server on the PC and enter the PC's Wi-Fi network IP address in the phone's experiment dashboard.
+
+### Setup for PC-Based Experiment Devices
+*   **WebSerial for Direct Connection:**
+    *   **Browser Support:** WebSerial is supported on desktop versions of Chrome, Edge, and Opera. Firefox and Safari do not currently support the WebSerial API.
+    *   **Driver Setup:** When connecting to microcontrollers or serial adapters (like USB-to-TTL boards), ensure the proper manufacturer drivers (e.g., FTDI, Silicon Labs CP210X, WCH CH340) are installed on the OS so the device enumerates as a standard COM port (Windows) or `/dev/tty` node (macOS/Linux).
+*   **Virtual COM Ports for Local App Integration (WebSerial + com0com):**
+    *   To relay triggers to other local programs on the same PC via serial emulation without physical hardware:
+        1. Install a virtual null-modem serial port emulator such as **`com0com`** (Windows) or set up a pseudo-terminal pair (macOS/Linux).
+        2. Create a linked virtual COM port pair (e.g., `COM10` <-> `COM11`).
+        3. In the experiment settings UI, choose **WebSerial**, click **Connect Device**, and select one end of the pair (e.g., `COM10`).
+        4. Configure your receiver script or recording software (e.g., `read_serial_triggers.py`) to listen on the other end of the pair (e.g., `COM11`).
+*   **WebSockets for Local Application Integration:**
+    *   If you want to feed markers to other desktop software running on the same PC (such as LabStreamingLayer or Python scripts) via TCP connections:
+        1. Run `read_websocket_triggers.py` locally on the computer.
+        2. Set the trigger mode to **WebSocket** in the browser dashboard and configure the URL to `ws://localhost:8080`.
+
 

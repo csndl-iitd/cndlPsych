@@ -24,7 +24,7 @@ import websockets
 DEFAULT_HOST = "localhost"
 DEFAULT_PORT = 8080
 
-async def handler(websocket, path):
+async def handler(websocket, path=None):
     client_address = websocket.remote_address
     print(f"Client connected: {client_address}")
     try:

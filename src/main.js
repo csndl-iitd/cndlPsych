@@ -4,7 +4,7 @@ import { requestMediaPermissions, startRecording, hasWebcamStream, hasScreenStre
 import { runExperiment } from './experiment.js';
 
 document.addEventListener('DOMContentLoaded', () => {
-    
+
     // UI Elements - Settings Panel
     const fbSaveBtn = document.getElementById('save-fb-btn');
     const fbStatus = document.getElementById('fb-status');
@@ -23,7 +23,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const dashboardStartBtn = document.getElementById('dashboard-start-btn');
     const editSettingsBtn = document.getElementById('edit-settings-btn');
     const dashboardConnectBtn = document.getElementById('dashboard-connect-btn');
-    
+
     // UI Elements - Test Markers
     const settingsTestBtn = document.getElementById('trigger-test-btn');
     const dashboardTestBtn = document.getElementById('dashboard-test-btn');
@@ -85,25 +85,25 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('fb-projectid').value = config.firebase.projectId || '';
             document.getElementById('fb-firestore-recording').checked = config.firebase.enableFirestore !== false;
         }
-        
+
         if (config.trigger) {
             const mode = config.trigger.mode || 'none';
             const radio = document.querySelector(`input[name="trigger-mode"][value="${mode}"]`);
             if (radio) radio.checked = true;
-            
+
             const wsUrl = document.getElementById('ws-url');
             if (wsUrl) wsUrl.value = config.trigger.wsUrl || '';
-            
+
             const format = config.trigger.format || 'character';
             document.getElementById('trigger-format').value = format;
-            
+
             if (mode === 'websocket') {
                 wsConfig.classList.remove('hidden');
             } else {
                 wsConfig.classList.add('hidden');
             }
         }
-        
+
         if (config.media) {
             document.getElementById('record-webcam').checked = !!config.media.recordWebcam;
             document.getElementById('record-screen').checked = !!config.media.recordScreen;
@@ -148,7 +148,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const mediaList = [];
         if (webcam) mediaList.push("Webcam 📹");
         if (screen) mediaList.push("Screen 🖥️");
-        
+
         mediaOptionsSpan.textContent = mediaList.length > 0 ? mediaList.join(" + ") : "None";
         mediaOptionsSpan.className = "value";
     }
@@ -156,7 +156,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function updateTriggerUIStatus() {
         const mode = getTriggerMode();
         const connected = isTriggerConnected();
-        
+
         const triggerStatus = document.getElementById('trigger-status');
         const dbTriggerStatus = document.getElementById('dashboard-trigger-status');
         const triggerTestSection = document.getElementById('trigger-test-section');
@@ -232,7 +232,7 @@ document.addEventListener('DOMContentLoaded', () => {
     async function handleConnectDevice() {
         const mode = document.querySelector('input[name="trigger-mode"]:checked').value;
         if (mode === 'none') return;
-        
+
         if (mode === 'websocket') {
             const url = document.getElementById('ws-url').value;
             setTriggerMode(mode, { url });
@@ -248,13 +248,13 @@ document.addEventListener('DOMContentLoaded', () => {
     async function testTriggerConnection(inputId, statusId) {
         const value = document.getElementById(inputId).value.trim();
         const statusSpan = document.getElementById(statusId);
-        
+
         if (!value) {
             statusSpan.textContent = "Please enter a marker value";
             statusSpan.className = "text-error";
             return;
         }
-        
+
         try {
             statusSpan.textContent = "Sending...";
             statusSpan.className = "text-accent";
@@ -265,7 +265,7 @@ document.addEventListener('DOMContentLoaded', () => {
             statusSpan.textContent = `Error: ${err.message || err}`;
             statusSpan.className = "text-error";
         }
-        
+
         setTimeout(() => {
             statusSpan.textContent = "";
         }, 4000);
@@ -274,21 +274,21 @@ document.addEventListener('DOMContentLoaded', () => {
     async function startExperimentWithPermissions() {
         const recordWebcam = document.getElementById('record-webcam').checked;
         const recordScreen = document.getElementById('record-screen').checked;
-        
+
         if (recordWebcam || recordScreen) {
             const needWebcam = recordWebcam && !hasWebcamStream();
             const needScreen = recordScreen && !hasScreenStream();
-            
+
             if (needWebcam || needScreen) {
                 const webcamFps = webcamTargetFps.value.trim();
                 const screenFps = screenTargetFps.value.trim();
-                
+
                 const success = await requestMediaPermissions(recordWebcam, recordScreen, webcamFps, screenFps);
                 if (!success) {
                     alert("Media permissions are required to start the experiment with recording enabled.");
                     return;
                 }
-                
+
                 // Update settings page status just in case
                 mediaStatus.textContent = 'Ready';
                 mediaStatus.classList.remove('disconnected');
@@ -308,7 +308,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (isConfigured) {
         // Populate inputs
         updateUIFromConfig(config);
-        
+
         // Init Firebase
         const fbSuccess = initFirebase(config.firebase);
         if (fbSuccess) {
@@ -324,7 +324,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Init Trigger mode
         const trigMode = config.trigger?.mode || 'none';
         setTriggerMode(trigMode, { url: config.trigger?.wsUrl, format: config.trigger?.format });
-        
+
         // Attempt Auto Connect
         autoConnectDevice().then(() => {
             updateTriggerUIStatus();
@@ -355,7 +355,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const apiKey = document.getElementById('fb-apikey').value.trim();
         const authDomain = document.getElementById('fb-authdomain').value.trim();
         const projectId = document.getElementById('fb-projectid').value.trim();
-        
+
         if (enableFirestore && (!apiKey || !authDomain || !projectId)) {
             alert("Please fill all Firebase fields, or disable Firestore Recording for local-only mode.");
             return;
@@ -392,7 +392,7 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 wsConfig.classList.add('hidden');
             }
-            
+
             // Update trigger mode internally & save
             const wsUrlVal = document.getElementById('ws-url').value.trim();
             setTriggerMode(mode, { url: wsUrlVal });
@@ -443,12 +443,12 @@ document.addEventListener('DOMContentLoaded', () => {
     mediaBtn.addEventListener('click', async () => {
         const recordWebcam = document.getElementById('record-webcam').checked;
         const recordScreen = document.getElementById('record-screen').checked;
-        
+
         if (!recordWebcam && !recordScreen) {
             alert("Please select at least one media type to record.");
             return;
         }
-        
+
         const webcamFps = webcamTargetFps.value.trim();
         const screenFps = screenTargetFps.value.trim();
 
@@ -460,7 +460,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Autodetect capabilities and show information
             updateFpsInfoLabels();
-            
+
             // Auto-populate target inputs with autodetected values if currently empty
             const details = getMediaTrackDetails();
             if (recordWebcam && details.webcam.current && !webcamTargetFps.value) {
@@ -469,7 +469,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (recordScreen && details.screen.current && !screenTargetFps.value) {
                 screenTargetFps.value = details.screen.current;
             }
-            
+
             // Save settings to cache
             saveAllSettingsToCache();
         }
@@ -496,7 +496,7 @@ document.addEventListener('DOMContentLoaded', () => {
     returnDashboardBtn.addEventListener('click', () => {
         // Reset recording chunks to free memory
         resetRecordingChunks();
-        
+
         // Show dashboard, hide done screen
         document.getElementById('done-panel').classList.add('hidden');
         document.getElementById('app-background').classList.remove('hidden');
