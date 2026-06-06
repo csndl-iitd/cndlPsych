@@ -214,7 +214,7 @@ export async function runExperiment() {
     // Dynamic import and build of each block
     for (const block of blocksConfig) {
         try {
-            const blockModule = await import(`./blocks/${block.module}.js`);
+            const blockModule = await import(`./blocks/${block.module}.js?t=${Date.now()}`);
             const blockTimeline = await blockModule.createTimeline(block);
             timeline.push(...blockTimeline);
         } catch (error) {

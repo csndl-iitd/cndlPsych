@@ -66,7 +66,7 @@ function resolvePost(postVal) {
 export async function createTimeline(blockConfig) {
     const timeline = [];
     const config = blockConfig.config || {};
-    
+
     // Parse block parameters with default fallbacks
     const repetitions = config.repetitions || 1; // 1 repetition = 1 full set of 16 trials
     const randomize = config.randomize !== false; // Shuffle trials order by default
@@ -146,7 +146,7 @@ export async function createTimeline(blockConfig) {
         words.forEach(colorName => {
             const congruent = (word === colorName);
             const colorInfo = colorMap[colorName];
-            
+
             baseTrials.push({
                 word: word,
                 colorName: colorName,
@@ -185,10 +185,10 @@ export async function createTimeline(blockConfig) {
             trial_duration: fixationDuration,
             post_trial_gap: 0,
             on_load: function () {
-                // Dispatch fixation onset trigger (value 10) to hardware/websocket interfaces
-                logger.dispatchTrigger(10);
+                // Dispatch fixation onset trigger (value 99) to hardware/websocket interfaces
+                logger.dispatchTrigger(90);
             },
-            data: { 
+            data: {
                 phase: 'stroop_fixation',
                 blockId: blockConfig.id
             }
@@ -205,33 +205,33 @@ export async function createTimeline(blockConfig) {
             on_load: function () {
                 // Debug log showing properties of the current trial
                 console.log(`[Stroop Trial Displayed] word: "${t.word}", font_color: "${t.colorName}", congruent: ${t.congruent}, duration: ${trialDuration}ms, trigger: ${t.trigger}, actual post: ${postTrialGap}ms`);
-                
+
                 // Dispatch stimulus onset trigger (congruent: 11, incongruent: 12)
                 logger.dispatchTrigger(t.trigger);
             },
             on_finish: function (data) {
                 // Process the participant response when the trial ends (on keypress or timeout)
                 const keyChar = data.response;
-                
+
                 if (keyChar === null || keyChar === undefined) {
                     // Participant failed to respond in time (timeout)
                     data.correct = false;
                     console.log(`[Stroop Response] Timeout (no response). Dispatching trigger 23.`);
-                    
+
                     // Dispatch timeout response trigger (value 23)
                     logger.dispatchTrigger(23);
                 } else {
                     // Check response accuracy (key matched correct key mapped to the color name)
                     const isCorrect = (keyChar === t.correctKey);
                     data.correct = isCorrect;
-                    
+
                     // Dispatch response trigger: 21 for correct keypress, 22 for incorrect keypress
                     const responseTrigger = isCorrect ? 21 : 22;
                     console.log(`[Stroop Response] key: "${keyChar}", correct: ${isCorrect}. Dispatching trigger ${responseTrigger}.`);
-                    
+
                     logger.dispatchTrigger(responseTrigger);
                 }
-                
+
                 // Inject metadata details into the trial's final dataset record
                 data.word = t.word;
                 data.color = t.colorName;
