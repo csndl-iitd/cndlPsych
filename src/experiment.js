@@ -1,6 +1,7 @@
 import { logger } from './logger.js';
-import { stopRecording, downloadWebcam, downloadScreen } from './media.js';
+import { stopRecording, downloadWebcam, downloadScreen, getWebcamBlob, getScreenBlob } from './media.js';
 import { logDataToFirebase, logOrUpdateParticipant, logOrUpdateSession } from './firebase.js';
+import { saveSessionDataToBids } from './bids.js';
 
 export function objectifyFormWithSemicolons(formArray) {
     if (!formArray || !Array.isArray(formArray)) return formArray;
@@ -64,6 +65,7 @@ export async function runExperiment() {
                     participantId = formattedId;
                 }
                 await logOrUpdateParticipant(participantId, response);
+                logger.participantId = participantId;
             }
 
             // 2. Session form completion: save responses dynamically to 'sessions' mapping participant_id
@@ -80,6 +82,8 @@ export async function runExperiment() {
                 if (sDocId) {
                     sessionDocId = sDocId;
                 }
+                logger.sessionNumber = sessionNumber;
+                logger.sessionDocId = sessionDocId;
             }
 
             // 3. Save individual trial metrics to 'trials'
@@ -89,7 +93,7 @@ export async function runExperiment() {
                 session_id: sessionDocId || sessionNumber || null
             });
         },
-        on_finish: function () {
+        on_finish: async function () {
             logger.logEvent('experiment_finish');
 
             // Remove the scroll lock listener
@@ -99,13 +103,41 @@ export async function runExperiment() {
             const finalSessionId = sessionNumber || 'session';
 
             // Turn off camera and stop recorder immediately (turns off indicators)
-            stopRecording();
+            await stopRecording();
 
             // Hide jspsych container and show done panel
             document.getElementById('jspsych-container').classList.add('hidden');
 
             const donePanel = document.getElementById('done-panel');
             donePanel.classList.remove('hidden');
+
+            // Check if BIDS directory linked and auto-save
+            const bidsStatus = document.getElementById('bids-autosave-status');
+            if (window.bidsDirectoryHandle) {
+                bidsStatus.style.display = 'block';
+                bidsStatus.textContent = 'Auto-saving to BIDS directory...';
+                bidsStatus.className = 'status-badge disconnected'; // Use disconnected temporary style
+                
+                try {
+                    await saveSessionDataToBids(
+                        window.bidsDirectoryHandle,
+                        finalParticipantId,
+                        finalSessionId,
+                        jsPsych.data.get().values(),
+                        logger.getBuffer(),
+                        getWebcamBlob(),
+                        getScreenBlob()
+                    );
+                    bidsStatus.textContent = `Auto-saved to BIDS: ${finalParticipantId}/${finalSessionId}/eeg/`;
+                    bidsStatus.className = 'status-badge connected';
+                } catch (err) {
+                    console.error("Auto-save to BIDS failed:", err);
+                    bidsStatus.textContent = `Auto-save to BIDS failed: ${err.message || err}`;
+                    bidsStatus.className = 'status-badge disconnected';
+                }
+            } else {
+                bidsStatus.style.display = 'none';
+            }
 
             // Configure download buttons
             const recordWebcam = document.getElementById('record-webcam').checked;

@@ -6,6 +6,9 @@ export class Logger {
     constructor() {
         this.sessionId = `session_${Date.now()}`;
         this.dataBuffer = [];
+        this.participantId = null;
+        this.sessionNumber = null;
+        this.sessionDocId = null;
     }
 
     logEvent(eventName, data = {}) {
@@ -13,7 +16,10 @@ export class Logger {
             eventName,
             ...data,
             timestamp: performance.now(),
-            sessionId: this.sessionId
+            sessionId: this.sessionId,
+            participantId: this.participantId,
+            sessionNumber: this.sessionNumber,
+            sessionDocId: this.sessionDocId
         };
         
         // Log to console for debugging

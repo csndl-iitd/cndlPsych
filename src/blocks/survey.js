@@ -122,6 +122,14 @@ export async function createTimeline(blockConfig) {
         ];
     }
 
+    const targetFormId = blockConfig.config?.form_id;
+    if (targetFormId) {
+        formsList = formsList.filter(form => form.id === targetFormId);
+        if (formsList.length === 0) {
+            console.warn(`[Survey Block] Form ID "${targetFormId}" not found in ${formsFile}`);
+        }
+    }
+
     formsList.forEach(form => {
         const defaultValues = {};
         if (form.id === 'participant') {
@@ -209,11 +217,21 @@ export async function createTimeline(blockConfig) {
                     (async () => {
                         try {
                             const partData = jsPsych.data.get().filter({ formId: 'participant' }).last().values()[0];
+                            console.log("[Autofill Debug] partData retrieved:", partData);
                             const rawPartId = getResponseValue(partData, 'participant_id');
+                            console.log("[Autofill Debug] rawPartId retrieved:", rawPartId);
                             if (rawPartId) {
-                                const parsedNum = parseInt(rawPartId, 10);
-                                const enteredPartId = "sub-" + (isNaN(parsedNum) ? "001" : String(parsedNum).padStart(3, '0'));
+                                let enteredPartId = rawPartId;
+                                if (typeof rawPartId === 'string' && !rawPartId.startsWith('sub-')) {
+                                    const parsedNum = parseInt(rawPartId, 10);
+                                    enteredPartId = "sub-" + (isNaN(parsedNum) ? "001" : String(parsedNum).padStart(3, '0'));
+                                } else if (typeof rawPartId !== 'string') {
+                                    const parsedNum = parseInt(rawPartId, 10);
+                                    enteredPartId = "sub-" + (isNaN(parsedNum) ? "001" : String(parsedNum).padStart(3, '0'));
+                                }
+                                console.log("[Autofill Debug] query enteredPartId:", enteredPartId);
                                 const nextSessionNum = await getNextSessionNumber(enteredPartId);
+                                console.log("[Autofill Debug] nextSessionNum resolved:", nextSessionNum);
                                 const sessionInput = document.getElementById('session_number_input');
                                 if (sessionInput) {
                                     sessionInput.value = nextSessionNum;

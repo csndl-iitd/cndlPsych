@@ -1,7 +1,9 @@
-import { initFirebase } from './firebase.js';
+import { initFirebase, downloadAllFirestoreData } from './firebase.js';
 import { setTriggerMode, connectDevice, autoConnectDevice, isTriggerConnected, getTriggerMode, sendTrigger } from './triggers.js';
 import { requestMediaPermissions, startRecording, hasWebcamStream, hasScreenStream, getMediaTrackDetails, downloadWebcam, downloadScreen, resetRecordingChunks } from './media.js';
 import { runExperiment } from './experiment.js';
+import { syncFirestoreToBids } from './bids.js';
+
 
 document.addEventListener('DOMContentLoaded', () => {
 
@@ -32,6 +34,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const webcamTargetFps = document.getElementById('webcam-target-fps');
     const screenTargetFps = document.getElementById('screen-target-fps');
     const fpsConfigSection = document.getElementById('fps-config-section');
+
+    // UI Elements - BIDS
+    const linkBidsBtn = document.getElementById('link-bids-btn');
+    const bidsStatus = document.getElementById('bids-status');
+    const bidsPathDisplay = document.getElementById('bids-path-display');
+    const syncBidsBtn = document.getElementById('sync-bids-btn');
 
     // UI Elements - Done Panel
     const returnDashboardBtn = document.getElementById('return-dashboard-btn');
@@ -501,6 +509,172 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('done-panel').classList.add('hidden');
         document.getElementById('app-background').classList.remove('hidden');
         dashboardPanel.classList.remove('hidden');
+    });
+
+    // -------------------------------------------------------------
+    // BIDS Directory Handle Persistence & UI Helpers
+    // -------------------------------------------------------------
+    const DB_NAME = "BidsWorkspaceDB";
+    const STORE_NAME = "handles";
+    const KEY = "bids_root";
+
+    function getStoredDirectoryHandle() {
+        return new Promise((resolve) => {
+            const request = indexedDB.open(DB_NAME, 1);
+            request.onupgradeneeded = (e) => {
+                const db = e.target.result;
+                if (!db.objectStoreNames.contains(STORE_NAME)) {
+                    db.createObjectStore(STORE_NAME);
+                }
+            };
+            request.onsuccess = (e) => {
+                const db = e.target.result;
+                try {
+                    const transaction = db.transaction(STORE_NAME, "readonly");
+                    const store = transaction.objectStore(STORE_NAME);
+                    const getReq = store.get(KEY);
+                    getReq.onsuccess = () => resolve(getReq.result || null);
+                    getReq.onerror = () => resolve(null);
+                } catch (err) {
+                    resolve(null);
+                }
+            };
+            request.onerror = () => resolve(null);
+        });
+    }
+
+    function storeDirectoryHandle(handle) {
+        return new Promise((resolve) => {
+            const request = indexedDB.open(DB_NAME, 1);
+            request.onupgradeneeded = (e) => {
+                const db = e.target.result;
+                if (!db.objectStoreNames.contains(STORE_NAME)) {
+                    db.createObjectStore(STORE_NAME);
+                }
+            };
+            request.onsuccess = (e) => {
+                const db = e.target.result;
+                try {
+                    const transaction = db.transaction(STORE_NAME, "readwrite");
+                    const store = transaction.objectStore(STORE_NAME);
+                    store.put(handle, KEY);
+                    transaction.oncomplete = () => resolve(true);
+                } catch (err) {
+                    resolve(false);
+                }
+            };
+            request.onerror = () => resolve(false);
+        });
+    }
+
+    function updateBidsUIStatus(dirName, needsGrant = false) {
+        if (!dirName) {
+            bidsStatus.textContent = 'Not Linked';
+            bidsStatus.className = 'status-badge disconnected';
+            bidsPathDisplay.textContent = 'No directory linked';
+            syncBidsBtn.classList.add('hidden');
+            return;
+        }
+
+        if (needsGrant) {
+            bidsStatus.textContent = 'Needs Grant';
+            bidsStatus.className = 'status-badge disconnected';
+            bidsPathDisplay.textContent = `Configured: ${dirName} (Click 'Link' to grant access)`;
+            syncBidsBtn.classList.add('hidden');
+        } else {
+            bidsStatus.textContent = 'Linked';
+            bidsStatus.className = 'status-badge connected';
+            bidsPathDisplay.textContent = `Directory: ${dirName}`;
+            syncBidsBtn.classList.remove('hidden');
+        }
+    }
+
+    // Auto-load stored BIDS directory
+    getStoredDirectoryHandle().then(async (handle) => {
+        if (handle) {
+            try {
+                const opts = { mode: 'readwrite' };
+                const perm = await handle.queryPermission(opts);
+                if (perm === 'granted') {
+                    window.bidsDirectoryHandle = handle;
+                    updateBidsUIStatus(handle.name);
+                } else {
+                    updateBidsUIStatus(handle.name, true);
+                }
+            } catch (err) {
+                console.error("Error querying permissions for saved directory handle:", err);
+                updateBidsUIStatus(handle.name, true);
+            }
+        } else {
+            updateBidsUIStatus(null);
+        }
+    });
+
+    // Link BIDS Button click
+    linkBidsBtn.addEventListener('click', async () => {
+        try {
+            let handle = window.bidsDirectoryHandle;
+            if (!handle) {
+                handle = await getStoredDirectoryHandle();
+            }
+            if (handle) {
+                const opts = { mode: 'readwrite' };
+                const perm = await handle.requestPermission(opts);
+                if (perm === 'granted') {
+                    window.bidsDirectoryHandle = handle;
+                    updateBidsUIStatus(handle.name);
+                    return;
+                }
+            }
+
+            if (typeof window.showDirectoryPicker !== 'function') {
+                alert("Your browser does not support the File System Access API. Please use a Chromium-based browser (Chrome, Edge, Opera) to link local directories.");
+                return;
+            }
+
+            const newHandle = await window.showDirectoryPicker();
+            window.bidsDirectoryHandle = newHandle;
+            await storeDirectoryHandle(newHandle);
+            updateBidsUIStatus(newHandle.name);
+        } catch (err) {
+            console.error("Error linking BIDS directory:", err);
+            alert("Could not access directory: " + (err.message || err));
+        }
+    });
+
+    // Sync Firestore to BIDS Button click
+    syncBidsBtn.addEventListener('click', async () => {
+        if (!window.bidsDirectoryHandle) {
+            alert("Please link a BIDS directory first.");
+            return;
+        }
+
+        const bidsSyncStatus = document.getElementById('bids-sync-status');
+        bidsSyncStatus.textContent = "Syncing Firestore data...";
+        bidsSyncStatus.className = "text-accent";
+        syncBidsBtn.disabled = true;
+
+        try {
+            const dbData = await downloadAllFirestoreData();
+            if (!dbData) {
+                bidsSyncStatus.textContent = "Error: Firestore not initialized or recording is disabled.";
+                bidsSyncStatus.className = "text-error";
+                syncBidsBtn.disabled = false;
+                return;
+            }
+            await syncFirestoreToBids(window.bidsDirectoryHandle, dbData);
+            bidsSyncStatus.textContent = "Sync completed successfully! BIDS files generated.";
+            bidsSyncStatus.className = "text-success";
+        } catch (err) {
+            console.error("BIDS Sync error:", err);
+            bidsSyncStatus.textContent = `Sync failed: ${err.message || err}`;
+            bidsSyncStatus.className = "text-error";
+        } finally {
+            syncBidsBtn.disabled = false;
+            setTimeout(() => {
+                bidsSyncStatus.textContent = "";
+            }, 5000);
+        }
     });
 
     // Start Experiment buttons

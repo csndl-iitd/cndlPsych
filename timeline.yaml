@@ -1,6 +1,13 @@
 blocks:
-  - id: "setup_surveys"
+  - id: "participant_survey"
     module: "survey"
+    config:
+      form_id: "participant"
+
+  - id: "session_survey"
+    module: "survey"
+    config:
+      form_id: "session"
 
   - id: "reaction_task"
     module: "keyboard_task"
@@ -44,3 +51,8 @@ blocks:
       post: [200, 500]
       fixation_duration: 500
       trial_duration: 2000
+
+  - id: "psychometric_survey"
+    module: "survey"
+    config:
+      form_id: "psychometric"

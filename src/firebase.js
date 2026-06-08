@@ -191,3 +191,42 @@ export async function logOrUpdateSession(participantId, sessionNumber, data) {
         return null;
     }
 }
+
+export async function downloadAllFirestoreData() {
+    if (!db) {
+        console.warn("Firebase not initialized. Cannot download Firestore data.");
+        return null;
+    }
+    try {
+        const participantsSnapshot = await getDocs(collection(db, "participants"));
+        const sessionsSnapshot = await getDocs(collection(db, "sessions"));
+        const trialsSnapshot = await getDocs(collection(db, "trials"));
+        const eventsSnapshot = await getDocs(collection(db, "experiment_events"));
+
+        const participants = [];
+        participantsSnapshot.forEach(doc => {
+            participants.push({ id: doc.id, ...doc.data() });
+        });
+
+        const sessions = [];
+        sessionsSnapshot.forEach(doc => {
+            sessions.push({ id: doc.id, ...doc.data() });
+        });
+
+        const trials = [];
+        trialsSnapshot.forEach(doc => {
+            trials.push({ id: doc.id, ...doc.data() });
+        });
+
+        const events = [];
+        eventsSnapshot.forEach(doc => {
+            events.push({ id: doc.id, ...doc.data() });
+        });
+
+        return { participants, sessions, trials, events };
+    } catch (e) {
+        console.error("Error downloading all Firestore data:", e);
+        throw e;
+    }
+}
+

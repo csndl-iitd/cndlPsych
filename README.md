@@ -136,10 +136,15 @@ blocks:
 ### Example
 ```yaml
 blocks:
-  - id: "setup_surveys"
+  - id: "participant_survey"
     module: "survey"              # Loads src/blocks/survey.js
     config:
-      forms_file: "forms.yaml"
+      form_id: "participant"      # Renders only the participant form from forms.yaml
+
+  - id: "session_survey"
+    module: "survey"
+    config:
+      form_id: "session"          # Renders only the session form from forms.yaml
 
   - id: "stroop_task"
     module: "stroop"              # Loads src/blocks/stroop.js
@@ -149,6 +154,11 @@ blocks:
       post: [200, 500]            # Random ITI delay range in ms
       fixation_duration: 500
       trial_duration: 2000
+
+  - id: "psychometric_survey"
+    module: "survey"
+    config:
+      form_id: "psychometric"     # Renders only the psychometric form at the end
 ```
 
 ---
@@ -166,6 +176,7 @@ The `survey` block module ([src/blocks/survey.js](src/blocks/survey.js)) generat
 6.  `likert`: Horizontal scale using radio buttons (ideal for psychometric ratings).
 
 ### Features
+*   **Timeline Modularity (`form_id` parameter)**: Instead of rendering all surveys in a single bulk block, you can target and run individual surveys separately by defining `form_id: "your_form_id"` under the block's `config` in `timeline.yaml`. This allows you to intersperse forms (e.g., placing the participant/session setup forms at the start and psychometric surveys at the very end) anywhere in the timeline.
 *   **Auto-Population**: When typing a participant ID inside the `participant` form, the platform dynamically queries Firestore for existing records under that ID. If matching history is found, fields like age, gender, language, and preferred devices are auto-populated.
 *   **Auto-Numbering**: The `session` form queries Firestore database history in the background to automatically identify and pre-fill the next session number (e.g. `ses-02` if `ses-01` already exists) for the participant.
 

@@ -60,14 +60,14 @@ export async function requestMediaPermissions(recordWebcam, recordScreen, webcam
         if (recordWebcam) {
             const fps = webcamFps ? Number(webcamFps) : 30;
             webcamStream = await navigator.mediaDevices.getUserMedia({
-                video: { frameRate: { ideal: fps, exact: fps } },
+                video: { frameRate: { ideal: fps } },
                 audio: true
             });
         }
         if (recordScreen) {
             const fps = screenFps ? Number(screenFps) : 30;
             screenStream = await navigator.mediaDevices.getDisplayMedia({
-                video: { frameRate: { ideal: fps, exact: fps } },
+                video: { frameRate: { ideal: fps } },
                 audio: false,
                 preferCurrentTab: true
             });
@@ -104,15 +104,20 @@ export function startRecording() {
 }
 
 export function stopRecording() {
+    const promises = [];
+
     if (webcamRecorder && webcamRecorder.state !== 'inactive') {
-        webcamRecorder.onstop = () => {
-            if (webcamStream) {
-                webcamStream.getTracks().forEach(track => {
-                    try { track.stop(); } catch (e) { }
-                });
-                webcamStream = null;
-            }
-        };
+        promises.push(new Promise(resolve => {
+            webcamRecorder.onstop = () => {
+                if (webcamStream) {
+                    webcamStream.getTracks().forEach(track => {
+                        try { track.stop(); } catch (e) { }
+                    });
+                    webcamStream = null;
+                }
+                resolve();
+            };
+        }));
         webcamRecorder.stop();
     } else {
         if (webcamStream) {
@@ -124,14 +129,17 @@ export function stopRecording() {
     }
 
     if (screenRecorder && screenRecorder.state !== 'inactive') {
-        screenRecorder.onstop = () => {
-            if (screenStream) {
-                screenStream.getTracks().forEach(track => {
-                    try { track.stop(); } catch (e) { }
-                });
-                screenStream = null;
-            }
-        };
+        promises.push(new Promise(resolve => {
+            screenRecorder.onstop = () => {
+                if (screenStream) {
+                    screenStream.getTracks().forEach(track => {
+                        try { track.stop(); } catch (e) { }
+                    });
+                    screenStream = null;
+                }
+                resolve();
+            };
+        }));
         screenRecorder.stop();
     } else {
         if (screenStream) {
@@ -141,6 +149,8 @@ export function stopRecording() {
             screenStream = null;
         }
     }
+
+    return Promise.all(promises);
 }
 
 export function downloadWebcam(participantId = 'subject') {
@@ -157,6 +167,14 @@ export function downloadScreen(participantId = 'subject') {
     } else {
         console.warn("No screen chunks recorded.");
     }
+}
+
+export function getWebcamBlob() {
+    return webcamChunks.length > 0 ? new Blob(webcamChunks, { type: 'video/webm' }) : null;
+}
+
+export function getScreenBlob() {
+    return screenChunks.length > 0 ? new Blob(screenChunks, { type: 'video/webm' }) : null;
 }
 
 export function resetRecordingChunks() {
