@@ -89,12 +89,13 @@ export async function createTimeline(blockConfig) {
         const reps = trialDef.repetitions || 1;
         for (let r = 0; r < reps; r++) {
             // For each instance of this trial type, build its specific jsPsych timeline sub-timeline
-            const instanceTimeline = [];
+            const instanceSequence = [];
+            const instanceEnd = [];
 
             // A. Optional Start Stimulus (e.g. Fixation cross)
             if (trialDef.start) {
                 const startTemplate = lookupTemplate(trialDef.start);
-                instanceTimeline.push({
+                instanceSequence.push({
                     type: jsPsychHtmlKeyboardResponse,
                     stimulus: startTemplate.stimulus,
                     choices: "NO_KEYS", // Fixed duration display
@@ -126,15 +127,12 @@ export async function createTimeline(blockConfig) {
 
                 if (isLast) {
                     // This is the target / response stimulus trial!
-                    const hasFeedback = !!(trialDef.response_stimulus || trialDef.response_stimuli);
-                    const gap = hasFeedback ? 0 : resolvePost(trialDef.post);
-
-                    instanceTimeline.push({
+                    instanceSequence.push({
                         type: jsPsychHtmlKeyboardResponse,
                         stimulus: stimTemplate.stimulus,
                         choices: trialDef.choices,
                         trial_duration: stimTemplate.duration,
-                        post_trial_gap: gap,
+                        post_trial_gap: 0, // ITI is handled in instanceEnd
                         on_load: function () {
                             console.log(`[Stimulus Displayed] name: "${stimName}" (Target), duration: ${stimTemplate.duration}ms, trigger: ${stimTemplate.trigger || 'none'}`);
                             if (stimTemplate.trigger) {
@@ -163,11 +161,11 @@ export async function createTimeline(blockConfig) {
                         }
                     });
                 } else {
-                    // This is an intermediate / cue stimulus (no choices accepted)
-                    instanceTimeline.push({
+                    // This is an intermediate / cue stimulus
+                    instanceSequence.push({
                         type: jsPsychHtmlKeyboardResponse,
                         stimulus: stimTemplate.stimulus,
-                        choices: "NO_KEYS",
+                        choices: trialDef.choices || "NO_KEYS",
                         trial_duration: stimTemplate.duration,
                         post_trial_gap: 0,
                         on_load: function () {
@@ -176,20 +174,40 @@ export async function createTimeline(blockConfig) {
                                 logger.dispatchTrigger(stimTemplate.trigger);
                             }
                         },
-                        data: {
-                            phase: 'experiment_cue',
-                            blockId: blockConfig.id,
-                            trialName: trialDef.name
+                        on_finish: function (data) {
+                            const keyChar = data.response;
+                            if (keyChar !== null && keyChar !== undefined) {
+                                // A key was pressed during this cue stimulus!
+                                const isCorrect = (keyChar === trialDef.correct_response);
+                                data.correct = isCorrect;
+                                const respTrigger = isCorrect ? 21 : 22;
+                                console.log(`[Keyboard Response] key: "${keyChar}", correct: ${isCorrect}. Dispatching trigger ${respTrigger}.`);
+                                logger.dispatchTrigger(respTrigger);
+
+                                data.correct_response = trialDef.correct_response;
+                                data.phase = 'experiment_trial'; // Mark it as the target response
+                                data.blockId = blockConfig.id;
+                                data.trialName = trialDef.name;
+                                
+                                // Abort the remainder of the sequence timeline immediately
+                                jsPsych.abortCurrentTimeline();
+                            } else {
+                                data.phase = 'experiment_cue';
+                                data.blockId = blockConfig.id;
+                                data.trialName = trialDef.name;
+                            }
                         }
                     });
                 }
             });
 
             // C. Optional Feedback Stimulus
+            const trialGap = resolvePost(trialDef.post);
             if (trialDef.response_stimulus || trialDef.response_stimuli) {
-                const gap = resolvePost(trialDef.post);
+                const hasEnd = !!trialDef.end;
+                const gap = hasEnd ? 0 : trialGap;
 
-                instanceTimeline.push({
+                instanceEnd.push({
                     type: jsPsychHtmlKeyboardResponse,
                     choices: "NO_KEYS",
                     stimulus: function () {
@@ -253,8 +271,58 @@ export async function createTimeline(blockConfig) {
                 });
             }
 
+            // D. Optional End Stimulus
+            if (trialDef.end) {
+                const endTemplate = lookupTemplate(trialDef.end);
+                const gap = trialGap;
+
+                instanceEnd.push({
+                    type: jsPsychHtmlKeyboardResponse,
+                    stimulus: endTemplate.stimulus,
+                    choices: "NO_KEYS",
+                    trial_duration: endTemplate.duration,
+                    post_trial_gap: gap,
+                    on_load: function () {
+                        console.log(`[Stimulus Displayed] name: "${trialDef.end}" (End), duration: ${endTemplate.duration}ms, trigger: ${endTemplate.trigger || 'none'}`);
+                        if (endTemplate.trigger) {
+                            logger.dispatchTrigger(endTemplate.trigger);
+                        }
+                    },
+                    data: {
+                        phase: 'experiment_end',
+                        blockId: blockConfig.id,
+                        trialName: trialDef.name
+                    }
+                });
+            }
+
+            // Guarantee ITI is applied even if sequence aborts and there is no feedback/end stimulus
+            if (instanceEnd.length === 0 && trialGap > 0) {
+                instanceEnd.push({
+                    type: jsPsychHtmlKeyboardResponse,
+                    stimulus: '',
+                    choices: "NO_KEYS",
+                    trial_duration: trialGap,
+                    post_trial_gap: 0,
+                    data: {
+                        phase: 'experiment_iti',
+                        blockId: blockConfig.id,
+                        trialName: trialDef.name
+                    }
+                });
+            }
+
             // Push this trial instance sub-timeline to the collection
-            trialInstances.push(instanceTimeline);
+            // We group sequence and end/feedback into separate timelines so ending the sequence early (on keypress)
+            // does not skip the feedback or end stimuli.
+            const instanceTimelineGroup = [];
+            if (instanceSequence.length > 0) {
+                instanceTimelineGroup.push({ timeline: instanceSequence });
+            }
+            if (instanceEnd.length > 0) {
+                instanceTimelineGroup.push({ timeline: instanceEnd });
+            }
+            trialInstances.push(instanceTimelineGroup);
         }
     });
 

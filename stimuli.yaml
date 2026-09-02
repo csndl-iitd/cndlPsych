@@ -26,3 +26,31 @@ stimuli:
     stimulus: '<div style="font-size:36px; color:#ef4444; font-weight:bold; font-family:''Inter'',sans-serif;">Incorrect!</div>'
     duration: 1000
     trigger: 5
+
+  - name: "flash_instructions"
+    stimulus: |
+      <div class="glass-panel" style="max-width: 600px; margin: 0 auto; padding: 35px; text-align: center; background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 16px; color: #f8fafc; font-family: 'Inter', sans-serif; line-height: 1.6; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4); backdrop-filter: blur(10px);">
+          <h2 style="font-size: 1.8rem; font-weight: 700; margin-bottom: 1.5rem; background: linear-gradient(to right, #3b82f6, #8b5cf6); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Alternating Flashes Task</h2>
+          <p style="margin-bottom: 1.5rem; font-size: 1rem; color: #cbd5e1;">
+              In this block, you will see alternating full screen black and white flashes.
+          </p>
+          <p style="margin-bottom: 2rem; font-size: 1rem; color: #cbd5e1;">
+              No keyboard response is required. Please focus on the screen.
+          </p>
+          <div style="font-size: 0.95rem; color: #94a3b8; animation: pulse 2s infinite;">
+              Press any key to begin.
+          </div>
+      </div>
+    duration: null
+    trigger: 9
+
+  - name: "flash_black"
+    stimulus: '<div style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: #000000; margin: 0; padding: 0; z-index: 9999;"></div>'
+    duration: 250
+    trigger: 11
+
+  - name: "flash_white"
+    stimulus: '<div style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: #ffffff; margin: 0; padding: 0; z-index: 9999;"></div>'
+    duration: 250
+    trigger: 10
+
