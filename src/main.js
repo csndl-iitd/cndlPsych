@@ -68,11 +68,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const recordScreen = document.getElementById('record-screen').checked;
         const webcamFps = webcamTargetFps.value.trim();
         const screenFps = screenTargetFps.value.trim();
+        const enableApriltags = document.getElementById('enable-apriltags').checked;
+        const apriltagSize = document.getElementById('apriltag-size').value.trim();
 
         const config = {
             firebase: { apiKey, authDomain, projectId, enableFirestore },
             trigger: { mode, wsUrl, format },
-            media: { recordWebcam, recordScreen, webcamFps, screenFps }
+            media: { recordWebcam, recordScreen, webcamFps, screenFps },
+            apriltag: { enableApriltags, apriltagSize }
         };
         localStorage.setItem('cndlpsych_config', JSON.stringify(config));
         return config;
@@ -113,12 +116,17 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         if (config.media) {
-            document.getElementById('record-webcam').checked = !!config.media.recordWebcam;
-            document.getElementById('record-screen').checked = !!config.media.recordScreen;
+            document.getElementById('record-webcam').checked = config.media.recordWebcam === true;
+            document.getElementById('record-screen').checked = config.media.recordScreen === true;
             webcamTargetFps.value = config.media.webcamFps || '';
             screenTargetFps.value = config.media.screenFps || '';
-            updateFpsConfigSectionVisibility();
         }
+
+        if (config.apriltag) {
+            document.getElementById('enable-apriltags').checked = config.apriltag.enableApriltags === true;
+            document.getElementById('apriltag-size').value = config.apriltag.apriltagSize || '75';
+        }
+        updateFpsConfigSectionVisibility();
     }
 
     function updateDashboardSummary(config) {
@@ -280,6 +288,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function startExperimentWithPermissions() {
+        saveAllSettingsToCache(); // ensure all settings (like apriltags) are saved to localStorage before starting
         const recordWebcam = document.getElementById('record-webcam').checked;
         const recordScreen = document.getElementById('record-screen').checked;
 

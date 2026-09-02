@@ -13,6 +13,14 @@
 <body>
     <div id="app-background"></div>
     
+    <!-- AprilTag Overlay for Eye Tracking -->
+    <div id="apriltag-overlay" class="hidden" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 9999;">
+        <img id="apriltag-tl" style="position: absolute; top: 0; left: 0; image-rendering: pixelated; border: 10px solid white; box-sizing: content-box; background: white;" src="assets/tag_0.png">
+        <img id="apriltag-tr" style="position: absolute; top: 0; right: 0; image-rendering: pixelated; border: 10px solid white; box-sizing: content-box; background: white;" src="assets/tag_1.png">
+        <img id="apriltag-bl" style="position: absolute; bottom: 0; left: 0; image-rendering: pixelated; border: 10px solid white; box-sizing: content-box; background: white;" src="assets/tag_2.png">
+        <img id="apriltag-br" style="position: absolute; bottom: 0; right: 0; image-rendering: pixelated; border: 10px solid white; box-sizing: content-box; background: white;" src="assets/tag_3.png">
+    </div>
+    
     <div id="settings-panel" class="glass-panel">
         <h1>Experiment Configuration</h1>
         
@@ -107,6 +115,19 @@
                 <div id="bids-path-display" style="font-size: 0.85rem; color: #cbd5e1; word-break: break-all; min-height: 1.25rem; background: rgba(0, 0, 0, 0.2); padding: 0.5rem; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.05);">No directory linked</div>
                 <button id="sync-bids-btn" class="btn secondary hidden" style="background: linear-gradient(to right, #3b82f6, #10b981); width: 100%; padding: 0.6rem 1rem; font-size: 0.85rem; box-shadow: 0 4px 10px rgba(16, 185, 129, 0.2);">Sync Firestore to BIDS</button>
                 <span id="bids-sync-status" style="font-size: 0.85rem; display: block; text-align: center;"></span>
+            </div>
+        </div>
+
+        <div class="form-section">
+            <h2>5. AprilTag Overlay</h2>
+            <div class="checkbox-group" style="margin-bottom: 0.75rem;">
+                <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; color: #cbd5e1; user-select: none;">
+                    <input type="checkbox" id="enable-apriltags" style="width: 16px; height: 16px; accent-color: #8b5cf6;"> Enable Tag Display
+                </label>
+            </div>
+            <div class="input-group">
+                <label>Tag Size (pixels)</label>
+                <input type="number" id="apriltag-size" placeholder="e.g. 75" value="75" style="width: 100%; padding: 0.5rem 0.75rem; background: rgba(0, 0, 0, 0.25); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 6px; color: white; font-size: 0.9rem;">
             </div>
         </div>
 

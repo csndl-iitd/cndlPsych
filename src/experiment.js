@@ -40,6 +40,21 @@ export async function runExperiment() {
     document.getElementById('app-background').classList.add('hidden');
     document.getElementById('jspsych-container').classList.remove('hidden');
 
+    // Handle AprilTag Overlay
+    const config = JSON.parse(localStorage.getItem('cndlpsych_config') || '{}');
+    const overlay = document.getElementById('apriltag-overlay');
+    if (config.apriltag && config.apriltag.enableApriltags) {
+        overlay.classList.remove('hidden');
+        const tagSize = config.apriltag.apriltagSize || 75;
+        const tags = overlay.querySelectorAll('img');
+        tags.forEach(tag => {
+            tag.style.width = `${tagSize}px`;
+            tag.style.height = `${tagSize}px`;
+        });
+    } else {
+        overlay.classList.add('hidden');
+    }
+
     let participantId = null;
     let sessionNumber = null;
     let sessionDocId = null;
@@ -105,8 +120,10 @@ export async function runExperiment() {
             // Turn off camera and stop recorder immediately (turns off indicators)
             await stopRecording();
 
-            // Hide jspsych container and show done panel
+            // Hide jspsych container, apriltag overlay, and show done panel
             document.getElementById('jspsych-container').classList.add('hidden');
+            const overlay = document.getElementById('apriltag-overlay');
+            if (overlay) overlay.classList.add('hidden');
 
             const donePanel = document.getElementById('done-panel');
             donePanel.classList.remove('hidden');
