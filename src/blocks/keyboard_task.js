@@ -1,5 +1,6 @@
 // Dynamic keyboard task block module supporting the new trial/stimuli configuration
 import { logger } from '../logger.js';
+import { HtmlKeyboardTouchResponsePlugin } from '../plugins/html-keyboard-touch-response.js';
 
 function shuffleArray(array) {
     const shuffled = [...array];
@@ -96,7 +97,8 @@ export async function createTimeline(blockConfig) {
             if (trialDef.start) {
                 const startTemplate = lookupTemplate(trialDef.start);
                 instanceSequence.push({
-                    type: jsPsychHtmlKeyboardResponse,
+                    type: HtmlKeyboardTouchResponsePlugin,
+                    touch_mapping: config.touch_mapping,
                     stimulus: startTemplate.stimulus,
                     choices: "NO_KEYS", // Fixed duration display
                     trial_duration: startTemplate.duration,
@@ -128,7 +130,8 @@ export async function createTimeline(blockConfig) {
                 if (isLast) {
                     // This is the target / response stimulus trial!
                     instanceSequence.push({
-                        type: jsPsychHtmlKeyboardResponse,
+                        type: HtmlKeyboardTouchResponsePlugin,
+                    touch_mapping: config.touch_mapping,
                         stimulus: stimTemplate.stimulus,
                         choices: trialDef.choices,
                         trial_duration: stimTemplate.duration,
@@ -163,7 +166,8 @@ export async function createTimeline(blockConfig) {
                 } else {
                     // This is an intermediate / cue stimulus
                     instanceSequence.push({
-                        type: jsPsychHtmlKeyboardResponse,
+                        type: HtmlKeyboardTouchResponsePlugin,
+                    touch_mapping: config.touch_mapping,
                         stimulus: stimTemplate.stimulus,
                         choices: trialDef.choices || "NO_KEYS",
                         trial_duration: stimTemplate.duration,
@@ -208,7 +212,8 @@ export async function createTimeline(blockConfig) {
                 const gap = hasEnd ? 0 : trialGap;
 
                 instanceEnd.push({
-                    type: jsPsychHtmlKeyboardResponse,
+                    type: HtmlKeyboardTouchResponsePlugin,
+                    touch_mapping: config.touch_mapping,
                     choices: "NO_KEYS",
                     stimulus: function () {
                         // Dynamically retrieve the preceding response trial accuracy
@@ -277,7 +282,8 @@ export async function createTimeline(blockConfig) {
                 const gap = trialGap;
 
                 instanceEnd.push({
-                    type: jsPsychHtmlKeyboardResponse,
+                    type: HtmlKeyboardTouchResponsePlugin,
+                    touch_mapping: config.touch_mapping,
                     stimulus: endTemplate.stimulus,
                     choices: "NO_KEYS",
                     trial_duration: endTemplate.duration,
@@ -299,7 +305,8 @@ export async function createTimeline(blockConfig) {
             // Guarantee ITI is applied even if sequence aborts and there is no feedback/end stimulus
             if (instanceEnd.length === 0 && trialGap > 0) {
                 instanceEnd.push({
-                    type: jsPsychHtmlKeyboardResponse,
+                    type: HtmlKeyboardTouchResponsePlugin,
+                    touch_mapping: config.touch_mapping,
                     stimulus: '',
                     choices: "NO_KEYS",
                     trial_duration: trialGap,

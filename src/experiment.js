@@ -263,6 +263,7 @@ export async function runExperiment() {
     // Dynamic import and build of each block
     for (const block of blocksConfig) {
         try {
+            console.log(`[Block] Loading block "${block.id}" using module "${block.module}"...`);
             const blockModule = await import(`./blocks/${block.module}.js`);
             const blockTimeline = await blockModule.createTimeline(block);
             timeline.push(...blockTimeline);
