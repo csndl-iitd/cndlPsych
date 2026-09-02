@@ -1,3 +1,7 @@
 *.log
 firebase-debug.log
 .venv
+.claude
+.agents
+.firebase
+node_modules
