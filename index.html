@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -10,20 +11,30 @@
     <link href="https://unpkg.com/jspsych@8.0.0/css/jspsych.css" rel="stylesheet" type="text/css" />
     <link rel="stylesheet" href="styles/main.css">
 </head>
+
 <body>
     <div id="app-background"></div>
-    
+
     <!-- AprilTag Overlay for Eye Tracking -->
-    <div id="apriltag-overlay" class="hidden" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 9999;">
-        <img id="apriltag-tl" style="position: absolute; top: 0; left: 0; image-rendering: pixelated; border: 10px solid white; box-sizing: content-box; background: white;" src="assets/tag_0.png">
-        <img id="apriltag-tr" style="position: absolute; top: 0; right: 0; image-rendering: pixelated; border: 10px solid white; box-sizing: content-box; background: white;" src="assets/tag_1.png">
-        <img id="apriltag-bl" style="position: absolute; bottom: 0; left: 0; image-rendering: pixelated; border: 10px solid white; box-sizing: content-box; background: white;" src="assets/tag_2.png">
-        <img id="apriltag-br" style="position: absolute; bottom: 0; right: 0; image-rendering: pixelated; border: 10px solid white; box-sizing: content-box; background: white;" src="assets/tag_3.png">
+    <div id="apriltag-overlay" class="hidden"
+        style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 9999;">
+        <img id="apriltag-tl"
+            style="position: absolute; top: 0; left: 0; image-rendering: pixelated; border: 10px solid white; box-sizing: content-box; background: white;"
+            src="assets/tag_0.png">
+        <img id="apriltag-tr"
+            style="position: absolute; top: 0; right: 0; image-rendering: pixelated; border: 10px solid white; box-sizing: content-box; background: white;"
+            src="assets/tag_1.png">
+        <img id="apriltag-bl"
+            style="position: absolute; bottom: 0; left: 0; image-rendering: pixelated; border: 10px solid white; box-sizing: content-box; background: white;"
+            src="assets/tag_2.png">
+        <img id="apriltag-br"
+            style="position: absolute; bottom: 0; right: 0; image-rendering: pixelated; border: 10px solid white; box-sizing: content-box; background: white;"
+            src="assets/tag_3.png">
     </div>
-    
+
     <div id="settings-panel" class="glass-panel">
         <h1>Experiment Configuration</h1>
-        
+
         <div class="form-section">
             <h2>1. Firebase Configuration</h2>
             <div class="input-group">
@@ -39,8 +50,10 @@
                 <input type="text" id="fb-projectid" placeholder="project-id">
             </div>
             <div class="checkbox-group" style="margin-bottom: 1.25rem;">
-                <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; color: #cbd5e1; user-select: none;">
-                    <input type="checkbox" id="fb-firestore-recording" checked style="width: 16px; height: 16px; accent-color: #8b5cf6;"> Enable Firestore Recording
+                <label
+                    style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; color: #cbd5e1; user-select: none;">
+                    <input type="checkbox" id="fb-firestore-recording" checked
+                        style="width: 16px; height: 16px; accent-color: #8b5cf6;"> Enable Firestore Recording
                 </label>
             </div>
             <button id="save-fb-btn" class="btn secondary">Save Config</button>
@@ -62,19 +75,22 @@
                 </div>
             </div>
             <div class="input-group" style="margin-top: 1rem; margin-bottom: 1rem;">
-                <label style="font-size: 0.85rem; color: #94a3b8; display: block; margin-bottom: 0.25rem;">Trigger Format</label>
-                <select id="trigger-format" style="width: 100%; padding: 0.5rem 0.75rem; background: rgba(0, 0, 0, 0.25); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 6px; color: white; font-size: 0.9rem; outline: none; box-sizing: border-box; cursor: pointer;">
+                <label style="font-size: 0.85rem; color: #94a3b8; display: block; margin-bottom: 0.25rem;">Trigger
+                    Format</label>
+                <select id="trigger-format"
+                    style="width: 100%; padding: 0.5rem 0.75rem; background: rgba(0, 0, 0, 0.25); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 6px; color: white; font-size: 0.9rem; outline: none; box-sizing: border-box; cursor: pointer;">
                     <option value="character">Character (e.g. "10\n")</option>
                     <option value="hex">Raw Hex Value (e.g. 0x0A)</option>
                 </select>
             </div>
             <button id="connect-trigger-btn" class="btn secondary">Connect Device</button>
             <span id="trigger-status" class="status-badge disconnected">Disconnected</span>
-            
+
             <div id="trigger-test-section" class="input-group hidden" style="margin-top: 1.5rem;">
                 <label>Test Marker Connection</label>
                 <div style="display: flex; gap: 0.5rem; margin-top: 0.25rem;">
-                    <input type="text" id="trigger-test-input" placeholder="Marker Byte (e.g. 1)" value="1" style="flex: 1;">
+                    <input type="text" id="trigger-test-input" placeholder="Marker Byte (e.g. 1)" value="1"
+                        style="flex: 1;">
                     <button id="trigger-test-btn" class="btn secondary">Send Test Marker</button>
                 </div>
                 <span id="trigger-test-status" style="font-size: 0.85rem; margin-top: 0.5rem; display: block;"></span>
@@ -89,18 +105,25 @@
             </div>
             <button id="test-media-btn" class="btn secondary">Request Permissions</button>
             <span id="media-status" class="status-badge disconnected">Not Ready</span>
-            
-            <div id="fps-config-section" class="hidden" style="margin-top: 1.5rem; border-top: 1px solid rgba(255, 255, 255, 0.05); padding-top: 1.25rem;">
+
+            <div id="fps-config-section" class="hidden"
+                style="margin-top: 1.5rem; border-top: 1px solid rgba(255, 255, 255, 0.05); padding-top: 1.25rem;">
                 <div style="display: flex; gap: 1rem;">
                     <div style="flex: 1;">
-                        <label style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 0.25rem;">Webcam Target FPS</label>
-                        <span id="webcam-fps-info" style="font-size: 0.75rem; color: var(--accent-color); display: block; margin-bottom: 0.25rem; min-height: 1rem;"></span>
-                        <input type="number" id="webcam-target-fps" placeholder="e.g. 30" style="width: 100%; padding: 0.5rem 0.75rem; background: rgba(0, 0, 0, 0.25); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 6px; color: white; font-size: 0.9rem;">
+                        <label style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 0.25rem;">Webcam Target
+                            FPS</label>
+                        <span id="webcam-fps-info"
+                            style="font-size: 0.75rem; color: var(--accent-color); display: block; margin-bottom: 0.25rem; min-height: 1rem;"></span>
+                        <input type="number" id="webcam-target-fps" placeholder="e.g. 30"
+                            style="width: 100%; padding: 0.5rem 0.75rem; background: rgba(0, 0, 0, 0.25); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 6px; color: white; font-size: 0.9rem;">
                     </div>
                     <div style="flex: 1;">
-                        <label style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 0.25rem;">Screen Target FPS</label>
-                        <span id="screen-fps-info" style="font-size: 0.75rem; color: var(--accent-color); display: block; margin-bottom: 0.25rem; min-height: 1rem;"></span>
-                        <input type="number" id="screen-target-fps" placeholder="e.g. 60" style="width: 100%; padding: 0.5rem 0.75rem; background: rgba(0, 0, 0, 0.25); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 6px; color: white; font-size: 0.9rem;">
+                        <label style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 0.25rem;">Screen Target
+                            FPS</label>
+                        <span id="screen-fps-info"
+                            style="font-size: 0.75rem; color: var(--accent-color); display: block; margin-bottom: 0.25rem; min-height: 1rem;"></span>
+                        <input type="number" id="screen-target-fps" placeholder="e.g. 60"
+                            style="width: 100%; padding: 0.5rem 0.75rem; background: rgba(0, 0, 0, 0.25); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 6px; color: white; font-size: 0.9rem;">
                     </div>
                 </div>
             </div>
@@ -109,11 +132,16 @@
             <h2>4. BIDS Workspace Link</h2>
             <div style="display: flex; flex-direction: column; gap: 0.75rem;">
                 <div style="display: flex; align-items: center; justify-content: space-between; gap: 1rem;">
-                    <button id="link-bids-btn" class="btn secondary" style="flex: 1; padding: 0.6rem 1rem; font-size: 0.85rem;">Link BIDS Directory</button>
+                    <button id="link-bids-btn" class="btn secondary"
+                        style="flex: 1; padding: 0.6rem 1rem; font-size: 0.85rem;">Link BIDS Directory</button>
                     <span id="bids-status" class="status-badge disconnected" style="margin-left: 0;">Not Linked</span>
                 </div>
-                <div id="bids-path-display" style="font-size: 0.85rem; color: #cbd5e1; word-break: break-all; min-height: 1.25rem; background: rgba(0, 0, 0, 0.2); padding: 0.5rem; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.05);">No directory linked</div>
-                <button id="sync-bids-btn" class="btn secondary hidden" style="background: linear-gradient(to right, #3b82f6, #10b981); width: 100%; padding: 0.6rem 1rem; font-size: 0.85rem; box-shadow: 0 4px 10px rgba(16, 185, 129, 0.2);">Sync Firestore to BIDS</button>
+                <div id="bids-path-display"
+                    style="font-size: 0.85rem; color: #cbd5e1; word-break: break-all; min-height: 1.25rem; background: rgba(0, 0, 0, 0.2); padding: 0.5rem; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.05);">
+                    No directory linked</div>
+                <button id="sync-bids-btn" class="btn secondary hidden"
+                    style="background: linear-gradient(to right, #3b82f6, #10b981); width: 100%; padding: 0.6rem 1rem; font-size: 0.85rem; box-shadow: 0 4px 10px rgba(16, 185, 129, 0.2);">Sync
+                    Firestore to BIDS</button>
                 <span id="bids-sync-status" style="font-size: 0.85rem; display: block; text-align: center;"></span>
             </div>
         </div>
@@ -121,13 +149,16 @@
         <div class="form-section">
             <h2>5. AprilTag Overlay</h2>
             <div class="checkbox-group" style="margin-bottom: 0.75rem;">
-                <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; color: #cbd5e1; user-select: none;">
-                    <input type="checkbox" id="enable-apriltags" style="width: 16px; height: 16px; accent-color: #8b5cf6;"> Enable Tag Display
+                <label
+                    style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; color: #cbd5e1; user-select: none;">
+                    <input type="checkbox" id="enable-apriltags"
+                        style="width: 16px; height: 16px; accent-color: #8b5cf6;"> Enable Tag Display
                 </label>
             </div>
             <div class="input-group">
                 <label>Tag Size (pixels)</label>
-                <input type="number" id="apriltag-size" placeholder="e.g. 75" value="75" style="width: 100%; padding: 0.5rem 0.75rem; background: rgba(0, 0, 0, 0.25); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 6px; color: white; font-size: 0.9rem;">
+                <input type="number" id="apriltag-size" placeholder="e.g. 75" value="75"
+                    style="width: 100%; padding: 0.5rem 0.75rem; background: rgba(0, 0, 0, 0.25); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 6px; color: white; font-size: 0.9rem;">
             </div>
         </div>
 
@@ -139,7 +170,7 @@
 
     <div id="dashboard-panel" class="glass-panel hidden">
         <h1>Experiment Dashboard</h1>
-        
+
         <div class="form-section">
             <h2>Active Configuration</h2>
             <div class="summary-details">
@@ -167,7 +198,8 @@
             <div id="dashboard-test-controls" class="input-group hidden">
                 <label>Test Marker Connection</label>
                 <div style="display: flex; gap: 0.5rem; margin-top: 0.25rem;">
-                    <input type="text" id="dashboard-test-input" placeholder="Marker Byte (e.g. 1)" value="1" style="flex: 1;">
+                    <input type="text" id="dashboard-test-input" placeholder="Marker Byte (e.g. 1)" value="1"
+                        style="flex: 1;">
                     <button id="dashboard-test-btn" class="btn secondary">Send Test Marker</button>
                 </div>
                 <span id="dashboard-test-status" style="font-size: 0.85rem; margin-top: 0.5rem; display: block;"></span>
@@ -182,21 +214,31 @@
 
     <div id="done-panel" class="glass-panel hidden">
         <h1>Experiment Completed</h1>
-        
-        <div class="form-section" style="text-align: center; border-bottom: none; margin-bottom: 1.5rem; padding-bottom: 0;">
-            <div style="font-size: 3.5rem; margin-bottom: 0.5rem; color: var(--success-color); filter: drop-shadow(0 0 10px rgba(16, 185, 129, 0.3));">✓</div>
+
+        <div class="form-section"
+            style="text-align: center; border-bottom: none; margin-bottom: 1.5rem; padding-bottom: 0;">
+            <div
+                style="font-size: 3.5rem; margin-bottom: 0.5rem; color: var(--success-color); filter: drop-shadow(0 0 10px rgba(16, 185, 129, 0.3));">
+                ✓</div>
             <p style="font-size: 1.05rem; color: #94a3b8; line-height: 1.6; margin-bottom: 0.5rem;">
-                Thank you! The experiment has concluded successfully. You can now download your recorded media and session data below.
+                Thank you! The experiment has concluded successfully. You can now download your recorded media and
+                session data below.
             </p>
-            <div id="bids-autosave-status" class="status-badge connected hidden" style="margin: 0.75rem auto; width: max-content; display: none; font-size: 0.85rem; padding: 0.35rem 1rem;"></div>
+            <div id="bids-autosave-status" class="status-badge connected hidden"
+                style="margin: 0.75rem auto; width: max-content; display: none; font-size: 0.85rem; padding: 0.35rem 1rem;">
+            </div>
         </div>
 
         <div class="form-section">
             <h2>Download Results</h2>
             <div style="display: flex; flex-direction: column; gap: 0.75rem;">
-                <button id="download-csv-btn" class="btn primary" style="margin-top: 0; background: linear-gradient(to right, #3b82f6, #8b5cf6); box-shadow: 0 4px 14px rgba(59, 130, 246, 0.3);">Download CSV Data 📊</button>
-                <button id="download-webcam-btn" class="btn secondary hidden" style="width: 100%;">Download Webcam Recording 📹</button>
-                <button id="download-screen-btn" class="btn secondary hidden" style="width: 100%;">Download Screen Recording 🖥️</button>
+                <button id="download-csv-btn" class="btn primary"
+                    style="margin-top: 0; background: linear-gradient(to right, #3b82f6, #8b5cf6); box-shadow: 0 4px 14px rgba(59, 130, 246, 0.3);">Download
+                    CSV Data 📊</button>
+                <button id="download-webcam-btn" class="btn secondary hidden" style="width: 100%;">Download Webcam
+                    Recording 📹</button>
+                <button id="download-screen-btn" class="btn secondary hidden" style="width: 100%;">Download Screen
+                    Recording 🖥️</button>
             </div>
         </div>
 
@@ -218,6 +260,7 @@
     <script src="https://unpkg.com/@jspsych/plugin-survey-text@2.0.0"></script>
     <script src="https://unpkg.com/@jspsych/plugin-survey-multi-choice@2.0.0"></script>
     <script src="https://unpkg.com/@jspsych/plugin-survey-html-form@2.0.0"></script>
+    <script src="https://unpkg.com/@jspsych/plugin-fullscreen@2.0.0"></script>
 
     <!-- js-yaml library to parse YAML in the browser -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/js-yaml/4.1.0/js-yaml.min.js"></script>
@@ -225,4 +268,5 @@
     <!-- Main Module -->
     <script type="module" src="src/main.js"></script>
 </body>
+
 </html>

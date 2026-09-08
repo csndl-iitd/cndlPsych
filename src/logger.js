@@ -9,6 +9,7 @@ export class Logger {
         this.participantId = null;
         this.sessionNumber = null;
         this.sessionDocId = null;
+        this.trialMarkers = [];
     }
 
     logEvent(eventName, data = {}) {
@@ -36,6 +37,13 @@ export class Logger {
     dispatchTrigger(triggerValue) {
         this.logEvent('hardware_trigger_sent', { value: triggerValue });
         sendTrigger(triggerValue);
+        this.trialMarkers.push(triggerValue);
+    }
+
+    consumeTrialMarkers() {
+        const markers = [...this.trialMarkers];
+        this.trialMarkers = [];
+        return markers;
     }
     
     getBuffer() {

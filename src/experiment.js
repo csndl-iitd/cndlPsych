@@ -34,6 +34,27 @@ export async function runExperiment() {
     const forceScrollTop = () => window.scrollTo(0, 0);
     window.addEventListener('scroll', forceScrollTop);
 
+    // Hide pointer when inactive for > 1s
+    let cursorTimeout;
+    const hideCursor = () => { document.body.style.cursor = 'none'; };
+    const resetCursor = () => {
+        document.body.style.cursor = 'default';
+        clearTimeout(cursorTimeout);
+        cursorTimeout = setTimeout(hideCursor, 1000);
+    };
+    window.addEventListener('mousemove', resetCursor);
+    window.addEventListener('touchstart', resetCursor, { passive: true });
+    // Initialize the timeout right away
+    cursorTimeout = setTimeout(hideCursor, 1000);
+
+    // Provide a cleanup function to restore the cursor at the end
+    const cleanupCursor = () => {
+        clearTimeout(cursorTimeout);
+        window.removeEventListener('mousemove', resetCursor);
+        window.removeEventListener('touchstart', resetCursor);
+        document.body.style.cursor = 'default';
+    };
+
     // Hide settings and dashboard panels, show jsPsych container
     document.getElementById('settings-panel').classList.add('hidden');
     document.getElementById('dashboard-panel').classList.add('hidden');
@@ -62,6 +83,15 @@ export async function runExperiment() {
     let jsPsych;
     jsPsych = initJsPsych({
         display_element: 'jspsych-container',
+        on_data_update: function (data) {
+            const markers = logger.consumeTrialMarkers();
+            if (markers.length > 0) {
+                data.marker = markers[0];
+                if (markers.length > 1) {
+                    data.response_marker = markers[1];
+                }
+            }
+        },
         on_trial_finish: async function (data) {
             if (data && Array.isArray(data.response)) {
                 data.response = objectifyFormWithSemicolons(data.response);
@@ -134,7 +164,7 @@ export async function runExperiment() {
                 bidsStatus.style.display = 'block';
                 bidsStatus.textContent = 'Auto-saving to BIDS directory...';
                 bidsStatus.className = 'status-badge disconnected'; // Use disconnected temporary style
-                
+
                 try {
                     await saveSessionDataToBids(
                         window.bidsDirectoryHandle,
@@ -214,11 +244,23 @@ export async function runExperiment() {
                     console.error("Error downloading CSV:", err);
                 }
             });
+
+            // Restore pointer
+            cleanupCursor();
         }
     });
     window.jsPsych = jsPsych;
 
     const timeline = [];
+
+    // Force fullscreen mode at the start of the experiment
+    if (typeof jsPsychFullscreen !== 'undefined') {
+        timeline.push({
+            type: jsPsychFullscreen,
+            fullscreen_mode: true,
+            message: '<p style="margin-bottom: 20px;">The experiment will switch to full screen mode when you press the button below.</p>'
+        });
+    }
 
     // Preload trial
     const preload = {
