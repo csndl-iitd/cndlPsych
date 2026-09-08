@@ -83,6 +83,15 @@ export async function runExperiment() {
     let jsPsych;
     jsPsych = initJsPsych({
         display_element: 'jspsych-container',
+        on_data_update: function (data) {
+            const markers = logger.consumeTrialMarkers();
+            if (markers.length > 0) {
+                data.marker = markers[0];
+                if (markers.length > 1) {
+                    data.response_marker = markers[1];
+                }
+            }
+        },
         on_trial_finish: async function (data) {
             if (data && Array.isArray(data.response)) {
                 data.response = objectifyFormWithSemicolons(data.response);
