@@ -1,4 +1,4 @@
-import { initFirebase, downloadAllFirestoreData } from './firebase.js';
+import { initFirebase, downloadAllFirestoreData, loginAsAdmin, logoutUser, isAdmin, getCurrentUser, onAuthStateChange, loginAnonymously } from './firebase.js';
 import { setTriggerMode, connectDevice, autoConnectDevice, isTriggerConnected, getTriggerMode, sendTrigger } from './triggers.js';
 import { requestMediaPermissions, startRecording, hasWebcamStream, hasScreenStream, getMediaTrackDetails, downloadWebcam, downloadScreen, resetRecordingChunks } from './media.js';
 import { runExperiment } from './experiment.js';
@@ -17,6 +17,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const mediaBtn = document.getElementById('test-media-btn');
     const mediaStatus = document.getElementById('media-status');
     const startBtn = document.getElementById('start-experiment-btn');
+    const downloadSettingsBtn = document.getElementById('download-settings-btn');
     const settingsBackBtn = document.getElementById('settings-back-btn');
 
     // UI Elements - Dashboard Panel
@@ -37,6 +38,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // UI Elements - BIDS
     const linkBidsBtn = document.getElementById('link-bids-btn');
+    const unlinkBidsBtn = document.getElementById('unlink-bids-btn');
     const bidsStatus = document.getElementById('bids-status');
     const bidsPathDisplay = document.getElementById('bids-path-display');
     const syncBidsBtn = document.getElementById('sync-bids-btn');
@@ -44,10 +46,118 @@ document.addEventListener('DOMContentLoaded', () => {
     // UI Elements - Done Panel
     const returnDashboardBtn = document.getElementById('return-dashboard-btn');
 
+    // UI Elements - Admin Auth
+    const adminLoginBtn = document.getElementById('admin-login-btn');
+    const adminLoginText = document.getElementById('admin-login-text');
+    const dashboardAdminLoginBtn = document.getElementById('dashboard-admin-login-btn');
+    const dashboardAdminLoginText = document.getElementById('dashboard-admin-login-text');
+    const adminModal = document.getElementById('admin-login-modal');
+    const modalBackdrop = document.getElementById('modal-backdrop');
+    const adminEmailInput = document.getElementById('admin-email');
+    const adminPasswordInput = document.getElementById('admin-password');
+    const adminSubmitBtn = document.getElementById('admin-submit-btn');
+    const adminCancelBtn = document.getElementById('admin-cancel-btn');
+    const adminLoginStatus = document.getElementById('admin-login-status');
+
+    function updateAdminUI() {
+        const editSettingsBtn = document.getElementById('edit-settings-btn');
+        const triggerTestDiv = document.getElementById('dashboard-trigger-test');
+        if (isAdmin()) {
+            if (adminLoginBtn && adminLoginText) {
+                adminLoginText.textContent = "Admin Logout";
+                adminLoginBtn.style.color = "#10b981"; // Success color
+            }
+            if (dashboardAdminLoginBtn && dashboardAdminLoginText) {
+                dashboardAdminLoginText.textContent = "Admin Logout";
+                dashboardAdminLoginBtn.style.color = "#10b981"; // Success color
+            }
+            if (editSettingsBtn) editSettingsBtn.classList.remove('hidden');
+            if (triggerTestDiv) triggerTestDiv.style.display = ''; // Restore default
+        } else {
+            if (adminLoginBtn && adminLoginText) {
+                adminLoginText.textContent = "Admin Login";
+                adminLoginBtn.style.color = "#94a3b8";
+            }
+            if (dashboardAdminLoginBtn && dashboardAdminLoginText) {
+                dashboardAdminLoginText.textContent = "Admin Login";
+                dashboardAdminLoginBtn.style.color = "#94a3b8";
+            }
+            if (editSettingsBtn) editSettingsBtn.classList.add('hidden');
+            if (triggerTestDiv) triggerTestDiv.style.display = 'none';
+            
+            // If they are on the settings panel but logged out, return to dashboard
+            if (!settingsPanel.classList.contains('hidden') && editSettingsBtn) {
+                settingsPanel.classList.add('hidden');
+                dashboardPanel.classList.remove('hidden');
+            }
+        }
+    }
+
+    // React to auth state changes from firebase.js
+    onAuthStateChange(() => {
+        updateAdminUI();
+    });
+
+    const handleAdminLoginClick = async () => {
+        if (isAdmin()) {
+            await logoutUser();
+            updateAdminUI();
+        } else {
+            adminModal.classList.remove('hidden');
+            modalBackdrop.classList.remove('hidden');
+            adminLoginStatus.textContent = "";
+            adminPasswordInput.value = "";
+            adminEmailInput.focus();
+        }
+    };
+
+    if (adminLoginBtn) adminLoginBtn.addEventListener('click', handleAdminLoginClick);
+    if (dashboardAdminLoginBtn) dashboardAdminLoginBtn.addEventListener('click', handleAdminLoginClick);
+    adminCancelBtn.addEventListener('click', () => {
+        adminModal.classList.add('hidden');
+        modalBackdrop.classList.add('hidden');
+    });
+
+    adminSubmitBtn.addEventListener('click', async () => {
+        const email = adminEmailInput.value.trim();
+        const password = adminPasswordInput.value;
+        if (!email || !password) {
+            adminLoginStatus.textContent = "Please enter email and password.";
+            return;
+        }
+        
+        adminSubmitBtn.textContent = "Logging in...";
+        adminSubmitBtn.disabled = true;
+        
+        const success = await loginAsAdmin(email, password);
+        
+        adminSubmitBtn.textContent = "Login";
+        adminSubmitBtn.disabled = false;
+        
+        if (success) {
+            adminModal.classList.add('hidden');
+            modalBackdrop.classList.add('hidden');
+            updateAdminUI();
+        } else {
+            adminLoginStatus.textContent = "Login failed. Check console for details.";
+        }
+    });
+
     // -------------------------------------------------------------
     // Configuration Caching Helpers
     // -------------------------------------------------------------
-    function loadConfig() {
+    async function loadConfig() {
+        try {
+            const response = await fetch('config.json');
+            if (response.ok) {
+                const packagedConfig = await response.json();
+                localStorage.setItem('cndlpsych_config', JSON.stringify(packagedConfig));
+                return packagedConfig;
+            }
+        } catch (e) {
+            // No config.json found or network error, fallback to localStorage
+        }
+
         try {
             return JSON.parse(localStorage.getItem('cndlpsych_config') || '{}');
         } catch (e) {
@@ -289,6 +399,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function startExperimentWithPermissions() {
         saveAllSettingsToCache(); // ensure all settings (like apriltags) are saved to localStorage before starting
+        
+        if (!isAdmin()) {
+            const success = await loginAnonymously();
+            if (!success) {
+                console.warn("Anonymous login failed. Firestore logging might not work.");
+            }
+        }
+        
         const recordWebcam = document.getElementById('record-webcam').checked;
         const recordScreen = document.getElementById('record-screen').checked;
 
@@ -319,48 +437,52 @@ document.addEventListener('DOMContentLoaded', () => {
     // -------------------------------------------------------------
     // Initialization
     // -------------------------------------------------------------
-    const config = loadConfig();
-    const isConfigured = isFirebaseConfigured(config);
+    async function initApp() {
+        const config = await loadConfig();
+        const isConfigured = isFirebaseConfigured(config);
 
-    if (isConfigured) {
-        // Populate inputs
-        updateUIFromConfig(config);
+        if (isConfigured) {
+            // Populate inputs
+            updateUIFromConfig(config);
 
-        // Init Firebase
-        const fbSuccess = initFirebase(config.firebase);
-        if (fbSuccess) {
-            if (config.firebase && config.firebase.enableFirestore === false) {
-                fbStatus.textContent = 'Local Mode';
-            } else {
-                fbStatus.textContent = 'Configured';
+            // Init Firebase
+            const fbSuccess = initFirebase(config.firebase);
+            if (fbSuccess) {
+                if (config.firebase && config.firebase.enableFirestore === false) {
+                    fbStatus.textContent = 'Local Mode';
+                } else {
+                    fbStatus.textContent = 'Configured';
+                }
+                fbStatus.classList.remove('disconnected');
+                fbStatus.classList.add('connected');
             }
-            fbStatus.classList.remove('disconnected');
-            fbStatus.classList.add('connected');
+
+            // Init Trigger mode
+            const trigMode = config.trigger?.mode || 'none';
+            setTriggerMode(trigMode, { url: config.trigger?.wsUrl, format: config.trigger?.format });
+
+            // Attempt Auto Connect
+            autoConnectDevice().then(() => {
+                updateTriggerUIStatus();
+            });
+
+            // Set View to Dashboard
+            settingsPanel.classList.add('hidden');
+            dashboardPanel.classList.remove('hidden');
+            settingsBackBtn.classList.remove('hidden'); // allow going back
+            updateDashboardSummary(config);
+        } else {
+            // Show Settings
+            settingsPanel.classList.remove('hidden');
+            dashboardPanel.classList.add('hidden');
+            settingsBackBtn.classList.add('hidden');
         }
 
-        // Init Trigger mode
-        const trigMode = config.trigger?.mode || 'none';
-        setTriggerMode(trigMode, { url: config.trigger?.wsUrl, format: config.trigger?.format });
-
-        // Attempt Auto Connect
-        autoConnectDevice().then(() => {
-            updateTriggerUIStatus();
-        });
-
-        // Set View to Dashboard
-        settingsPanel.classList.add('hidden');
-        dashboardPanel.classList.remove('hidden');
-        settingsBackBtn.classList.remove('hidden'); // allow going back
-        updateDashboardSummary(config);
-    } else {
-        // Show Settings
-        settingsPanel.classList.remove('hidden');
-        dashboardPanel.classList.add('hidden');
-        settingsBackBtn.classList.add('hidden');
+        // Update statuses periodically to capture socket/serial open state updates
+        setInterval(updateTriggerUIStatus, 1000);
     }
-
-    // Update statuses periodically to capture socket/serial open state updates
-    setInterval(updateTriggerUIStatus, 1000);
+    
+    initApp();
 
     // -------------------------------------------------------------
     // Event Listeners
@@ -576,12 +698,36 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    function removeDirectoryHandle() {
+        return new Promise((resolve) => {
+            const request = indexedDB.open(DB_NAME, 1);
+            request.onsuccess = (e) => {
+                const db = e.target.result;
+                if (db.objectStoreNames.contains(STORE_NAME)) {
+                    try {
+                        const transaction = db.transaction(STORE_NAME, "readwrite");
+                        const store = transaction.objectStore(STORE_NAME);
+                        store.delete(KEY);
+                        transaction.oncomplete = () => resolve(true);
+                    } catch (err) {
+                        resolve(false);
+                    }
+                } else {
+                    resolve(true);
+                }
+            };
+            request.onerror = () => resolve(false);
+        });
+    }
+
     function updateBidsUIStatus(dirName, needsGrant = false) {
         if (!dirName) {
             bidsStatus.textContent = 'Not Linked';
             bidsStatus.className = 'status-badge disconnected';
             bidsPathDisplay.textContent = 'No directory linked';
             syncBidsBtn.classList.add('hidden');
+            linkBidsBtn.classList.remove('hidden');
+            unlinkBidsBtn.classList.add('hidden');
             return;
         }
 
@@ -590,11 +736,15 @@ document.addEventListener('DOMContentLoaded', () => {
             bidsStatus.className = 'status-badge disconnected';
             bidsPathDisplay.textContent = `Configured: ${dirName} (Click 'Link' to grant access)`;
             syncBidsBtn.classList.add('hidden');
+            linkBidsBtn.classList.remove('hidden');
+            unlinkBidsBtn.classList.remove('hidden');
         } else {
             bidsStatus.textContent = 'Linked';
             bidsStatus.className = 'status-badge connected';
             bidsPathDisplay.textContent = `Directory: ${dirName}`;
             syncBidsBtn.classList.remove('hidden');
+            linkBidsBtn.classList.add('hidden');
+            unlinkBidsBtn.classList.remove('hidden');
         }
     }
 
@@ -684,6 +834,31 @@ document.addEventListener('DOMContentLoaded', () => {
                 bidsSyncStatus.textContent = "";
             }, 5000);
         }
+    });
+
+    // Unlink BIDS Button click
+    unlinkBidsBtn.addEventListener('click', async () => {
+        window.bidsDirectoryHandle = null;
+        await removeDirectoryHandle();
+        updateBidsUIStatus(null);
+    });
+
+    // Download Settings Button
+    downloadSettingsBtn.addEventListener('click', () => {
+        const configStr = localStorage.getItem('cndlpsych_config');
+        if (!configStr) {
+            alert("No settings to download yet. Try saving configuration first.");
+            return;
+        }
+        const blob = new Blob([configStr], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'config.json';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
     });
 
     // Start Experiment buttons

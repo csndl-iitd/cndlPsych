@@ -1,5 +1,5 @@
 // Dynamic survey block module supporting text, radio, checkbox, dropdown, and Likert inputs
-import { getNextParticipantId, getNextSessionNumber, getParticipantDetails } from '../firebase.js';
+import { getNextParticipantId, getNextSessionNumber, getParticipantDetails, isAdmin, cleanupIncompleteSession } from '../firebase.js';
 
 function getResponseValue(partData, name) {
     if (!partData || !partData.response) return null;
@@ -25,10 +25,14 @@ export function generateHtmlForm(questions, defaultValues = {}) {
 
         if (q.name === 'participant_id') {
             const val = defaultValues.participant_id || '001';
+            const isReadonly = !isAdmin();
+            const readonlyAttr = isReadonly ? 'readonly' : '';
+            const bgStyle = isReadonly ? 'rgba(0, 0, 0, 0.5)' : 'rgba(0, 0, 0, 0.25)';
+            const cursorStyle = isReadonly ? 'not-allowed' : 'text';
             html += `
-                <div style="display: flex; align-items: center; gap: 6px; background: rgba(0, 0, 0, 0.25); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 6px; padding: 2px 8px; transition: border-color 0.2s;" onfocusin="this.style.borderColor='#8b5cf6';" onfocusout="this.style.borderColor='rgba(255, 255, 255, 0.15)';">
+                <div style="display: flex; align-items: center; gap: 6px; background: ${bgStyle}; border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 6px; padding: 2px 8px; transition: border-color 0.2s;" onfocusin="this.style.borderColor='#8b5cf6';" onfocusout="this.style.borderColor='rgba(255, 255, 255, 0.15)';">
                     <span style="color: #94a3b8; font-weight: 600; font-size: 0.9rem; user-select: none;">sub-</span>
-                    <input type="text" name="participant_id" id="participant_id_input" ${requiredAttr} pattern="[0-9]{1,3}" title="Please enter an integer less than 1000" placeholder="001" value="${val}" style="flex: 1; padding: 10px 4px 10px 0; background: transparent; border: none; color: #f8fafc; font-size: 0.9rem; outline: none; box-sizing: border-box;">
+                    <input type="text" name="participant_id" id="participant_id_input" ${requiredAttr} ${readonlyAttr} pattern="[0-9A-Za-z-]{1,20}" title="Participant ID" placeholder="TBD" value="${val}" style="flex: 1; padding: 10px 4px 10px 0; background: transparent; border: none; color: #f8fafc; font-size: 0.9rem; outline: none; box-sizing: border-box; cursor: ${cursorStyle};">
                 </div>
             `;
         } else if (q.name === 'session_number') {
@@ -199,15 +203,37 @@ export async function createTimeline(blockConfig) {
                         idInput.addEventListener('input', handleIdChange);
                         idInput.addEventListener('change', handleIdChange);
 
-                        // Async fetch the next participant ID in the background
+                        // Async fetch the recycled or next participant ID in the background
                         (async () => {
+                            const formContainer = document.querySelector('.custom-jspsych-form');
+                            const inputs = formContainer ? formContainer.querySelectorAll('input, select') : [];
+                            const submitBtn = document.getElementById('jspsych-survey-html-form-next');
+                            
+                            inputs.forEach(el => el.disabled = true);
+                            if (submitBtn) {
+                                submitBtn.disabled = true;
+                                submitBtn.textContent = "Loading Session...";
+                            }
+
                             try {
-                                const nextPartId = await getNextParticipantId();
-                                idInput.value = nextPartId;
-                                handleIdChange();
+                                const recycledId = await cleanupIncompleteSession();
+                                if (recycledId) {
+                                    console.log("Recycling previous incomplete session ID:", recycledId);
+                                    idInput.value = recycledId.replace('sub-', '');
+                                } else {
+                                    const nextPartId = await getNextParticipantId();
+                                    idInput.value = nextPartId.replace('sub-', '');
+                                }
+                                await handleIdChange();
                             } catch (e) {
-                                console.error("Error setting next participant ID on load:", e);
-                                handleIdChange();
+                                console.error("Error setting participant ID on load:", e);
+                                await handleIdChange();
+                            } finally {
+                                inputs.forEach(el => el.disabled = false);
+                                if (submitBtn) {
+                                    submitBtn.disabled = false;
+                                    submitBtn.textContent = "Continue";
+                                }
                             }
                         })();
                     }

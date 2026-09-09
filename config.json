@@ -1,0 +1,1 @@
+{"firebase":{"apiKey":"AIzaSyA0g66lYtfkJ9bnD9P-4BQ84dMMpaRYj6k","authDomain":"cndlpsych.firebaseapp.com","projectId":"cndlpsych","enableFirestore":true},"trigger":{"mode":"none","wsUrl":"","format":"hex"},"media":{"recordWebcam":false,"recordScreen":false,"webcamFps":"30","screenFps":"30"},"apriltag":{"enableApriltags":true,"apriltagSize":"75"}}
