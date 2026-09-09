@@ -105,7 +105,9 @@ label {
     font-weight: 500;
 }
 
-input[type="text"] {
+input[type="text"],
+input[type="number"],
+select {
     width: 100%;
     padding: 0.75rem 1rem;
     background: rgba(0, 0, 0, 0.2);
@@ -117,7 +119,19 @@ input[type="text"] {
     transition: border-color 0.2s, box-shadow 0.2s;
 }
 
-input[type="text"]:focus {
+select {
+    appearance: auto; /* Let the browser render the dropdown arrow, or we can use custom if preferred. But auto is safer for offset issues */
+    cursor: pointer;
+}
+
+select option {
+    background: var(--bg-color);
+    color: var(--text-color);
+}
+
+input[type="text"]:focus,
+input[type="number"]:focus,
+select:focus {
     outline: none;
     border-color: var(--primary-color);
     box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);

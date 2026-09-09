@@ -1,19 +1,40 @@
 rules_version = '2';
-
 service cloud.firestore {
   match /databases/{database}/documents {
+    
+    // An admin is anyone who is logged in with an actual account (not anonymous)
+    function isAdmin() { return request.auth != null && request.auth.token.firebase.sign_in_provider != 'anonymous'; }
+    function isOwner() { return request.auth != null && resource.data.uid == request.auth.uid; }
+    function isSettingOwnership() { return request.auth != null && request.resource.data.uid == request.auth.uid; }
 
-    // This rule allows anyone with your Firestore database reference to view, edit,
-    // and delete all data in your Firestore database. It is useful for getting
-    // started, but it is configured to expire after 30 days because it
-    // leaves your app open to attackers. At that time, all client
-    // requests to your Firestore database will be denied.
-    //
-    // Make sure to write security rules for your app before that time, or else
-    // all client requests to your Firestore database will be denied until you Update
-    // your rules
+    // Global Admin Rule
     match /{document=**} {
-      allow read, write: if request.time < timestamp.date(2026, 7, 3);
+      allow read, write: if isAdmin();
+    }
+
+    // Secure Counter for Anonymous Subjects (Increment by 1 only)
+    match /metadata/counter {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && request.resource.data.lastId == 1;
+      allow update: if request.auth != null && request.resource.data.lastId == resource.data.lastId + 1;
+    }
+
+    // Participant Rules
+    match /participants/{docId} {
+      allow create: if isSettingOwnership();
+      allow read, update, delete: if isOwner();
+    }
+    match /sessions/{docId} {
+      allow create: if isSettingOwnership();
+      allow read, update, delete: if isOwner();
+    }
+    match /experiment_events/{docId} {
+      allow create: if isSettingOwnership();
+      allow read, update, delete: if isOwner();
+    }
+    match /trials/{docId} {
+      allow create: if isSettingOwnership();
+      allow read, update, delete: if isOwner();
     }
   }
 }

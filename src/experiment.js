@@ -1,6 +1,6 @@
 import { logger } from './logger.js';
 import { stopRecording, downloadWebcam, downloadScreen, getWebcamBlob, getScreenBlob } from './media.js';
-import { logDataToFirebase, logOrUpdateParticipant, logOrUpdateSession } from './firebase.js';
+import { logDataToFirebase, logOrUpdateParticipant, logOrUpdateSession, generateOfficialId, cleanupIncompleteSession, markExperimentComplete, getCurrentUser } from './firebase.js';
 import { saveSessionDataToBids } from './bids.js';
 
 export function objectifyFormWithSemicolons(formArray) {
@@ -103,12 +103,24 @@ export async function runExperiment() {
             if (data.formId === 'participant') {
                 const response = data.response || {};
                 const rawParticipantId = response.participant_id || Object.values(response)[0];
-                if (rawParticipantId) {
+                if (rawParticipantId === "TBD") {
+                    const recycledId = await cleanupIncompleteSession();
+                    if (recycledId) {
+                        participantId = recycledId;
+                        response.participant_id = recycledId;
+                    } else {
+                        const newId = await generateOfficialId();
+                        response.participant_id = newId || "sub-001";
+                        participantId = newId || "sub-001";
+                    }
+                } else if (rawParticipantId) {
                     const parsedNum = parseInt(rawParticipantId, 10);
                     const formattedId = "sub-" + (isNaN(parsedNum) ? "001" : String(parsedNum).padStart(3, '0'));
                     response.participant_id = formattedId;
                     participantId = formattedId;
                 }
+                
+                response.status = "in_progress";
                 await logOrUpdateParticipant(participantId, response);
                 logger.participantId = participantId;
             }
@@ -144,11 +156,11 @@ export async function runExperiment() {
             // Remove the scroll lock listener
             window.removeEventListener('scroll', forceScrollTop);
 
-            const finalParticipantId = participantId || 'subject';
-            const finalSessionId = sessionNumber || 'session';
-
             // Turn off camera and stop recorder immediately (turns off indicators)
             await stopRecording();
+
+            // Mark experiment as completed in Firebase
+            await markExperimentComplete(participantId);
 
             // Hide jspsych container, apriltag overlay, and show done panel
             document.getElementById('jspsych-container').classList.add('hidden');
@@ -157,6 +169,21 @@ export async function runExperiment() {
 
             const donePanel = document.getElementById('done-panel');
             donePanel.classList.remove('hidden');
+
+            const idDisplay = document.getElementById('official-id-display');
+            const idText = document.getElementById('official-id-text');
+            
+            if (idDisplay && idText) {
+                if (participantId) {
+                    idText.textContent = participantId;
+                    idDisplay.classList.remove('hidden');
+                } else {
+                    idDisplay.classList.add('hidden');
+                }
+            }
+
+            const finalParticipantId = participantId || 'subject';
+            const finalSessionId = sessionNumber || 'session';
 
             // Check if BIDS directory linked and auto-save
             const bidsStatus = document.getElementById('bids-autosave-status');

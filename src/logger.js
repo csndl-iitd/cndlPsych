@@ -17,10 +17,10 @@ export class Logger {
             eventName,
             ...data,
             timestamp: performance.now(),
-            sessionId: this.sessionId,
-            participantId: this.participantId,
-            sessionNumber: this.sessionNumber,
-            sessionDocId: this.sessionDocId
+            session_id: this.sessionId,
+            participant_id: this.participantId,
+            session_number: this.sessionNumber,
+            session_doc_id: this.sessionDocId
         };
         
         // Log to console for debugging
