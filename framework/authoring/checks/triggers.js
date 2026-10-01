@@ -1,6 +1,7 @@
 // Triggers and events: `on` / `where` refer to real events and fields, values fit their
 // sinks, and no value carries two meanings or fires twice by accident.
 import { FILES, writtenScopes } from '../context.js';
+import { sinkProblems } from '../../foundation/format.js';
 
 const ENVELOPE_FIELDS = new Set(['block', 'trial', 'phase']);
 const COMBINATORS = ['all', 'any', 'not'];
@@ -139,7 +140,19 @@ function checkResolved(ctx, scope, reported) {
   });
 }
 
+/** Sink settings that cannot work together, and templates that cannot be rendered. */
+function checkSinkSettings(ctx) {
+  ctx.sinks.forEach((sink, i) => {
+    const at = (key) => ['triggers', 'sinks', i, key];
+    for (const message of sinkProblems(sink)) ctx.report.error('bad-sink-template', FILES.experiment, at('template'), `sink "${sink.id}": ${message}`);
+    if (sink.sync && sink.type !== 'websocket') ctx.report.error('sink-sync-unsupported', FILES.experiment, at('sync'), `sink "${sink.id}": ping sync needs a websocket receiver that replies`);
+    if (sink.ack && sink.type === 'usb') ctx.report.error('sink-ack-unsupported', FILES.experiment, at('ack'), `sink "${sink.id}": USB sinks cannot receive acknowledgements`);
+    if (sink.reset_after_ms !== undefined && sink.format !== 'raw') ctx.report.error('sink-reset-needs-raw', FILES.experiment, at('reset_after_ms'), `sink "${sink.id}": reset_after_ms only applies to format raw`);
+  });
+}
+
 export function checkTriggers(ctx, scopes) {
+  checkSinkSettings(ctx);
   checkEventNames(ctx);
   checkRanges(ctx);
   const reported = new Set();

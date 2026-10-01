@@ -2519,7 +2519,10 @@
                 "type": "string"
               },
               "offset_ms": {
-                "type": "number"
+                "type": [
+                  "number",
+                  "null"
+                ]
               },
               "rtt_ms": {
                 "type": "number"

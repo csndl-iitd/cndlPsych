@@ -156,6 +156,7 @@ function instanceNode(ctx, planBlock, instance) {
     on_timeline_start() {
       ctx.bus.setContext({ trial: number, phase: null });
       ctx.applyScope(planBlock.trials[defIndex].input[ctx.profile]);
+      ctx.applyTriggers(planBlock.trials[defIndex].triggers);
       state.unsubscribe = ctx.bus.on('semantic.*', onSemantic);
       ctx.bus.emit({ source: 'task', type: 'trial.start', data: { trial: number, name: def.name, conditions } });
     },
@@ -165,6 +166,7 @@ function instanceNode(ctx, planBlock, instance) {
       const first = state.responses.find((r) => r.rt !== null);
       ctx.bus.emit({ source: 'task', type: 'trial.end', data: { trial: number, outcome: outcome(), rt_ms: first ? first.rt : null } });
       ctx.mapping.reset('trial');
+      ctx.applyTriggers(planBlock.triggers);
       ctx.bus.setContext({ trial: null, phase: null });
     },
   };

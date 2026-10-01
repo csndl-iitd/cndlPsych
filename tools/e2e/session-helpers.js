@@ -43,11 +43,22 @@ export async function answerPostTask(page, { difficulty = '4', strategy = 'No' }
   await clickContinue(page);
 }
 
-/** Answer every screen up to the blocks. */
+/** The trigger device screen: choose the default action (connect, or retry) and continue. */
+export async function continueDeviceScreen(page, action) {
+  await page.locator('[data-name="action"]').waitFor();
+  if (action) await choose(page, 'action', action);
+  await clickContinue(page);
+}
+
+/**
+ * Answer every screen up to the blocks. `connect: true` also clicks through the trigger device
+ * screen (needed when the project has a serial or USB sink).
+ */
 export async function passEntryScreens(page, answers = {}) {
   await answerConsent(page);
   await answerSubject(page, answers.subject);
   await answerSession(page, answers.session);
+  if (answers.connect) await continueDeviceScreen(page);
 }
 
 /**

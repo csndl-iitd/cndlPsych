@@ -452,11 +452,13 @@ events:
       detail: {type: string}
   sink.sync:
     source: trigger
-    doc: Clock offset estimate against a receiver that answers pings.
+    doc: >
+      Round trip to a receiver that answers. With ping sync, offset_ms estimates the receiver's
+      clock minus ours; for a plain ack (ack: true) there is no offset and it is null.
     required: [sink, offset_ms, rtt_ms, samples]
     data:
       sink: {type: string}
-      offset_ms: {type: number}
+      offset_ms: {type: [number, "null"]}
       rtt_ms: {type: number}
       samples: {type: integer}
 

@@ -15,6 +15,7 @@ import htmlKeyboardResponse from '@jspsych/plugin-html-keyboard-response';
  * @property {{Extension: Function, keysFor: (intents: string[]) => string[]}} bridge
  * @property {{setAccepted: (intents: string[]) => void, reset: (level: string) => void}} mapping
  * @property {(scope: object) => void} applyScope apply a resolved input scope (mapping, input, cursor, bridge keys)
+ * @property {(scope: {enabled: boolean, rules: object[]}) => void} applyTriggers apply a resolved trigger scope
  * @property {(name: string, options: object) => {html: string, data: object}} renderStimulus
  * @property {(ms: number, callback: () => void) => () => void} schedule
  * @property {() => Promise<number>} nextFrame

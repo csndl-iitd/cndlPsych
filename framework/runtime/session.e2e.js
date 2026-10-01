@@ -10,7 +10,8 @@ test.afterEach(({ page }) => {
 
 test.setTimeout(180_000);
 
-const FAST = { debug: { enabled: true, time_scale: 0.2 } };
+// These tests are about the session, not hardware: the example's trigger sinks are removed.
+const FAST = { debug: { enabled: true, time_scale: 0.2 }, triggers: { sinks: [] } };
 const ofType = (events, type) => events.filter((e) => e.type === type);
 const profileOf = (testInfo) => testInfo.project.name;
 
@@ -166,7 +167,7 @@ test('a device that is not allowed is rejected and recorded as device_rejected',
 });
 
 test('debug.simulate_profile overrides detection and is recorded as an override', async ({ page }) => {
-  await startSession(page, { merge: { debug: { enabled: true, time_scale: 0.2, simulate_profile: 'tablet' }, device: { allowed: ['tablet'] } } });
+  await startSession(page, { merge: { ...FAST, debug: { enabled: true, time_scale: 0.2, simulate_profile: 'tablet' }, device: { allowed: ['tablet'] } } });
   await passEntryScreens(page);
   await expect.poll(async () => (await recorded(page)).events.length).toBeGreaterThan(4);
   const { events, record } = await recorded(page);

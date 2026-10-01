@@ -8,10 +8,11 @@ import { sessionAnswers, sessionElements, subjectAnswers, subjectElements } from
 import { markdownToHtml } from '../authoring/modules/markdown.js';
 import { runNodes } from '../authoring/modules/jspsych.js';
 import { buildResponseTask } from '../authoring/modules/response-task.js';
-import { buildSurvey, showConsent, showForm } from '../authoring/modules/survey.js';
-import { admitDevice, deviceRecord, readEnvironment, resolveProfile } from '../foundation/device.js';
+import { askAction, buildSurvey, showConsent, showForm } from '../authoring/modules/survey.js';
+import { admitDevice, deviceRecord, profileConditions, readEnvironment, resolveProfile } from '../foundation/device.js';
 import { matchesPredicate } from '../foundation/matcher.js';
 import { createRng } from '../foundation/rng.js';
+import { NEEDS_GESTURE } from './sinks.js';
 import { createConsentGate, createSessionRecord, finishSessionRecord, hashText, parseUrlParams, resolveSeed } from '../foundation/session.js';
 
 export const FRAMEWORK_VERSION = '0.1.0';
@@ -45,6 +46,45 @@ async function chooseProfile(screen, plan, env, override) {
   return resolved;
 }
 
+/**
+ * "Connect trigger sinks": each sink connects in turn. Serial and USB need a click first (the
+ * browser's device picker). A required sink that cannot connect blocks the session unless the
+ * user retries successfully; an optional one is skipped with a warning.
+ * @returns {Promise<{ok: boolean, blocked?: {id: string, error: string}, warnings: {id: string, error: string}[]}>}
+ */
+async function connectSinks(screen, sinkSet) {
+  const warnings = [];
+  for (const config of sinkSet.configs) {
+    const sink = sinkSet.sinks.get(config.id);
+    const optional = !sink.required;
+    let needsClick = NEEDS_GESTURE.has(config.type);
+    for (;;) {
+      if (needsClick) {
+        const choices = [{ value: 'connect', text: 'Connect' }, ...(optional ? [{ value: 'skip', text: 'Continue without this device' }] : [])];
+        const action = await askAction(screen, { message: `## Trigger device
+
+Connect **${config.id}** (${config.type}). Choose *Connect*, then select the device in the browser dialog.`, choices, submitLabel: 'Continue' });
+        if (action === 'skip') {
+          warnings.push({ id: config.id, error: 'skipped by the experimenter' });
+          break;
+        }
+      }
+      const result = await sink.connect();
+      if (result.ok) break;
+      if (optional) {
+        warnings.push({ id: config.id, error: result.error });
+        break;
+      }
+      const choice = await askAction(screen, { message: `## Trigger device not connected
+
+Could not connect **${config.id}**: ${result.error}`, choices: [{ value: 'retry', text: 'Try again' }, { value: 'cancel', text: 'Cancel the session' }] });
+      if (choice === 'cancel') return { ok: false, blocked: { id: config.id, error: result.error }, warnings };
+      needsClick = false;
+    }
+  }
+  return { ok: true, warnings };
+}
+
 function blockApplies(planBlock, profile, answers) {
   if (!planBlock.profiles.includes(profile)) return false;
   return planBlock.when === undefined || matchesPredicate(planBlock.when, answers);
@@ -53,6 +93,11 @@ function blockApplies(planBlock, profile, answers) {
 async function runBlocks({ services, plan, profile, seed, answers }) {
   const { bus, jsPsych } = services;
   const master = createRng(seed);
+  let lostSink = null;
+  services.onRequiredSinkLost((id) => {
+    lostSink = lostSink ?? id;
+    jsPsych.abortExperiment('A required trigger device was lost. The session has stopped.');
+  });
   for (const planBlock of plan.blocks) {
     if (!blockApplies(planBlock, profile, answers)) {
       bus.emit({ source: 'system', type: 'block.end', block: planBlock.id, data: { block_id: planBlock.id, reason: 'skipped' } });
@@ -63,10 +108,13 @@ async function runBlocks({ services, plan, profile, seed, answers }) {
     for (let run = 1; run <= planBlock.repeat; run += 1) {
       const ctx = services.moduleContext({ rng: master.fork(`block:${planBlock.id}:${run}`), profile });
       const { nodes, nTrials } = build(ctx, planBlock);
+      ctx.applyTriggers(planBlock.triggers);
       bus.setContext({ block: planBlock.id, trial: null, phase: null });
       bus.emit({ source: 'system', type: 'block.start', data: { block_id: planBlock.id, module: planBlock.module, n_trials: nTrials } });
       await runNodes(jsPsych, nodes);
+      if (lostSink) throw new Error(`the required trigger sink "${lostSink}" was lost during the session`);
       bus.emit({ source: 'system', type: 'block.end', data: { block_id: planBlock.id, reason: 'complete' } });
+      ctx.applyTriggers({ enabled: false, rules: [] });
       bus.setContext({ block: null, trial: null, phase: null });
     }
   }
@@ -114,7 +162,21 @@ export async function runSession({ services, project, store, search = globalThis
   const resolved = await chooseProfile(screen, plan, env, debug.simulate_profile);
   const profile = resolved.profile ?? 'unknown';
 
-  // 4. start recording: record, store, then session.start as the first event
+  // 4. connect trigger sinks (only for a device that will be admitted; nothing is recorded yet)
+  const permitted = plan.device?.allowed ?? Object.keys(profileConditions(plan.device ?? {}));
+  const { sinkSet } = services;
+  let sinkWarnings = [];
+  if (resolved.profile !== null && permitted.includes(profile) && sinkSet.configs.length) {
+    const connected = await connectSinks(screen, sinkSet);
+    if (!connected.ok) {
+      await sinkSet.closeAll();
+      showMessage(display, `The required trigger device **${connected.blocked.id}** is not connected, so the session cannot start. Nothing has been stored.`);
+      return { status: 'sink_failed' };
+    }
+    sinkWarnings = connected.warnings;
+  }
+
+  // 5. start recording: record, store, then session.start as the first event
   const seed = resolveSeed(plan.seed);
   const textHash = await hashText(project.consentText ?? '');
   const startedAt = isoNow();
@@ -128,7 +190,7 @@ export async function runSession({ services, project, store, search = globalThis
     subject,
     session_fields: sessionFields,
     url_params: parseUrlParams(search, plan.capture_url_params),
-    sinks: { storage: ['local'] },
+    sinks: { ...(sinkSet.configs.length ? { trigger: sinkSet.record() } : {}), storage: ['local'] },
   });
   store.begin(record);
   bus.on('*', (event) => store.append(event));
@@ -137,6 +199,11 @@ export async function runSession({ services, project, store, search = globalThis
   bus.emit({ source: 'system', type: 'session.clock_anchor', data: { time_origin_ms: record.clock.time_origin_ms, wall_iso: record.clock.wall_iso } });
   if (debug.time_scale !== undefined && debug.time_scale !== 1) {
     bus.emit({ source: 'system', type: 'system.warning', data: { code: 'debug_time_scale', message: `durations are scaled by ${debug.time_scale}; this is not valid data` } });
+  }
+
+  sinkSet.flushBacklog();
+  for (const { id, error } of sinkWarnings) {
+    bus.emit({ source: 'system', type: 'system.warning', data: { code: 'sink_unavailable', message: `optional trigger sink "${id}" is not available: ${error}`, detail: { sink: id } } });
   }
 
   const admission = admitDevice(bus, plan.device ?? {}, { env, chosen: resolved.reason === 'prompt' ? profile : undefined, override: debug.simulate_profile });
@@ -156,21 +223,25 @@ export async function runSession({ services, project, store, search = globalThis
   bus.emit({ source: 'system', type: 'form.submitted', data: { form_id: 'session', duration_ms: sessionForm.durationMs } });
   services.stage.layout(true);
 
-  // 5. blocks
+  // 6. blocks
   const answers = { subject: { subject_id: subjectId, ...subject }, session: { session_id: sessionId, ...sessionFields }, device: { profile } };
+  services.setSessionContext(answers);
   try {
     await runBlocks({ services, plan, profile, seed, answers });
   } catch (error) {
     bus.emit({ source: 'system', type: 'system.error', data: { code: 'exception', message: String(error.message ?? error), fatal: true } });
     bus.emit({ source: 'system', type: 'session.end', data: { reason: 'error' } });
     const done = finish('error');
+    await sinkSet.closeAll();
     showMessage(display, 'Something went wrong and the session had to stop. Please tell the experimenter.');
     return { status: 'error', record: done, error };
   }
 
-  // 6. finish
+  // 7. finish: let queued triggers go out (and be logged) before the session ends
+  await sinkSet.drain();
   bus.emit({ source: 'system', type: 'session.end', data: { reason: 'complete' } });
   const done = finish('complete');
+  await sinkSet.closeAll();
   finishScreen(display, plan, done);
   return { status: 'complete', record: done };
 }

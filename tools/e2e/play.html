@@ -9,6 +9,8 @@
   //   ?scale=0.2      scale all durations (default 1 = real speed)
   //   ?profile=phone  pretend to be this device profile (desktop | phone | tablet)
   //   ?project=/path/ project folder to load (default /spec/examples/)
+  //   ?sinks=example  keep the example's trigger sinks (needs a serial device and the relay);
+  //                   by default they are removed so the example runs without hardware
   // When the session ends, the log is in the console: window.sessionStore.events / .record,
   // and window.downloadLog() saves it as a .jsonl file.
   const params = new URLSearchParams(location.search);
@@ -16,7 +18,9 @@
   const debug = { enabled: true };
   if (params.has('scale')) debug.time_scale = Number(params.get('scale'));
   if (params.has('profile')) debug.simulate_profile = params.get('profile');
-  const merge = debug.time_scale || debug.simulate_profile ? { debug } : {};
+  const merge = {};
+  if (debug.time_scale || debug.simulate_profile) merge.debug = debug;
+  if (params.get('sinks') !== 'example') merge.triggers = { sinks: [] };
   window.downloadLog = () => {
     const lines = window.sessionStore.events.map((e) => JSON.stringify(e)).join('\n');
     const a = document.createElement('a');

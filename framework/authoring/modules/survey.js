@@ -26,6 +26,21 @@ export function showForm(ctx, { title, intro, elements, submitLabel }) {
 }
 
 /**
+ * Ask the participant (or experimenter) to pick one action, e.g. connect a device or retry.
+ * The click on the submit button is the user gesture browsers require for device pickers.
+ * @param {{message: string, choices: {value: string, text: string}[], submitLabel?: string}} options markdown message
+ * @returns {Promise<string>} the chosen value
+ */
+export async function askAction(ctx, { message, choices, submitLabel = 'Continue' }) {
+  const elements = [
+    html(markdownToHtml(message)),
+    { type: 'radiogroup', name: 'action', title: 'Choose', showTitle: false, isRequired: true, defaultValue: choices[0].value, choices },
+  ];
+  const { values } = await showSurvey(ctx, surveyJson({ questions: elements, submitLabel }));
+  return values.action;
+}
+
+/**
  * The consent screen: the text, a decision, and one checkbox per statement (required unless
  * `required: false`), which only appear once the participant agrees.
  * @returns {Promise<{agreed: boolean, statements: Record<string, boolean>}>}

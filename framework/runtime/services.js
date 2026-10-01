@@ -8,6 +8,8 @@ import { createJsPsych } from '../authoring/modules/jspsych.js';
 import { createBridge } from '../pipeline/bridge.js';
 import { createInput } from '../pipeline/input.js';
 import { createMapping } from '../pipeline/mapping.js';
+import { createTriggers } from '../pipeline/triggers.js';
+import { createSinks } from './sinks.js';
 import { createCursor } from '../stage/cursor.js';
 import { createLayout } from '../stage/layout.js';
 import { createStage } from '../stage/stage.js';
@@ -26,7 +28,7 @@ function injectCss(doc, id, css) {
 /**
  * @param {{root: HTMLElement, plan: object, generators?: Record<string, object>, validate?: Function, timeScale?: number, styles?: string[]}} options
  */
-export function createServices({ root, plan, generators = {}, validate, timeScale = 1, styles = [] }) {
+export function createServices({ root, plan, generators = {}, validate, timeScale = 1, styles = [], apis }) {
   const doc = root.ownerDocument;
   const clock = createClock();
   const bus = createBus({ clock, validate, recording: false });
@@ -45,7 +47,9 @@ export function createServices({ root, plan, generators = {}, validate, timeScal
   stage.element.append(display);
   const jsPsych = createJsPsych({ display, extensions: [bridge.Extension] });
 
-  const state = { profile: null, scope: null };
+  const state = { profile: null, scope: null, session: {}, onRequiredLost: () => {} };
+  const sinkSet = createSinks({ plan, bus, clock, apis, onRequiredLost: (id) => state.onRequiredLost(id) });
+  const triggers = createTriggers({ bus, clock, sinks: sinkSet.sinks, context: () => state.session });
   const scale = (ms) => Math.max(0, Math.round(ms * timeScale));
 
   // The hint of an intent: from the current scope, else from the first block that defines it
@@ -94,6 +98,7 @@ export function createServices({ root, plan, generators = {}, validate, timeScal
         cursor.configure(scope.cursor);
         bridge.setIntents(scope.intents);
       },
+      applyTriggers: (scope) => triggers.setScope(scope),
       renderStimulus(name, options) {
         const definition = plan.stimuli[name];
         if (!definition) throw new Error(`unknown stimulus "${name}"`);
@@ -103,5 +108,11 @@ export function createServices({ root, plan, generators = {}, validate, timeScal
     };
   }
 
-  return { clock, bus, stage, input, cursor, bridge, mapping, jsPsych, display, moduleContext, defaultParams };
+  return {
+    clock, bus, stage, input, cursor, bridge, mapping, jsPsych, display, moduleContext, defaultParams, triggers, sinkSet,
+    /** Session answers that trigger values and fields can read ({subject, session, device}). */
+    setSessionContext(context) { state.session = context; },
+    /** Called when a required sink is lost while recording. */
+    onRequiredSinkLost(handler) { state.onRequiredLost = handler; },
+  };
 }

@@ -10,9 +10,11 @@ Browser experiment framework (`expfw` is a placeholder name). Read `ARCHITECTURE
     npm run lint            # ESLint, including the layer rules
     npm run check:layers    # independent import-layer check (CI)
     npm run validate -- <dir> # compile a project folder (e.g. spec/examples) and print diagnostics
+    npm run play            # serve the example for manual testing (open http://localhost:4173/)
+    node cli/relay.js ...   # websocket-to-serial relay for trigger sinks (see docs/triggers.md)
     npm run typecheck       # custom-code examples against spec/types.d.ts
     npm test                # Vitest
     npm run test:browser    # Playwright (run `npx playwright install chromium` once)
     npm run ci              # everything except the browser tests
 
-Status: M4 (built-in modules and lifecycle). See `docs/decisions.md`.
+Status: M5 (triggers and relay). See docs/triggers.md. See `docs/decisions.md`.

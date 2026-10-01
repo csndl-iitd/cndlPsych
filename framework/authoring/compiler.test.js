@@ -117,6 +117,17 @@ const INVALID = [
   ['trigger value above 255 on a raw sink', (s) => { s.experiment.triggers.rules[0].value = 300; }, { code: 'value-out-of-range', file: EXPERIMENT, path: 'triggers.rules[0].value' }],
   ['stimulus trigger_base above 255', (s) => { s.stimuli.stimuli[3].trigger_base = 250; }, { code: 'value-out-of-range', file: STIMULI, path: 'stimuli[3].trigger_base' }],
   ['one value for two meanings', (s) => { s.experiment.triggers.rules[1].value = 21; }, { code: 'value-collision', file: TIMELINE }],
+  ['raw sink template that is not hex bytes', (s) => { s.experiment.triggers.sinks[0].template = '{value}'; },
+    { code: 'bad-sink-template', file: EXPERIMENT, path: 'triggers.sinks[0].template' }],
+  ['template sink with an unknown field', (s) => { s.experiment.triggers.sinks[1].format = 'template'; s.experiment.triggers.sinks[1].template = '{nope}'; delete s.experiment.triggers.sinks[1].fields; },
+    { code: 'bad-sink-template', file: EXPERIMENT, path: 'triggers.sinks[1].template' }],
+  ['ping sync on a serial sink', (s) => { s.experiment.triggers.sinks[0].sync = { pings: 3 }; },
+    { code: 'sink-sync-unsupported', file: EXPERIMENT, path: 'triggers.sinks[0].sync' }],
+  ['ack on a USB sink', (s) => {
+    s.experiment.triggers.sinks.push({ id: 'usb1', type: 'usb', format: 'raw', vendor_id: 1, product_id: 2, endpoint: 1, ack: true });
+  }, { code: 'sink-ack-unsupported', file: EXPERIMENT, path: 'triggers.sinks[2].ack' }],
+  ['reset_after_ms on a text sink', (s) => { s.experiment.triggers.sinks[1].reset_after_ms = 5; },
+    { code: 'sink-reset-needs-raw', file: EXPERIMENT, path: 'triggers.sinks[1].reset_after_ms' }],
   ['unknown trigger event', (s) => { s.experiment.triggers.rules[0].on = 'response.evalutaed'; }, { code: 'unknown-event', file: EXPERIMENT, path: 'triggers.rules[0].on' }],
   ['undeclared semantic event', (s) => { s.experiment.triggers.rules.push({ id: 'g', on: 'semantic.ghost', value: 5 }); }, { code: 'unknown-event', file: EXPERIMENT, path: 'triggers.rules[3].on' }],
   ['unknown field in where', (s) => { s.experiment.triggers.rules[0].where = { nope: true }; }, { code: 'unknown-where-key', file: EXPERIMENT, path: 'triggers.rules[0].where.nope' }],
