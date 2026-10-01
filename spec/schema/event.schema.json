@@ -942,6 +942,10 @@
               },
               "frame": {
                 "type": "integer"
+              },
+              "stimulus_data": {
+                "type": "object",
+                "description": "data returned by a custom stimulus generator (positions, identities)"
               }
             },
             "additionalProperties": false,

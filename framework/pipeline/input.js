@@ -90,9 +90,6 @@ export function createInput({ bus, stage, doc = stage.root.ownerDocument, schedu
         },
       });
     }
-    if (phase === 'down') {
-      try { stage.root.setPointerCapture(event.pointerId); } catch { /* the pointer may already be gone */ }
-    }
     if (recording) recognizer.pointer(sample);
   }
 

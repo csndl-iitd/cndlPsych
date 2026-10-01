@@ -129,6 +129,25 @@ describe('createBus', () => {
   });
 });
 
+describe('recording switch', () => {
+  it('drops everything until startRecording(), then numbers from 0', () => {
+    const bus = createBus({ clock: fakeClock(), recording: false });
+    const seen = collect(bus);
+    expect(bus.recording).toBe(false);
+    expect(bus.emit(system('page.focus', { focused: true }))).toBeNull();
+    expect(bus.lastSeq).toBe(-1);
+    bus.startRecording();
+    expect(bus.emit(system('page.focus', { focused: true })).seq).toBe(0);
+    expect(seen.map((e) => e.seq)).toEqual([0]);
+    expect(bus.recording).toBe(true);
+  });
+
+  it('does not validate or reject events while dropping them', () => {
+    const bus = createBus({ clock: fakeClock(), recording: false, validate: eventProblems });
+    expect(bus.emit({ source: 'nope', type: 'x', data: [] })).toBeNull();
+  });
+});
+
 describe('typeMatches', () => {
   it.each([
     ['*', 'anything.here', true],

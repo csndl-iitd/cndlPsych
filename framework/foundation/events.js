@@ -28,11 +28,15 @@ export function typeMatches(pattern, type) {
 }
 
 /**
- * @param {{clock: {now: () => number}, validate?: (event: object) => string[], onHandlerError?: (error: Error, event: object) => void}} options
+ * @param {{clock: {now: () => number}, validate?: (event: object) => string[], onHandlerError?: (error: Error, event: object) => void, recording?: boolean}} options
  *   `validate` (dev builds) returns a list of problems for the full event; any problem throws.
+ *   With `recording: false` the bus drops every event (emit returns null, nothing is numbered
+ *   or delivered) until startRecording(): this is how nothing is stored before consent and
+ *   how the log starts at seq 0 with session.start.
  */
-export function createBus({ clock, validate, onHandlerError }) {
+export function createBus({ clock, validate, onHandlerError, recording = true }) {
   let nextSeq = 0;
+  let isRecording = recording;
   let context = { block: null, trial: null, phase: null };
   const subscriptions = [];
   const queue = [];
@@ -79,9 +83,10 @@ export function createBus({ clock, validate, onHandlerError }) {
     /**
      * @param {{source: string, type: string, data?: object, t?: number, block?: string|null, trial?: number|null, phase?: string|null, caused_by?: number|null}} input
      *   block / trial / phase default to the current context; pass null to record none.
-     * @returns {object} the complete event (its `seq` is final)
+     * @returns {object|null} the complete event (its `seq` is final), or null while not recording
      */
     emit(input) {
+      if (!isRecording) return null;
       const problem = envelopeProblem(input);
       if (problem) throw new TypeError(`cannot emit: ${problem}`);
       const event = build(input);
@@ -103,6 +108,13 @@ export function createBus({ clock, validate, onHandlerError }) {
         subscriptions.splice(subscriptions.indexOf(subscription), 1);
       };
     },
+
+    /** Begin numbering and delivering events; the next event is seq 0. */
+    startRecording() {
+      isRecording = true;
+    },
+
+    get recording() { return isRecording; },
 
     /** Set the block / trial / phase stamped on events that do not carry their own. */
     setContext(partial) {

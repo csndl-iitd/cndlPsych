@@ -182,7 +182,7 @@ describe('consumption', () => {
 });
 
 describe('the built-in "any" intent', () => {
-  it('is emitted for keys and taps only while a phase accepts it, and not for repeats or consumed input', () => {
+  it('is emitted for keys and taps only while a phase accepts it, not for repeats, and even when a rule consumes the input', () => {
     const t = setup(scope({ go: { bindings: [{ key: ' ' }] } }));
     t.emit('input.key.down', KEY('a'));
     expect(t.semantic()).toHaveLength(0);
@@ -192,8 +192,9 @@ describe('the built-in "any" intent', () => {
     t.emit('input.tap', tapData(null, null));
     t.emit('input.key.down', KEY(' '));
     const any = t.semantic().filter((e) => e.data.intent === 'any');
-    expect(any.map((e) => e.data.via)).toEqual(['input.key.down', 'input.tap']);
+    expect(any.map((e) => e.data.via)).toEqual(['input.key.down', 'input.tap', 'input.key.down']);
     expect(any[0].data.rule).toBe('builtin:any');
+    expect(any.map((e) => e.data.consumed)).toEqual([false, false, false]);
     expect(t.semantic().map((e) => e.data.intent)).toContain('go');
   });
 

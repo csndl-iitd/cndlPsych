@@ -55,14 +55,15 @@ export function createStage({ root, bus, spec = {}, calibration = {}, schedule =
     return lengthToPx(spec.margin, { w: width, h: height }, calibration);
   }
 
-  function layout() {
+  /** Recompute the stage box; `force` emits stage.resize even if nothing changed (recording just started). */
+  function layout(force = false) {
     const width = root.clientWidth;
     const height = root.clientHeight;
     const box = computeLayout({ width, height, aspect: spec.aspect, margin: marginPx(width, height) });
     Object.assign(element.style, { left: `${box.x}px`, top: `${box.y}px`, width: `${box.w}px`, height: `${box.h}px` });
     const bounds = element.getBoundingClientRect();
     const next = { x: bounds.x, y: bounds.y, w: bounds.width, h: bounds.height };
-    if (sameRect(rect, next)) return;
+    if (!force && sameRect(rect, next)) return;
     rect = next;
     bus.emit({
       source: 'system',
@@ -77,7 +78,7 @@ export function createStage({ root, bus, spec = {}, calibration = {}, schedule =
     resizeHandlers.forEach((handler) => handler(rect));
   }
 
-  const observer = new win.ResizeObserver(layout);
+  const observer = new win.ResizeObserver(() => layout());
   observer.observe(root);
   layout();
 

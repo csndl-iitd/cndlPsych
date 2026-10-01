@@ -176,6 +176,7 @@ events:
       planned_ms: {type: [number, "null"]}
       t_dom: {type: number, description: "when the DOM was updated, before paint"}
       frame: {type: integer}
+      stimulus_data: {type: object, description: "data returned by a custom stimulus generator (positions, identities)"}
   phase.offset:
     source: task
     required: [phase, reason]

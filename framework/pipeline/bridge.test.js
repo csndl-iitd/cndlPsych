@@ -68,14 +68,18 @@ describe('bridge', () => {
     expect(t.dispatched).toEqual([]);
   });
 
-  it('injects "any" for a tap but leaves a real key press to reach the plugin itself', () => {
+  it('injects "any" for a tap or a consumed key, but leaves an unconsumed real key to reach the plugin itself', () => {
     const t = setup();
     t.bridge.setIntents({});
     t.extension.on_start({ accepted: ['any'] });
     t.semantic('any', { via: 'input.key.down' });
     expect(t.dispatched).toEqual([]);
+    t.semantic('any', { via: 'input.key.down', consumed: false });
+    expect(t.dispatched).toEqual([]);
     t.semantic('any', { via: 'input.tap' });
     expect(t.dispatched.map(([type]) => type)).toEqual(['keydown', 'keyup']);
+    t.semantic('any', { via: 'input.key.down', consumed: true });
+    expect(t.dispatched).toHaveLength(4);
   });
 
   it('exposes the internal keys to put in a plugin\'s choices', () => {

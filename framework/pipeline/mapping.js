@@ -115,10 +115,17 @@ export function createMapping({ bus, hooks = {} }) {
     for (const { rule, result } of fired) {
       for (const item of asList(rule.emit)) emitItem(item, rule, result, event);
     }
-    const consumed = fired.some(({ rule }) => rule.consume !== false);
+    // `any` means any input, whatever else it is bound to; `consumed` tells the bridge whether
+    // the real key was swallowed (then a synthetic one must reach jsPsych instead).
     const isInput = (event.type === 'input.key.down' && !event.data.repeat) || event.type === 'input.tap';
-    if (!consumed && isInput && accepted.has('any')) {
-      bus.emit({ source: 'semantic', type: 'semantic.any', data: { intent: 'any', rule: 'builtin:any', profile, via: event.type }, t: event.t, caused_by: event.seq });
+    if (isInput && accepted.has('any')) {
+      bus.emit({
+        source: 'semantic',
+        type: 'semantic.any',
+        data: { intent: 'any', rule: 'builtin:any', profile, via: event.type, consumed: Boolean(event.data.consumed) },
+        t: event.t,
+        caused_by: event.seq,
+      });
     }
   }
 

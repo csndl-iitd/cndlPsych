@@ -45,10 +45,11 @@ export function createBridge({ bus, doc = globalThis.document }) {
   }
 
   bus.on('semantic.*', (event) => {
-    const { intent, via } = event.data;
+    const { intent, via, consumed } = event.data;
     if (!intent || !accepted.has(intent) || !(intent in keys)) return;
-    // A real key already reaches a plugin that accepts any key; only a tap needs a synthetic one.
-    if (intent === 'any' && via === 'input.key.down') return;
+    // A real key that was not swallowed already reaches a plugin that accepts any key;
+    // a tap, or a key a rule consumed, needs a synthetic one.
+    if (intent === 'any' && via === 'input.key.down' && !consumed) return;
     injectKey(keys[intent], { intent, origin_t: event.t, caused_by: event.seq });
   });
 

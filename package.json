@@ -27,6 +27,7 @@
   },
   "dependencies": {
     "@jspsych/plugin-html-keyboard-response": "^2.2.0",
+    "@jspsych/plugin-survey": "^4.0.0",
     "ajv": "^8.20.0",
     "js-yaml": "^4.3.2",
     "jspsych": "^8.3.0"

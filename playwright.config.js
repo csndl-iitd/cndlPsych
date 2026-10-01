@@ -8,10 +8,11 @@ export default defineConfig({
   testDir: '.',
   testMatch: '**/*.e2e.js',
   testIgnore: 'node_modules/**',
+  globalSetup: './tools/e2e/global-setup.js',
   reporter: process.env.CI ? 'github' : 'list',
   use: { baseURL: `http://localhost:${PORT}` },
   webServer: {
-    command: 'node tools/build-e2e.js && node tools/static-server.js',
+    command: 'node tools/static-server.js',
     url: `http://localhost:${PORT}/tools/blank.html`,
     reuseExistingServer: !process.env.CI,
     env: { PORT: String(PORT) },
