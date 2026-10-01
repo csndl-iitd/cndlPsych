@@ -44,6 +44,8 @@ export default [
   {
     files: ['**/*.js'],
     languageOptions: { ecmaVersion: 2023, sourceType: 'module', globals: { ...globals.node } },
+    // `const { a, ...rest } = x` is how code leaves keys out of a copy.
+    rules: { 'no-unused-vars': ['error', { ignoreRestSiblings: true }] },
   },
   {
     // page.evaluate callbacks run in the browser.

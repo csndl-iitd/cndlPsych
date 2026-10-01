@@ -1,0 +1,79 @@
+{
+  "profile": "desktop",
+  "input": {
+    "intents": {
+      "go": {
+        "bindings": [
+          {
+            "key": " "
+          }
+        ],
+        "hint": "Press SPACE"
+      },
+      "next": {
+        "bindings": [],
+        "hint": "press the SPACEBAR"
+      }
+    },
+    "rules": [
+      {
+        "id": "space_done",
+        "match": {
+          "on": "input.key.down",
+          "where": {
+            "key": " "
+          }
+        },
+        "emit": {
+          "intent": "next",
+          "data": {
+            "completion": "self_report"
+          }
+        }
+      }
+    ],
+    "gestures": [
+      "tap"
+    ],
+    "fire_on": "up",
+    "show_zones": false,
+    "cursor": {
+      "autohide_ms": 1000,
+      "show_on_move_px": 3
+    }
+  },
+  "triggers": {
+    "enabled": true,
+    "rules": [
+      {
+        "id": "stim:fixation_plus",
+        "on": "phase.onset",
+        "where": {
+          "stimulus": "fixation_plus"
+        },
+        "value": 30
+      },
+      {
+        "id": "search_onset",
+        "on": "phase.onset",
+        "where": {
+          "stimulus": "search_array"
+        },
+        "value": 31
+      },
+      {
+        "id": "search_done",
+        "on": "semantic.next",
+        "value": 32
+      },
+      {
+        "id": "search_offset",
+        "on": "phase.offset",
+        "where": {
+          "stimulus": "search_array"
+        },
+        "value": 33
+      }
+    ]
+  }
+}

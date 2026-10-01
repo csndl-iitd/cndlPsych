@@ -81,4 +81,4 @@ Lifecycle these schemas assume: consent -> subject -> session -> device check ->
 }
 ```
 
-Not covered yet: the compiler (cascade resolver and the cross-file checks above), and emulator tests for the rules.
+The compiler (`framework/authoring/`, `npm run validate -- <project-dir>`) implements the cascade resolver and the cross-file checks above. Not covered yet: emulator tests for the Firestore rules.

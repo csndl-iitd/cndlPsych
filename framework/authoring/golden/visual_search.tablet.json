@@ -1,0 +1,106 @@
+{
+  "profile": "tablet",
+  "input": {
+    "intents": {
+      "go": {
+        "bindings": [
+          {
+            "tap": true
+          }
+        ],
+        "hint": "Tap the screen"
+      },
+      "next": {
+        "bindings": [],
+        "hint": "tap both targets"
+      }
+    },
+    "rules": [
+      {
+        "id": "two_taps",
+        "match": {
+          "sequence": [
+            {
+              "on": "input.tap",
+              "where": {
+                "target.role": "target"
+              }
+            },
+            {
+              "on": "input.tap",
+              "where": {
+                "target.role": "target"
+              }
+            }
+          ],
+          "distinct_by": "target.id"
+        },
+        "emit": [
+          {
+            "intent": "next",
+            "data": {
+              "completion": "verified_taps"
+            }
+          }
+        ],
+        "reset": "trial"
+      },
+      {
+        "id": "distractor_tap",
+        "match": {
+          "on": "input.tap",
+          "where": {
+            "target.role": "distractor"
+          }
+        },
+        "emit": {
+          "event": "semantic.miss"
+        }
+      }
+    ],
+    "gestures": [
+      "tap"
+    ],
+    "fire_on": "up",
+    "show_zones": false,
+    "cursor": {
+      "autohide_ms": 1000,
+      "show_on_move_px": 3
+    },
+    "hit_padding": "14mm"
+  },
+  "triggers": {
+    "enabled": true,
+    "rules": [
+      {
+        "id": "stim:fixation_plus",
+        "on": "phase.onset",
+        "where": {
+          "stimulus": "fixation_plus"
+        },
+        "value": 30
+      },
+      {
+        "id": "search_onset",
+        "on": "phase.onset",
+        "where": {
+          "stimulus": "search_array"
+        },
+        "value": 31
+      },
+      {
+        "id": "search_done",
+        "on": "semantic.next",
+        "value": 32
+      },
+      {
+        "id": "search_offset",
+        "on": "phase.offset",
+        "where": {
+          "stimulus": "search_array"
+        },
+        "value": 33
+      }
+    ]
+  }
+}
