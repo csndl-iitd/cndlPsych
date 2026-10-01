@@ -1,0 +1,28 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>expfw play</title>
+<body style="margin:0">
+<script type="module" src="/dist/e2e/session.js"></script>
+<script type="module">
+  // Manual testing page. Query parameters:
+  //   ?scale=0.2      scale all durations (default 1 = real speed)
+  //   ?profile=phone  pretend to be this device profile (desktop | phone | tablet)
+  //   ?project=/path/ project folder to load (default /spec/examples/)
+  // When the session ends, the log is in the console: window.sessionStore.events / .record,
+  // and window.downloadLog() saves it as a .jsonl file.
+  const params = new URLSearchParams(location.search);
+  await new Promise((resolve) => { const t = setInterval(() => window.sessionReady && (clearInterval(t), resolve()), 20); });
+  const debug = { enabled: true };
+  if (params.has('scale')) debug.time_scale = Number(params.get('scale'));
+  if (params.has('profile')) debug.simulate_profile = params.get('profile');
+  const merge = debug.time_scale || debug.simulate_profile ? { debug } : {};
+  window.downloadLog = () => {
+    const lines = window.sessionStore.events.map((e) => JSON.stringify(e)).join('\n');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([lines], { type: 'application/x-ndjson' }));
+    a.download = 'events.jsonl';
+    a.click();
+  };
+  window.runSession({ url: params.get('project') ?? '/spec/examples/', merge }).then((result) => console.log('session finished:', result.status, window.sessionStore));
+</script>

@@ -9,6 +9,7 @@
     "check:schemas": "node spec/tools/build.js --check",
     "lint": "eslint .",
     "validate": "node cli/validate.js",
+    "play": "node tools/build-e2e.js && node tools/static-server.js",
     "check:layers": "node tools/check-layers.js",
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run",
