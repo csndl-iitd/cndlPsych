@@ -1,0 +1,318 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://example.org/expfw/1/forms.schema.json",
+  "title": "forms.yaml",
+  "description": "Survey forms plus extensions to the two built-in forms that every experiment runs after consent: 'subject' (subject_id in BIDS sub-xxx format, sex, age) and 'session' (session_id, ses-xx). Experimenters append questions and may relabel built-in fields but cannot remove them. The whole file is optional.\n",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "subject": {
+      "$ref": "#/definitions/builtin_form"
+    },
+    "session": {
+      "$ref": "#/definitions/builtin_form"
+    },
+    "forms": {
+      "description": "Ordinary survey forms, run by 'survey' blocks in timeline.yaml.",
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/form"
+      }
+    }
+  },
+  "definitions": {
+    "option": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1
+        },
+        {
+          "type": "object",
+          "required": [
+            "value",
+            "label"
+          ],
+          "properties": {
+            "value": {
+              "type": [
+                "string",
+                "number"
+              ]
+            },
+            "label": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "question": {
+      "type": "object",
+      "required": [
+        "name",
+        "prompt"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "$ref": "common.schema.json#/definitions/ident"
+        },
+        "prompt": {
+          "type": "string",
+          "minLength": 1
+        },
+        "type": {
+          "enum": [
+            "text",
+            "textarea",
+            "number",
+            "multi-choice",
+            "multi-select",
+            "dropdown",
+            "likert",
+            "date"
+          ],
+          "default": "text"
+        },
+        "required": {
+          "type": "boolean",
+          "default": false
+        },
+        "options": {
+          "type": "array",
+          "minItems": 2,
+          "items": {
+            "$ref": "#/definitions/option"
+          }
+        },
+        "scale": {
+          "description": "For likert.",
+          "type": "object",
+          "required": [
+            "min",
+            "max"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "min": {
+              "type": "integer"
+            },
+            "max": {
+              "type": "integer"
+            },
+            "labels": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "min": {
+                  "type": "string"
+                },
+                "max": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "min": {
+          "type": "number",
+          "description": "numeric minimum, or minimum length for text"
+        },
+        "max": {
+          "type": "number"
+        },
+        "pattern": {
+          "type": "string"
+        },
+        "placeholder": {
+          "type": "string"
+        },
+        "default": {
+          "$ref": "common.schema.json#/definitions/scalar"
+        },
+        "help": {
+          "type": "string"
+        },
+        "unit": {
+          "type": "string"
+        },
+        "rows": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "show_if": {
+          "description": "Show only when the predicate holds over earlier answers in this form.",
+          "$ref": "common.schema.json#/definitions/predicate"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "required": [
+              "type"
+            ],
+            "properties": {
+              "type": {
+                "enum": [
+                  "multi-choice",
+                  "multi-select",
+                  "dropdown"
+                ]
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "options"
+            ]
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "type"
+            ],
+            "properties": {
+              "type": {
+                "const": "likert"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "scale"
+            ]
+          }
+        }
+      ]
+    },
+    "extra_question": {
+      "description": "A question that does not collide with the built-in field names.",
+      "allOf": [
+        {
+          "$ref": "#/definitions/question"
+        },
+        {
+          "not": {
+            "properties": {
+              "name": {
+                "enum": [
+                  "subject_id",
+                  "sex",
+                  "age",
+                  "session_id"
+                ]
+              }
+            },
+            "required": [
+              "name"
+            ]
+          }
+        }
+      ]
+    },
+    "override": {
+      "description": "Presentation-only changes to a built-in field.",
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": false,
+      "properties": {
+        "prompt": {
+          "type": "string"
+        },
+        "help": {
+          "type": "string"
+        },
+        "placeholder": {
+          "type": "string"
+        },
+        "options": {
+          "description": "Relabel the sex options (values still map to BIDS male / female / other / n/a).",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/option"
+          }
+        },
+        "min": {
+          "type": "number"
+        },
+        "max": {
+          "type": "number"
+        },
+        "required": {
+          "type": "boolean"
+        }
+      }
+    },
+    "builtin_form": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "title": {
+          "type": "string"
+        },
+        "intro": {
+          "type": "string"
+        },
+        "questions": {
+          "description": "Appended after the built-in fields.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/extra_question"
+          }
+        },
+        "overrides": {
+          "description": "Keyed by built-in field name (subject_id, sex, age, session_id).",
+          "type": "object",
+          "propertyNames": {
+            "enum": [
+              "subject_id",
+              "sex",
+              "age",
+              "session_id"
+            ]
+          },
+          "additionalProperties": {
+            "$ref": "#/definitions/override"
+          }
+        }
+      }
+    },
+    "form": {
+      "type": "object",
+      "required": [
+        "id",
+        "questions"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "common.schema.json#/definitions/id"
+        },
+        "title": {
+          "type": "string"
+        },
+        "intro": {
+          "type": "string",
+          "description": "markdown"
+        },
+        "questions": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/definitions/question"
+          }
+        },
+        "submit_label": {
+          "type": "string"
+        },
+        "data": {
+          "description": "Extra fields attached to the form.submitted event.",
+          "type": "object"
+        }
+      }
+    }
+  }
+}

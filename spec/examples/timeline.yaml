@@ -1,0 +1,107 @@
+blocks:
+
+  # ---- flashes ------------------------------------------------------------
+  - id: flash_intro
+    module: instructions
+    config: { pages: [flash_instructions] }
+
+  - id: flash_task
+    module: response_task
+    config:
+      order: sequential
+      trials:
+        - name: alternating_flashes
+          sequence: [flash_black, flash_white]
+          response: none
+          post: 0
+          repetitions: 10
+
+  # ---- oddball ------------------------------------------------------------
+  - id: oddball_intro
+    module: instructions
+    config: { pages: [oddball_instructions] }
+
+  - id: oddball_task
+    module: response_task
+    config:
+      order: sequential
+      trials:
+        - name: oddball_flashes
+          start: fixation_plus
+          sequence:
+            [oddball_A, oddball_B, oddball_C, oddball_D, oddball_E, oddball_F, oddball_H, oddball_I, oddball_L, oddball_Ǝ,
+             oddball_A, oddball_B, oddball_C, oddball_D, oddball_E, oddball_F, oddball_H, oddball_I, oddball_L, oddball_Ǝ]
+          shuffle: true
+          response: go
+          response_window: any
+          on_response: continue
+          correct: { intent: go, where: { stimulus: "oddball_Ǝ", occurrence: 2 } }
+          post: 1500
+          repetitions: 5
+
+  # ---- visual search: level-1 customization (yaml + one generator file) ------
+  - id: search_intro
+    module: instructions
+    config: { pages: [search_instructions] }
+
+  - id: visual_search
+    module: response_task
+
+    # Block-level input: monitors press SPACE after spotting both targets;
+    # phones and tablets must tap both targets. Overrides experiment.yaml.
+    input:
+      intents:
+        next:
+          hint:
+            desktop: "press the SPACEBAR"
+            phone: "tap both targets"
+            tablet: "tap both targets"
+      profiles:
+        desktop:
+          rules:
+            - id: space_done
+              match: { on: input.key.down, where: { key: " " } }
+              emit: { intent: next, data: { completion: self_report } }
+        phone: &touch_search
+          hit_padding: 14mm
+          gestures: [tap]
+          rules:
+            - id: two_taps
+              match:
+                sequence:
+                  - { on: input.tap, where: { target.role: target } }
+                  - { on: input.tap, where: { target.role: target } }
+                distinct_by: target.id
+              emit:
+                - { intent: next, data: { completion: verified_taps } }
+              reset: trial
+            - id: distractor_tap
+              match: { on: input.tap, where: { target.role: distractor } }
+              emit: { event: semantic.miss }
+        tablet: *touch_search
+
+    # Block-level triggers: same events, different codes than the oddball.
+    triggers:
+      disable: [resp_correct, resp_incorrect, resp_timeout]
+      rules:
+        - { id: "stim:fixation_plus", value: 30 }
+        - { id: search_onset, on: phase.onset, where: { stimulus: search_array }, value: 31 }
+        - { id: search_done, on: semantic.next, value: 32 }
+        - { id: search_offset, on: phase.offset, where: { stimulus: search_array }, value: 33 }
+
+    config:
+      order: sequential
+      trials:
+        - name: search
+          start: fixation_plus
+          sequence: [search_array]
+          response: next
+          timeout: 10s
+          post: 1250
+          repetitions: 10
+
+  # ---- questionnaire, only for the experimental group -------------------------
+  - id: post_task
+    module: survey
+    when: { session.session_type: Experimental }
+    config: { form_id: post_task }

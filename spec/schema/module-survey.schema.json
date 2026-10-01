@@ -1,0 +1,28 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://example.org/expfw/1/module-survey.schema.json",
+  "title": "survey module config",
+  "description": "Presents a form defined in forms.yaml. (Consent, subject and session forms are built in and never listed here.)",
+  "$ref": "#/definitions/config",
+  "definitions": {
+    "config": {
+      "type": "object",
+      "required": [
+        "form_id"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "form_id": {
+          "$ref": "common.schema.json#/definitions/id"
+        },
+        "submit_label": {
+          "type": "string"
+        },
+        "allow_skip": {
+          "type": "boolean",
+          "default": false
+        }
+      }
+    }
+  }
+}

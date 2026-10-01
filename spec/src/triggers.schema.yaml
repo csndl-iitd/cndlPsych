@@ -1,0 +1,200 @@
+$schema: http://json-schema.org/draft-07/schema#
+$id: https://example.org/expfw/1/triggers.schema.json
+title: Triggers
+description: >
+  Trigger rules cascade exactly like input scopes (framework < task module event
+  catalog < experiment.yaml < block < trial). Sinks are session-wide: they are
+  defined in experiment.yaml only and connected once during setup. Rules route to
+  sinks by id. 'value' or 'on' may be omitted when overriding an inherited rule by
+  id; the compiler validates the resolved rule.
+$ref: "#/definitions/experiment"
+
+# YAML anchors for the property sets shared by every sink type; stripped by the build.
+x-anchors:
+  sink_common: &sink_common
+    id: {$ref: "common.schema.json#/definitions/id"}
+    required:
+      description: If a required sink fails mid-run the experiment pauses; otherwise the gap is logged.
+      type: boolean
+      default: true
+    format:
+      description: >
+        raw = bytes written as-is (template like "{value:02x}" or "AA {value:02x} 55");
+        ndjson = one JSON object per line with source timestamps and meta;
+        template = a compact custom text line for firmware that cannot parse JSON.
+      enum: [raw, ndjson, template]
+    template: {type: string, minLength: 1}
+    fields:
+      description: Meta fields to include in ndjson (participant identifiers are never included unless listed).
+      type: array
+      uniqueItems: true
+      items:
+        enum: [seq, value, event, rule, t_event, t_sent, time_origin_ms, session_id, block, trial, phase, stimulus, correct, rt_ms, profile]
+    newline: {enum: [lf, crlf, none], default: lf}
+    ack: {type: boolean, default: false, description: "receiver answers each message; enables latency logging"}
+    sync:
+      description: Periodic ping/pong clock-offset estimation (needs a receiver that replies).
+      type: object
+      properties:
+        pings: {type: integer, minimum: 1, default: 10}
+        interval_s: {type: number, minimum: 1, default: 60}
+      additionalProperties: false
+    min_gap_ms: {type: number, minimum: 0}
+    reset_after_ms: {type: number, minimum: 0, description: "raw only: write reset_value after this delay"}
+    reset_value: {type: integer, minimum: 0, maximum: 255, default: 0}
+    max_queue: {type: integer, minimum: 1, default: 256}
+
+definitions:
+
+  value:
+    description: A literal, a value read from the event/context, or a lookup table.
+    oneOf:
+      - {type: integer, minimum: 0}
+      - type: object
+        required: [from]
+        properties:
+          from: {$ref: "common.schema.json#/definitions/field_path"}
+        additionalProperties: false
+      - type: object
+        required: [map]
+        properties:
+          map:
+            type: object
+            required: [by, table]
+            properties:
+              by: {$ref: "common.schema.json#/definitions/field_path"}
+              table:
+                type: object
+                minProperties: 1
+                additionalProperties: {type: integer, minimum: 0}
+              default: {type: integer, minimum: 0}
+            additionalProperties: false
+        additionalProperties: false
+
+  rule:
+    type: object
+    required: [id]
+    properties:
+      id: {$ref: "common.schema.json#/definitions/rule_id"}
+      on: {$ref: "common.schema.json#/definitions/event_name"}
+      where: {$ref: "common.schema.json#/definitions/predicate"}
+      value: {$ref: "#/definitions/value"}
+      sinks:
+        description: Subset of defined sinks; default all.
+        type: array
+        minItems: 1
+        uniqueItems: true
+        items: {$ref: "common.schema.json#/definitions/id"}
+      once: {type: boolean, default: false}
+      priority: {type: integer, default: 0}
+      allow_multiple:
+        description: Silence the compiler warning when this rule fires alongside another on the same event.
+        type: boolean
+        default: false
+    additionalProperties: false
+
+  rules:
+    type: array
+    items: {$ref: "#/definitions/rule"}
+
+  disable:
+    type: array
+    uniqueItems: true
+    items: {$ref: "common.schema.json#/definitions/rule_id"}
+
+  format_rules:
+    allOf:
+      - if: {required: [format], properties: {format: {const: raw}}}
+        then: {not: {required: [fields]}}
+      - if: {required: [format], properties: {format: {const: ndjson}}}
+        then: {not: {required: [template]}}
+      - if: {required: [format], properties: {format: {const: template}}}
+        then: {required: [template]}
+
+  serial_sink:
+    type: object
+    required: [id, type, format]
+    allOf: [{$ref: "#/definitions/format_rules"}]
+    properties:
+      <<: *sink_common
+      type: {const: serial}
+      baud: {type: integer, minimum: 300, default: 115200}
+      data_bits: {enum: [7, 8], default: 8}
+      stop_bits: {enum: [1, 2], default: 1}
+      parity: {enum: [none, even, odd], default: none}
+      flow_control: {enum: [none, hardware], default: none}
+      usb_filters:
+        description: Restrict the browser's port picker.
+        type: array
+        items:
+          type: object
+          required: [usb_vendor_id]
+          properties:
+            usb_vendor_id: {type: integer}
+            usb_product_id: {type: integer}
+          additionalProperties: false
+    additionalProperties: false
+
+  websocket_sink:
+    type: object
+    required: [id, type, format, url]
+    allOf: [{$ref: "#/definitions/format_rules"}]
+    properties:
+      <<: *sink_common
+      type: {const: websocket}
+      url: {type: string, pattern: "^wss?://"}
+      reconnect:
+        type: object
+        properties:
+          enabled: {type: boolean, default: true}
+          max_delay_ms: {type: number, minimum: 100, default: 5000}
+        additionalProperties: false
+    additionalProperties: false
+
+  usb_sink:
+    description: WebUSB (Android Chrome). Bytes are written to the given endpoint; no chip-specific drivers.
+    type: object
+    required: [id, type, format, vendor_id, product_id, endpoint]
+    allOf: [{$ref: "#/definitions/format_rules"}]
+    properties:
+      <<: *sink_common
+      type: {const: usb}
+      vendor_id: {type: integer}
+      product_id: {type: integer}
+      configuration: {type: integer, default: 1}
+      interface: {type: integer, default: 0}
+      endpoint: {type: integer, minimum: 1}
+    additionalProperties: false
+
+  sink:
+    oneOf:
+      - $ref: "#/definitions/serial_sink"
+      - $ref: "#/definitions/websocket_sink"
+      - $ref: "#/definitions/usb_sink"
+
+  scope:
+    description: Block / trial level (and task-module defaults). No sink definitions here.
+    type: object
+    properties:
+      enabled: {type: boolean, default: true, description: "false silences all triggers in this scope (e.g. practice)"}
+      reset: {type: boolean, default: false}
+      rules: {$ref: "#/definitions/rules"}
+      disable: {$ref: "#/definitions/disable"}
+    additionalProperties: false
+
+  experiment:
+    description: experiment.yaml level - scope plus session-wide sinks.
+    type: object
+    properties:
+      enabled: {type: boolean, default: true}
+      sinks:
+        type: array
+        items: {$ref: "#/definitions/sink"}
+      defaults:
+        type: object
+        properties:
+          min_gap_ms: {type: number, minimum: 0, default: 0}
+        additionalProperties: false
+      rules: {$ref: "#/definitions/rules"}
+      disable: {$ref: "#/definitions/disable"}
+    additionalProperties: false

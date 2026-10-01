@@ -1,0 +1,172 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://example.org/expfw/1/task-manifest.schema.json",
+  "title": "Custom task / stimulus generator manifest",
+  "description": "The declarative half of a custom module (custom/tasks/*.js and custom/stimuli/*.js). The compiler validates the default-exported object with its functions (build, generate) removed. 'params' drive validation, defaults, yaml autocomplete and the VS Code forms; 'input' is the task's cascade default (level 2); 'events' declares custom events so triggers can refer to them.\n",
+  "definitions": {
+    "param_decl": {
+      "type": "object",
+      "required": [
+        "type"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "enum": [
+            "integer",
+            "number",
+            "string",
+            "boolean",
+            "duration",
+            "length",
+            "enum",
+            "list",
+            "stimulus",
+            "intent",
+            "object"
+          ]
+        },
+        "default": {},
+        "required": {
+          "type": "boolean",
+          "default": false
+        },
+        "min": {
+          "type": "number"
+        },
+        "max": {
+          "type": "number"
+        },
+        "values": {
+          "description": "For type enum.",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "common.schema.json#/definitions/scalar"
+          }
+        },
+        "items": {
+          "description": "For type list.",
+          "$ref": "#/definitions/param_decl"
+        },
+        "unit": {
+          "description": "Unit of a numeric param: ms, s, px, mm, deg, stage, count.",
+          "type": "string"
+        },
+        "doc": {
+          "type": "string"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "enum"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "values"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "list"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "items"
+            ]
+          }
+        }
+      ]
+    },
+    "params": {
+      "type": "object",
+      "propertyNames": {
+        "$ref": "common.schema.json#/definitions/ident"
+      },
+      "additionalProperties": {
+        "$ref": "#/definitions/param_decl"
+      }
+    },
+    "task": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "doc": {
+          "type": "string"
+        },
+        "params": {
+          "$ref": "#/definitions/params"
+        },
+        "input": {
+          "description": "Level-2 defaults; experiment.yaml, block and trial scopes override them.",
+          "$ref": "input.schema.json#/definitions/scope"
+        },
+        "events": {
+          "description": "Custom events this task emits (validated against 'on' in trigger rules).",
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^(task|semantic)\\.[a-z0-9_]+(\\.[a-z0-9_]+)*$"
+          }
+        },
+        "requires": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "intents": {
+              "description": "Intents the task uses; the compiler checks every allowed profile can resolve them.",
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "$ref": "common.schema.json#/definitions/intent_name"
+              }
+            },
+            "profiles": {
+              "description": "Profiles the task supports at all.",
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "$ref": "common.schema.json#/definitions/profile_id"
+              }
+            }
+          }
+        }
+      }
+    },
+    "stimulus_generator": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "doc": {
+          "type": "string"
+        },
+        "params": {
+          "$ref": "#/definitions/params"
+        },
+        "css": {
+          "description": "Stylesheet injected once when the generator is first used.",
+          "type": "string"
+        },
+        "events": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^(task|semantic)\\.[a-z0-9_]+(\\.[a-z0-9_]+)*$"
+          }
+        }
+      }
+    }
+  }
+}

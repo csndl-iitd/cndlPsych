@@ -1,0 +1,26 @@
+# subject_id, sex, age and session_id are built in; only extras go here.
+subject:
+  questions:
+    - { name: handedness, prompt: "Handedness:", type: multi-choice, options: [right, left, ambidextrous] }
+
+session:
+  questions:
+    - { name: session_type, prompt: "Session Type:", type: dropdown, options: [Control, Experimental], required: true }
+
+forms:
+  - id: post_task
+    title: About the task
+    questions:
+      - name: difficulty
+        prompt: "How difficult was the task?"
+        type: likert
+        scale: { min: 1, max: 7, labels: { min: "Very easy", max: "Very hard" } }
+        required: true
+      - name: strategy
+        prompt: "Did you use a particular strategy?"
+        type: multi-choice
+        options: ["Yes", "No"]
+      - name: strategy_text
+        prompt: "Please describe it:"
+        type: textarea
+        show_if: { strategy: "Yes" }

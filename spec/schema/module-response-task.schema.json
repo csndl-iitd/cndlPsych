@@ -1,0 +1,291 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://example.org/expfw/1/module-response-task.schema.json",
+  "title": "response_task module config",
+  "description": "The generic stimulus-response task (replaces the former keyboard_task). A trial is: optional start stimulus, a sequence of stimuli, optional feedback, optional end stimulus, then a gap. Responses are semantic intents resolved by the scoped input mapping, never raw keys.\n",
+  "$ref": "#/definitions/config",
+  "definitions": {
+    "config": {
+      "type": "object",
+      "required": [
+        "trials"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "trials": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/definitions/trial"
+          }
+        },
+        "order": {
+          "description": "Order of trial instances in the block.",
+          "enum": [
+            "sequential",
+            "shuffle"
+          ],
+          "default": "shuffle"
+        },
+        "design": {
+          "$ref": "#/definitions/design"
+        }
+      }
+    },
+    "design": {
+      "description": "Optional factorial expansion. Trial definitions may use {factor} in stimulus names and 'applies_to' to select cells. Cells are repeated 'repetitions' times and ordered by 'order', subject to constraints.\n",
+      "type": "object",
+      "required": [
+        "factors"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "factors": {
+          "type": "object",
+          "minProperties": 1,
+          "propertyNames": {
+            "$ref": "common.schema.json#/definitions/ident"
+          },
+          "additionalProperties": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "$ref": "common.schema.json#/definitions/scalar"
+            }
+          }
+        },
+        "repetitions": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 1
+        },
+        "constraints": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "max_run"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "max_run": {
+                "type": "object",
+                "required": [
+                  "factor",
+                  "n"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "factor": {
+                    "$ref": "common.schema.json#/definitions/ident"
+                  },
+                  "n": {
+                    "type": "integer",
+                    "minimum": 1
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "sequence_item": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "description": "stimulus name; may contain {factor} templates"
+        },
+        {
+          "type": "object",
+          "required": [
+            "stimulus"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "stimulus": {
+              "type": "string",
+              "minLength": 1
+            },
+            "phase": {
+              "$ref": "common.schema.json#/definitions/ident",
+              "description": "phase name used in events and trigger rules"
+            },
+            "duration": {
+              "$ref": "common.schema.json#/definitions/duration_or_null"
+            },
+            "post": {
+              "$ref": "common.schema.json#/definitions/duration"
+            }
+          }
+        }
+      ]
+    },
+    "response_spec": {
+      "description": "Accepted intents. 'any' = any input (tap anywhere / any key), 'none' = no response.",
+      "anyOf": [
+        {
+          "$ref": "common.schema.json#/definitions/intent_name"
+        },
+        {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "common.schema.json#/definitions/intent_name"
+          }
+        }
+      ]
+    },
+    "correct_spec": {
+      "description": "Expected intent(s), optionally only in a context. 'where' is evaluated at response time over: stimulus, phase, occurrence (nth presentation of that stimulus in this trial), index (position in the sequence), trial, and the trial's conditions. A response outside a matching context is incorrect; no response during a matching context is a miss.\n",
+      "anyOf": [
+        {
+          "$ref": "common.schema.json#/definitions/intent_name"
+        },
+        {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "common.schema.json#/definitions/intent_name"
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "intent"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "intent": {
+              "$ref": "#/definitions/response_spec"
+            },
+            "where": {
+              "$ref": "common.schema.json#/definitions/predicate"
+            }
+          }
+        }
+      ]
+    },
+    "feedback_spec": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1
+        },
+        {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": false,
+          "properties": {
+            "correct": {
+              "type": "string",
+              "minLength": 1
+            },
+            "incorrect": {
+              "type": "string",
+              "minLength": 1
+            },
+            "timeout": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      ]
+    },
+    "trial": {
+      "type": "object",
+      "required": [
+        "name",
+        "sequence"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "$ref": "common.schema.json#/definitions/id"
+        },
+        "start": {
+          "type": "string",
+          "minLength": 1,
+          "description": "stimulus shown first (e.g. fixation)"
+        },
+        "sequence": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/definitions/sequence_item"
+          }
+        },
+        "shuffle": {
+          "type": "boolean",
+          "default": false,
+          "description": "shuffle the sequence within each instance"
+        },
+        "end": {
+          "type": "string",
+          "minLength": 1
+        },
+        "response": {
+          "$ref": "#/definitions/response_spec"
+        },
+        "response_window": {
+          "description": "last = only the final stimulus accepts responses; any = every stimulus in the sequence does.",
+          "enum": [
+            "last",
+            "any"
+          ],
+          "default": "last"
+        },
+        "on_response": {
+          "description": "end = a response ends the sequence; continue = keep presenting (multiple responses per trial).",
+          "enum": [
+            "end",
+            "continue"
+          ],
+          "default": "end"
+        },
+        "timeout": {
+          "description": "Maximum time for a response once the response window opens.",
+          "$ref": "common.schema.json#/definitions/duration"
+        },
+        "correct": {
+          "$ref": "#/definitions/correct_spec"
+        },
+        "feedback": {
+          "$ref": "#/definitions/feedback_spec"
+        },
+        "post": {
+          "description": "Gap after the trial (a [min, max] pair jitters).",
+          "$ref": "common.schema.json#/definitions/duration"
+        },
+        "repetitions": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 1
+        },
+        "applies_to": {
+          "description": "With 'design' - only instantiate for cells matching this predicate over factor values.",
+          "$ref": "common.schema.json#/definitions/predicate"
+        },
+        "conditions": {
+          "description": "Labels recorded in trial.start (design factors are added automatically).",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "common.schema.json#/definitions/scalar"
+          }
+        },
+        "data": {
+          "type": "object"
+        },
+        "input": {
+          "$ref": "input.schema.json#/definitions/scope"
+        },
+        "triggers": {
+          "$ref": "triggers.schema.json#/definitions/scope"
+        }
+      }
+    }
+  }
+}

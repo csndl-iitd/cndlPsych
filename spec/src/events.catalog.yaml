@@ -1,0 +1,469 @@
+# Event catalog: the single source of truth for every event the bus can carry.
+# tools/build.js turns this into schema/event.schema.json (envelope + per-type data).
+#
+# Envelope (all events): v, seq, t, [t_bus], source, type, data, block, trial, phase, caused_by
+#   t          source time in ms on the page's monotonic clock (event.timeStamp for input,
+#              rAF timestamp for phase onsets). wall time = session.clock_anchor.time_origin_ms + t
+#   t_bus      time the event reached the bus; only present when it differs meaningfully from t
+#   trial      1-based within the block
+#   caused_by  seq of the event that produced this one (provenance chain)
+#
+# Field notation below is plain JSON Schema. 'open: true' allows extra data fields.
+
+envelope:
+  sources: [system, task, input, gaze, semantic, bridge, trigger, storage]
+
+defs:
+  pt:
+    description: A point in stage coordinates plus the client pixels it came from.
+    type: object
+    required: [x, y, cx, cy]
+    properties:
+      x:  {type: number, description: "stage-normalized; may fall outside 0-1 if off-stage"}
+      y:  {type: number}
+      cx: {type: number, description: "clientX, CSS px"}
+      cy: {type: number, description: "clientY, CSS px"}
+    additionalProperties: false
+  target_ref:
+    description: Result of a hit test; null when nothing was hit.
+    type: [object, "null"]
+    required: [id, role]
+    properties:
+      id:   {type: [string, integer]}
+      role: {type: [string, "null"]}
+    additionalProperties: false
+  pointer_type: {enum: [mouse, touch, pen]}
+  rect:
+    type: object
+    required: [x, y, w, h]
+    properties:
+      x: {type: number}
+      y: {type: number}
+      w: {type: number}
+      h: {type: number}
+    additionalProperties: false
+  sample_stream:
+    description: "Chunked samples, rows are [t_ms, x, y] or [t_ms, x, y, pressure]."
+    type: array
+    items:
+      type: array
+      minItems: 3
+      maxItems: 4
+      items: {type: number}
+
+events:
+
+  # ---- lifecycle (source: system) ---------------------------------------
+  session.start:
+    source: system
+    doc: First persisted event. Emitted once consent is accepted and sinks are open.
+    required: [experiment, spec_version, spec_hash, framework_version, seed, profile]
+    data:
+      experiment: {type: string}
+      spec_version: {type: integer}
+      spec_hash: {type: string}
+      framework_version: {type: string}
+      seed: {type: integer}
+      profile: {type: string}
+  session.clock_anchor:
+    source: system
+    doc: Maps page time to wall time. wall = time_origin_ms + t.
+    required: [time_origin_ms, wall_iso]
+    data:
+      time_origin_ms: {type: number}
+      wall_iso: {type: string, format: date-time}
+  session.end:
+    source: system
+    required: [reason]
+    data:
+      reason: {enum: [complete, aborted, error, device_rejected]}
+  device.profile:
+    source: system
+    required: [profile, reason]
+    data:
+      profile: {type: string}
+      reason: {enum: [auto, prompt, fixed, override]}
+      candidates: {type: array, items: {type: string}}
+  consent.accepted:
+    source: system
+    required: [text_hash, mode]
+    data:
+      text_hash: {type: string}
+      mode: {enum: [on_screen, attested]}
+      statements:
+        type: array
+        items:
+          type: object
+          required: [id, accepted]
+          properties: {id: {type: string}, accepted: {type: boolean}}
+          additionalProperties: false
+  form.submitted:
+    source: system
+    doc: values are omitted for the built-in subject/session forms (they live in the session record).
+    required: [form_id]
+    data:
+      form_id: {type: string}
+      values: {type: object}
+      duration_ms: {type: number}
+  block.start:
+    source: system
+    required: [block_id, module]
+    data:
+      block_id: {type: string}
+      module: {type: string}
+      n_trials: {type: integer}
+  block.end:
+    source: system
+    required: [block_id]
+    data:
+      block_id: {type: string}
+      reason: {enum: [complete, skipped, aborted]}
+  trial.start:
+    source: task
+    required: [trial]
+    data:
+      trial: {type: integer, minimum: 1}
+      name: {type: string}
+      conditions: {type: object}
+  trial.end:
+    source: task
+    required: [trial, outcome]
+    data:
+      trial: {type: integer, minimum: 1}
+      outcome: {enum: [correct, incorrect, timeout, none, completed]}
+      rt_ms: {type: [number, "null"]}
+  page.visibility:
+    source: system
+    required: [state]
+    data: {state: {enum: [visible, hidden]}}
+  page.focus:
+    source: system
+    required: [focused]
+    data: {focused: {type: boolean}}
+  page.fullscreen:
+    source: system
+    required: [active]
+    data: {active: {type: boolean}}
+  stage.resize:
+    source: system
+    required: [rect, viewport, dpr]
+    data:
+      rect: {$ref: "#/definitions/rect"}
+      viewport:
+        type: object
+        required: [w, h]
+        properties: {w: {type: number}, h: {type: number}}
+        additionalProperties: false
+      dpr: {type: number}
+      orientation: {enum: [portrait, landscape]}
+  system.warning:
+    source: system
+    required: [code, message]
+    data: {code: {type: string}, message: {type: string}, detail: {type: object}}
+  system.error:
+    source: system
+    required: [code, message, fatal]
+    data: {code: {type: string}, message: {type: string}, fatal: {type: boolean}, detail: {type: object}}
+
+  # ---- task flow (source: task) -----------------------------------------
+  phase.onset:
+    source: task
+    doc: A phase (stimulus or task-defined) became visible. t is the rAF-predicted onset.
+    required: [phase, planned_ms]
+    data:
+      phase: {type: string}
+      stimulus: {type: string}
+      planned_ms: {type: [number, "null"]}
+      t_dom: {type: number, description: "when the DOM was updated, before paint"}
+      frame: {type: integer}
+  phase.offset:
+    source: task
+    required: [phase, reason]
+    data:
+      phase: {type: string}
+      stimulus: {type: string}
+      actual_ms: {type: number}
+      reason: {enum: [duration, response, abort, task]}
+  response.evaluated:
+    source: task
+    doc: A response was scored. correct is null when the trial defines no correctness rule.
+    required: [intent, correct, rt_ms]
+    data:
+      intent: {type: [string, "null"]}
+      correct: {type: [boolean, "null"]}
+      rt_ms: {type: [number, "null"], description: "from the onset of the current phase"}
+      phase: {type: string}
+      stimulus: {type: string}
+      expected: {type: array, items: {type: string}}
+      occurrence: {type: integer, description: "nth presentation of this stimulus in the trial"}
+      rule: {type: string}
+  response.timeout:
+    source: task
+    required: [phase, timeout_ms]
+    data: {phase: {type: string}, timeout_ms: {type: number}}
+  "task.*":
+    source: task
+    doc: Custom events emitted by custom tasks. Declare them in the task's 'events' list.
+    open: true
+    data: {}
+
+  # ---- raw input (source: input) ----------------------------------------
+  input.key.down: &key
+    source: input
+    required: [key, code, repeat, trusted]
+    data:
+      key: {type: string}
+      code: {type: string}
+      repeat: {type: boolean}
+      trusted: {type: boolean, description: "false = script-generated (isTrusted)"}
+      consumed: {type: boolean, description: "swallowed by a mapping rule"}
+  input.key.up: *key
+  input.pointer.down: &pointer
+    source: input
+    required: [pointer_id, pointer_type, button, x, y, cx, cy, trusted]
+    data:
+      pointer_id: {type: integer}
+      pointer_type: {$ref: "#/definitions/pointer_type"}
+      button: {type: integer}
+      x: {type: number}
+      y: {type: number}
+      cx: {type: number}
+      cy: {type: number}
+      inside_stage: {type: boolean}
+      target: {$ref: "#/definitions/target_ref"}
+      pressure: {type: number}
+      contact_w: {type: number}
+      contact_h: {type: number}
+      trusted: {type: boolean}
+  input.pointer.up: *pointer
+  input.pointer.cancel: *pointer
+  input.pointer.path:
+    source: input
+    doc: Chunked pointer trajectory, recorded only while a trial opts in. Rows [t, x, y, pressure?].
+    required: [gesture_id, samples]
+    data:
+      gesture_id: {type: integer}
+      samples: {$ref: "#/definitions/sample_stream"}
+
+  # ---- derived gestures (source: input) ---------------------------------
+  input.tap:
+    source: input
+    required: [gesture_id, pointer_type, t_down, t_up, duration_ms, down, up, slop, all_trusted]
+    data:
+      gesture_id: {type: integer}
+      pointer_type: {$ref: "#/definitions/pointer_type"}
+      t_down: {type: number}
+      t_up: {type: number}
+      duration_ms: {type: number}
+      down: {$ref: "#/definitions/pt"}
+      up: {$ref: "#/definitions/pt"}
+      slop: {type: number, description: "max movement while pressed, CSS px"}
+      target: {$ref: "#/definitions/target_ref"}
+      up_target: {$ref: "#/definitions/target_ref"}
+      tap_index: {type: integer, minimum: 1}
+      interval_ms: {type: number}
+      pressure: {type: number}
+      all_trusted: {type: boolean}
+  input.longpress.start:
+    source: input
+    required: [gesture_id, t_down, t_fire, down, threshold_ms]
+    data:
+      gesture_id: {type: integer}
+      t_down: {type: number}
+      t_fire: {type: number}
+      down: {$ref: "#/definitions/pt"}
+      target: {$ref: "#/definitions/target_ref"}
+      threshold_ms: {type: number}
+  input.longpress.end:
+    source: input
+    required: [gesture_id, duration_ms, down, up, slop, tap_suppressed, all_trusted]
+    data:
+      gesture_id: {type: integer}
+      duration_ms: {type: number}
+      down: {$ref: "#/definitions/pt"}
+      up: {$ref: "#/definitions/pt"}
+      slop: {type: number}
+      target: {$ref: "#/definitions/target_ref"}
+      tap_suppressed: {type: boolean}
+      all_trusted: {type: boolean}
+  input.swipe:
+    source: input
+    required: [gesture_id, t_down, t_up, duration_ms, down, up, dx, dy, distance, direction, all_trusted]
+    data:
+      gesture_id: {type: integer, description: "matches input.pointer.path chunks"}
+      t_down: {type: number}
+      t_up: {type: number}
+      duration_ms: {type: number}
+      down: {$ref: "#/definitions/pt"}
+      up: {$ref: "#/definitions/pt"}
+      dx: {type: number}
+      dy: {type: number}
+      distance: {type: number}
+      direction_rad: {type: number}
+      direction: {enum: [left, right, up, down]}
+      mean_velocity: {type: number}
+      peak_velocity: {type: number}
+      end_velocity: {type: number}
+      straightness: {type: number, minimum: 0, maximum: 1}
+      target: {$ref: "#/definitions/target_ref"}
+      all_trusted: {type: boolean}
+  input.drag.start:
+    source: input
+    required: [gesture_id, t_down, t_start, down, start]
+    data:
+      gesture_id: {type: integer}
+      t_down: {type: number}
+      t_start: {type: number}
+      down: {$ref: "#/definitions/pt"}
+      start: {$ref: "#/definitions/pt"}
+      target: {$ref: "#/definitions/target_ref"}
+      grab_offset:
+        type: object
+        required: [x, y]
+        properties: {x: {type: number}, y: {type: number}}
+        additionalProperties: false
+  input.drag.end:
+    source: input
+    required: [gesture_id, duration_ms, down, up, displacement, path_length, all_trusted]
+    data:
+      gesture_id: {type: integer}
+      duration_ms: {type: number}
+      down: {$ref: "#/definitions/pt"}
+      up: {$ref: "#/definitions/pt"}
+      displacement: {type: number}
+      path_length: {type: number}
+      mean_velocity: {type: number}
+      target: {$ref: "#/definitions/target_ref"}
+      drop_target: {$ref: "#/definitions/target_ref"}
+      all_trusted: {type: boolean}
+  input.drag.cancel:
+    source: input
+    required: [gesture_id, reason]
+    data:
+      gesture_id: {type: integer}
+      reason: {enum: [pointer_cancel, phase_end, blur, other]}
+
+  # ---- gaze (source: gaze) ----------------------------------------------
+  gaze.samples:
+    source: gaze
+    doc: Chunked WebGazer predictions. Rows [t_callback, x, y]. Camera frame time is not exposed by WebGazer.
+    required: [samples]
+    data:
+      samples: {$ref: "#/definitions/sample_stream"}
+      nominal_hz: {type: number}
+  gaze.lost:
+    source: gaze
+    data: {}
+  gaze.regained:
+    source: gaze
+    data: {}
+  gaze.calibration:
+    source: gaze
+    required: [points, repeats, completed]
+    data:
+      points: {type: integer}
+      repeats: {type: integer}
+      completed: {type: boolean}
+  gaze.validation:
+    source: gaze
+    required: [attempt, points, mean_error_px, passed]
+    data:
+      attempt: {type: integer, minimum: 1}
+      points: {type: integer}
+      mean_error_px: {type: number}
+      max_error_px: {type: number}
+      precision_px: {type: number}
+      passed: {type: boolean}
+  input.gaze.dwell:
+    source: gaze
+    doc: Derived event - gaze stayed within radius for at least the configured dwell time.
+    required: [t_start, t_end, duration_ms, x, y, radius, target]
+    data:
+      t_start: {type: number}
+      t_end: {type: number}
+      duration_ms: {type: number}
+      x: {type: number}
+      y: {type: number}
+      radius: {type: number}
+      target: {$ref: "#/definitions/target_ref"}
+
+  # ---- semantic (source: semantic) --------------------------------------
+  "semantic.*":
+    source: semantic
+    doc: >
+      Emitted by mapping rules. For an intent, type is semantic.<intent> and
+      data carries intent/rule/profile plus any rule-supplied fields (completion, outcome...).
+    open: true
+    data:
+      intent: {type: string}
+      rule: {type: string}
+      profile: {type: string}
+
+  # ---- jsPsych bridge (source: bridge) ----------------------------------
+  jspsych.trial.start:
+    source: bridge
+    required: [index, plugin]
+    data: {index: {type: integer}, plugin: {type: string}}
+  jspsych.trial.load:
+    source: bridge
+    required: [index, plugin]
+    data: {index: {type: integer}, plugin: {type: string}}
+  jspsych.trial.end:
+    source: bridge
+    required: [index, plugin]
+    data: {index: {type: integer}, plugin: {type: string}}
+  bridge.key_injected:
+    source: bridge
+    doc: A synthetic key was dispatched to jsPsych. jsPsych's own RT is measured from this moment; use origin_t for true response time.
+    required: [key, intent, origin_t]
+    data:
+      key: {type: string}
+      intent: {type: string}
+      origin_t: {type: number}
+
+  # ---- triggers and sinks (source: trigger) -----------------------------
+  trigger.sent:
+    source: trigger
+    required: [sink, rule, event_seq, t_event, t_sent]
+    data:
+      sink: {type: string}
+      rule: {type: string}
+      value: {type: [integer, "null"]}
+      event_seq: {type: integer}
+      t_event: {type: number}
+      t_sent: {type: number}
+      bytes: {type: integer}
+  trigger.dropped:
+    source: trigger
+    required: [sink, rule, event_seq, reason]
+    data:
+      sink: {type: string}
+      rule: {type: string}
+      value: {type: [integer, "null"]}
+      event_seq: {type: integer}
+      reason: {enum: [queue_full, disconnected, error, out_of_range]}
+  sink.status:
+    source: trigger
+    required: [sink, state]
+    data:
+      sink: {type: string}
+      state: {enum: [connecting, connected, disconnected, error, paused]}
+      detail: {type: string}
+  sink.sync:
+    source: trigger
+    doc: Clock offset estimate against a receiver that answers pings.
+    required: [sink, offset_ms, rtt_ms, samples]
+    data:
+      sink: {type: string}
+      offset_ms: {type: number}
+      rtt_ms: {type: number}
+      samples: {type: integer}
+
+  # ---- storage (source: storage) ----------------------------------------
+  storage.status:
+    source: storage
+    required: [sink, state]
+    data:
+      sink: {enum: [local, firebase]}
+      state: {enum: [opening, ready, degraded, closed, error]}
+      detail: {type: string}

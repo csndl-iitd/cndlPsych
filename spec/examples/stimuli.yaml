@@ -1,0 +1,69 @@
+styles:
+  glass_panel:
+    max-width: 600px
+    margin: 0 auto
+    padding: 35px
+    text-align: center
+    background: "rgba(15, 23, 42, 0.7)"
+    border: "1px solid rgba(255, 255, 255, 0.08)"
+    border-radius: 16px
+    color: "#f8fafc"
+    font-family: "'Inter', sans-serif"
+    line-height: 1.6
+
+stimuli:
+
+  # ---- oddball ------------------------------------------------------------
+  - name: oddball_instructions
+    type: html
+    style: glass_panel
+    html: |
+      <h2>Oddball Task</h2>
+      <p>In this block, you will see a series of letters flashing at the center of the screen.</p>
+      <p>{{go.hint}} when you see the letter <b>Ǝ</b> for the <b>second</b> time. Respond as quickly as you can.</p>
+    duration: null
+    trigger: 9
+
+  - { name: fixation_plus, type: text, text: "+", size: 72px, duration: 1500, trigger: 1, post: [200, 500] }
+  - { name: end_marker, type: text, text: XXX, size: 72px, duration: 500, trigger: 9, post: [200, 500] }
+
+  # One entry expands to oddball_A ... oddball_Ǝ with triggers 100 ... 109.
+  - name: "oddball_{value}"
+    type: text
+    text: "{value}"
+    size: 72px
+    weight: bold
+    font: "Inter, sans-serif"
+    each: [A, B, C, D, E, F, H, I, L, Ǝ]
+    trigger_base: 100
+    duration: 200
+    post: 300
+
+  # ---- flashes ------------------------------------------------------------
+  - name: flash_instructions
+    type: html
+    style: glass_panel
+    html: |
+      <h2>Alternating Flashes Task</h2>
+      <p>In this block, you will see alternating full screen black and white flashes.</p>
+      <p>No response is required. Please focus on the screen.</p>
+    duration: null
+    trigger: 9
+
+  - { name: flash_black, type: fill, color: "#000000", duration: 250, trigger: 11 }
+  - { name: flash_white, type: fill, color: "#ffffff", duration: 250, trigger: 10 }
+
+  # ---- visual search ------------------------------------------------------
+  - name: search_instructions
+    type: html
+    style: glass_panel
+    html: |
+      <h2>Visual Search Task</h2>
+      <p>You will see several symbols scattered on the screen. Two of them are the target <b>E</b>; the rest are the distractor <b>Ǝ</b>.</p>
+      <p>Find both targets, then {{next.hint}}. Be quick and accurate.</p>
+    duration: null
+
+  - name: search_array
+    type: search_array          # custom generator: custom/stimuli/search_array.js
+    params: { targets: 2, distractors: 10 }
+    duration: null

@@ -1,0 +1,243 @@
+$schema: http://json-schema.org/draft-07/schema#
+$id: https://example.org/expfw/1/common.schema.json
+title: Shared definitions
+description: >
+  Building blocks reused by every other schema. Conventions: snake_case keys,
+  durations in ms unless a unit is given, bare lengths are fractions of the
+  stage's shorter side, coordinates are stage-normalized (0-1).
+
+definitions:
+
+  # ---- identifiers -------------------------------------------------------
+  id:
+    description: Block, trial, stimulus, rule or sink id. Unicode letters allowed (e.g. oddball_Ǝ).
+    type: string
+    pattern: "^[\\p{L}_][\\p{L}\\p{N}_.-]*$"
+    maxLength: 64
+
+  rule_id:
+    description: >
+      Trigger rule id. Inline 'trigger:' values in stimuli.yaml compile to rules
+      with the reserved id stim:<stimulus name>, so blocks can override them.
+    type: string
+    pattern: "^(stim:)?[\\p{L}_][\\p{L}\\p{N}_.-]*$"
+    maxLength: 70
+
+  ident:
+    description: Lower-case identifier (intent, profile, field, style names).
+    type: string
+    pattern: "^[a-z][a-z0-9_]*$"
+    maxLength: 48
+
+  intent_name:
+    description: Semantic response name. 'any' and 'none' are built in.
+    $ref: "#/definitions/ident"
+
+  profile_id:
+    description: Device profile id (built in - desktop, phone, tablet - or custom).
+    $ref: "#/definitions/ident"
+
+  profile_key:
+    description: Profile id, or '*' for all profiles. Used as a map key.
+    type: string
+    pattern: "^([a-z][a-z0-9_]*|\\*)$"
+
+  event_name:
+    description: Namespaced event name. A trailing '*' segment is a glob (input.*).
+    type: string
+    pattern: "^[a-z][a-z0-9_]*(\\.([a-z0-9_]+|\\*))*$"
+
+  field_path:
+    description: Dotted path into an event's data or the context (target.role, subject.age).
+    type: string
+    pattern: "^[a-z_][a-z0-9_]*(\\.[a-z0-9_]+)*$"
+
+  # ---- scalars and units -------------------------------------------------
+  scalar:
+    type: [string, number, boolean]
+
+  duration_scalar:
+    description: Milliseconds (number), a string like '1.5s' / '200ms', or {frames}.
+    anyOf:
+      - type: number
+        minimum: 0
+      - type: string
+        pattern: "^\\d+(\\.\\d+)?\\s?(ms|s)$"
+      - type: object
+        required: [frames]
+        properties:
+          frames: {type: integer, minimum: 1}
+        additionalProperties: false
+
+  duration:
+    description: A duration, or a [min, max] pair drawn uniformly (jitter).
+    anyOf:
+      - $ref: "#/definitions/duration_scalar"
+      - type: array
+        minItems: 2
+        maxItems: 2
+        items: {$ref: "#/definitions/duration_scalar"}
+
+  duration_or_null:
+    description: A duration, or null for 'until a response'.
+    anyOf:
+      - {type: "null"}
+      - $ref: "#/definitions/duration"
+
+  length:
+    description: >
+      Bare number = fraction of the stage's shorter side. Strings carry a unit:
+      mm and deg need calibration, px is CSS pixels, % is of the stage width.
+    anyOf:
+      - type: number
+        minimum: 0
+      - type: string
+        pattern: "^\\d+(\\.\\d+)?(mm|px|deg|%)$"
+
+  unit_interval:
+    type: number
+    minimum: 0
+    maximum: 1
+
+  range:
+    description: Inclusive [from, to] on the 0-1 stage axis.
+    type: array
+    minItems: 2
+    maxItems: 2
+    items: {$ref: "#/definitions/unit_interval"}
+
+  region:
+    description: Rectangle in stage coordinates. Omitted axis = whole axis.
+    type: object
+    minProperties: 1
+    properties:
+      x: {$ref: "#/definitions/range"}
+      y: {$ref: "#/definitions/range"}
+    additionalProperties: false
+
+  target_selector:
+    description: Match a registered hit target by role and/or id.
+    type: object
+    minProperties: 1
+    properties:
+      role: {type: string}
+      id: {type: [string, integer]}
+    additionalProperties: false
+
+  gesture:
+    enum: [tap, longpress, swipe, drag]
+
+  direction:
+    enum: [left, right, up, down]
+
+  # ---- predicates (where / when) ----------------------------------------
+  condition:
+    description: A value (equality; strings may contain * globs), a list (membership) or an operator object.
+    anyOf:
+      - $ref: "#/definitions/scalar"
+      - type: "null"
+      - type: array
+        minItems: 1
+        items: {$ref: "#/definitions/scalar"}
+      - type: object
+        minProperties: 1
+        properties:
+          eq: {$ref: "#/definitions/scalar"}
+          ne: {$ref: "#/definitions/scalar"}
+          in: {type: array, items: {$ref: "#/definitions/scalar"}}
+          not_in: {type: array, items: {$ref: "#/definitions/scalar"}}
+          gt: {type: number}
+          gte: {type: number}
+          lt: {type: number}
+          lte: {type: number}
+          glob: {type: string}
+          regex: {type: string}
+          exists: {type: boolean}
+        additionalProperties: false
+
+  predicate:
+    description: >
+      Map of field path -> condition, all of which must hold. Combine with
+      all / any / not. Keys such as target.role are dotted paths.
+    type: object
+    properties:
+      all: {type: array, minItems: 1, items: {$ref: "#/definitions/predicate"}}
+      any: {type: array, minItems: 1, items: {$ref: "#/definitions/predicate"}}
+      not: {$ref: "#/definitions/predicate"}
+    additionalProperties: {$ref: "#/definitions/condition"}
+
+  # ---- event patterns and emissions (shared by input + triggers) ---------
+  step:
+    description: One event to match.
+    type: object
+    required: [on]
+    properties:
+      on: {$ref: "#/definitions/event_name"}
+      where: {$ref: "#/definitions/predicate"}
+      min_ms: {type: number, minimum: 0, description: "Minimum duration for events that have one (e.g. gaze dwell)."}
+    additionalProperties: false
+
+  pattern:
+    description: A single step, or an ordered sequence of steps with per-rule state.
+    oneOf:
+      - $ref: "#/definitions/step"
+      - type: object
+        required: [sequence]
+        properties:
+          sequence:
+            type: array
+            minItems: 2
+            items: {$ref: "#/definitions/step"}
+          distinct_by:
+            description: Steps must differ in this field (e.g. target.id).
+            $ref: "#/definitions/field_path"
+          within: {$ref: "#/definitions/duration_scalar"}
+          unordered: {type: boolean, default: false}
+        additionalProperties: false
+
+  effect:
+    description: Visual feedback applied to DOM elements; never attaches raw listeners.
+    type: object
+    minProperties: 1
+    properties:
+      target:
+        enum: [event_target, matched_targets, stage]
+        default: event_target
+      add_class: {type: string}
+      style:
+        type: object
+        additionalProperties: {type: [string, number]}
+      revert_after: {$ref: "#/definitions/duration_scalar"}
+    additionalProperties: false
+
+  emit_item:
+    type: object
+    properties:
+      intent: {$ref: "#/definitions/intent_name"}
+      event:
+        description: Custom semantic event (semantic.* or task.*).
+        type: string
+        pattern: "^(semantic|task)\\.[a-z0-9_]+(\\.[a-z0-9_]+)*$"
+      key:
+        description: Inject a raw key into jsPsych (for plugins expecting specific keys).
+        type: string
+        minLength: 1
+      end_trial: {const: true}
+      effect: {$ref: "#/definitions/effect"}
+      data:
+        description: Extra fields merged into the emitted event's data.
+        type: object
+    oneOf:
+      - required: [intent]
+      - required: [event]
+      - required: [key]
+      - required: [end_trial]
+      - required: [effect]
+    additionalProperties: false
+
+  emit:
+    oneOf:
+      - $ref: "#/definitions/emit_item"
+      - type: array
+        minItems: 1
+        items: {$ref: "#/definitions/emit_item"}

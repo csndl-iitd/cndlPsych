@@ -1,0 +1,26 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Generated schemas match spec/src
+        run: npm run check:schemas
+      - run: npm run lint
+      - name: Layer rules
+        run: npm run check:layers
+      - name: Type-check custom code against spec/types.d.ts
+        run: npm run typecheck
+      - run: npm test
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:browser

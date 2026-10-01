@@ -1,0 +1,43 @@
+$schema: http://json-schema.org/draft-07/schema#
+$id: https://example.org/expfw/1/module-instructions.schema.json
+title: instructions module config
+description: >
+  One or more instruction pages. Pages are stimulus names (from stimuli.yaml)
+  or inline html/text. Advancing uses an intent (default 'any': any key or a
+  tap anywhere), so the same screen works on every device.
+
+$ref: "#/definitions/config"
+
+definitions:
+  page:
+    anyOf:
+      - {type: string, minLength: 1}
+      - type: object
+        required: [html]
+        additionalProperties: false
+        properties:
+          html: {type: string}
+      - type: object
+        required: [text]
+        additionalProperties: false
+        properties:
+          text: {type: string}
+
+  config:
+    type: object
+    required: [pages]
+    additionalProperties: false
+    properties:
+      pages:
+        type: array
+        minItems: 1
+        items: {$ref: "#/definitions/page"}
+      advance: {$ref: "common.schema.json#/definitions/intent_name"}
+      back:
+        anyOf:
+          - {$ref: "common.schema.json#/definitions/intent_name"}
+          - {type: "null"}
+      min_time:
+        description: Minimum time a page stays before advancing is accepted.
+        $ref: "common.schema.json#/definitions/duration_scalar"
+      post: {$ref: "common.schema.json#/definitions/duration"}

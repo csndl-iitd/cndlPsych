@@ -1,0 +1,145 @@
+{
+  "schema_version": 1,
+  "subject_id": "sub-007",
+  "session_id": "ses-01",
+  "status": "complete",
+  "started_at": "2026-09-30T10:20:01Z",
+  "ended_at": "2026-09-30T10:41:10Z",
+  "subject": {
+    "sex": "female",
+    "age": 24,
+    "handedness": "right"
+  },
+  "session_fields": {
+    "session_type": "Experimental"
+  },
+  "url_params": {
+    "PROLIFIC_PID": "abc123"
+  },
+  "consent": {
+    "mode": "on_screen",
+    "text_hash": "sha256:c0ffee",
+    "accepted_at": "2026-09-30T10:20:02Z",
+    "statements": [
+      {
+        "id": "read",
+        "accepted": true
+      },
+      {
+        "id": "voluntary",
+        "accepted": true
+      }
+    ]
+  },
+  "experiment": {
+    "name": "Oddball, flashes and visual search",
+    "spec_version": 1,
+    "spec_hash": "sha256:ab12",
+    "framework_version": "0.1.0",
+    "seed": 12345,
+    "custom_modules": [
+      {
+        "kind": "stimulus",
+        "name": "search_array",
+        "hash": "sha256:9f9f"
+      }
+    ]
+  },
+  "device": {
+    "profile": "phone",
+    "profile_reason": "auto",
+    "user_agent": "Mozilla/5.0 (example)",
+    "platform": "Android",
+    "language": "en-IN",
+    "screen": {
+      "w": 390,
+      "h": 844,
+      "dpr": 3
+    },
+    "viewport": {
+      "w": 390,
+      "h": 780
+    },
+    "pointer": "coarse",
+    "hover": "none",
+    "touch_points": 5,
+    "keyboard": false,
+    "refresh_hz_est": 60,
+    "calibration": {
+      "method": "none"
+    }
+  },
+  "clock": {
+    "time_origin_ms": 1790766000000.0,
+    "wall_iso": "2026-09-30T10:20:00.000Z",
+    "timezone": "Asia/Calcutta",
+    "utc_offset_min": 330
+  },
+  "stage": {
+    "rect": {
+      "x": 0,
+      "y": 0,
+      "w": 390,
+      "h": 780
+    },
+    "aspect": 0.5,
+    "letterboxed": false
+  },
+  "sinks": {
+    "trigger": [
+      {
+        "id": "lab_ws",
+        "type": "websocket",
+        "format": "ndjson",
+        "required": false,
+        "connected": true
+      }
+    ],
+    "storage": [
+      "local",
+      "firebase"
+    ]
+  },
+  "eyetracking": {
+    "enabled": false
+  },
+  "overlays": {
+    "apriltags": {
+      "family": "tag36h11",
+      "tags": [
+        {
+          "id": 0,
+          "corner": "tl",
+          "cx": 30,
+          "cy": 30,
+          "size_px": 52
+        },
+        {
+          "id": 1,
+          "corner": "tr",
+          "cx": 360,
+          "cy": 30,
+          "size_px": 52
+        },
+        {
+          "id": 2,
+          "corner": "br",
+          "cx": 360,
+          "cy": 750,
+          "size_px": 52
+        },
+        {
+          "id": 3,
+          "corner": "bl",
+          "cx": 30,
+          "cy": 750,
+          "size_px": 52
+        }
+      ]
+    },
+    "photodiode": {
+      "corner": "bl",
+      "size_px": 38
+    }
+  }
+}

@@ -1,0 +1,78 @@
+spec_version: 1
+name: Oddball, flashes and visual search
+description: Demo project migrated from the previous builder, covering desktop, phone and tablet.
+seed: auto
+capture_url_params: [PROLIFIC_PID]
+
+stage:
+  aspect: fill
+  background: "#000000"
+  fullscreen: preferred
+  wake_lock: true
+
+device:
+  select: auto
+  allowed: [desktop, phone, tablet]
+
+consent:
+  file: consent.md
+  statements:
+    - { id: read, text: "I have read the information above." }
+    - { id: voluntary, text: "I understand that taking part is voluntary and I can stop at any time." }
+  min_age: 18
+
+# Experiment-wide input defaults; blocks and trials override them.
+input:
+  cursor: { autohide_ms: 1000, show_on_move_px: 3 }
+  intents:
+    go:
+      hint: { desktop: "Press SPACE", phone: "Tap the screen", tablet: "Tap the screen" }
+      desktop: { key: " " }
+      phone: { tap: true }
+      tablet: { tap: true }
+  profiles:
+    phone: { hit_padding: 12mm }
+    tablet: { hit_padding: 10mm }
+
+triggers:
+  sinks:
+    - id: eeg_serial
+      type: serial
+      format: raw
+      template: "{value:02x}"
+      baud: 115200
+      reset_after_ms: 5
+    - id: lab_ws
+      type: websocket
+      url: "ws://localhost:8765"
+      format: ndjson
+      fields: [seq, value, event, t_event, t_sent, trial, stimulus]
+      ack: true
+      required: false
+  rules:
+    - { id: resp_correct, on: response.evaluated, where: { correct: true }, value: 21 }
+    - { id: resp_incorrect, on: response.evaluated, where: { correct: false }, value: 22 }
+    - { id: resp_timeout, on: response.timeout, value: 23 }
+
+eyetracking:
+  enabled: false
+
+overlay:
+  apriltags: { enabled: true, family: tag36h11, ids: [0, 1, 2, 3], size: 14mm }
+  photodiode: { enabled: true, corner: bl, size: 10mm }
+
+storage:
+  local: { enabled: true, recovery: offer, export_on_finish: [jsonl, bids] }
+  firebase:
+    enabled: true
+    access: controlled
+    web_config:
+      apiKey: "AIza-placeholder"
+      authDomain: "demo.firebaseapp.com"
+      projectId: "demo"
+      appId: "1:000000000000:web:0000000000000000"
+    subject_id: { width: 3, override: true }
+
+finish:
+  message: "Thank you - you can close this window."
+  show_session_code: true
