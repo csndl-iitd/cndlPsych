@@ -2,6 +2,9 @@
 // pointer input into bus events: stage coordinates, `trusted`, and the gestures that the
 // current scope enables. Tasks and rules never attach listeners; they use the bus.
 //
+// Page lifecycle (visibilitychange, pagehide, focus, blur) is reported here too, because this is
+// the one module that listens to the DOM.
+//
 // What is recorded (and what is not):
 //  - key events: every key except while an editable field has focus (typed answers in
 //    forms are never logged); consumed keys carry `consumed: true`.
@@ -21,6 +24,7 @@ export function createInput({ bus, stage, doc = stage.root.ownerDocument, schedu
   const win = doc.defaultView;
   const removers = [];
   const activityHandlers = [];
+  const leaveHandlers = [];
   let consumer = () => false;
   let scope = { gestures: [], paddingPx: 0 };
 
@@ -98,7 +102,20 @@ export function createInput({ bus, stage, doc = stage.root.ownerDocument, schedu
   listen(doc, 'keyup', onKey('input.key.up'), { capture: true });
   for (const phase of ['down', 'move', 'up', 'cancel']) listen(root, `pointer${phase}`, (event) => pointerEvent(phase, event));
   listen(root, 'contextmenu', (event) => event.preventDefault());
-  listen(win, 'blur', () => recognizer.cancel('blur'));
+  listen(win, 'blur', () => {
+    recognizer.cancel('blur');
+    bus.emit({ source: 'system', type: 'page.focus', data: { focused: false } });
+  });
+  listen(win, 'focus', () => bus.emit({ source: 'system', type: 'page.focus', data: { focused: true } }));
+
+  // The page going away: record visibility and tell listeners (storage flushes) while we still can.
+  const leave = () => leaveHandlers.forEach((handler) => handler());
+  listen(doc, 'visibilitychange', () => {
+    if (doc.visibilityState !== 'visible' && doc.visibilityState !== 'hidden') return;
+    bus.emit({ source: 'system', type: 'page.visibility', data: { state: doc.visibilityState } });
+    if (doc.visibilityState === 'hidden') leave();
+  });
+  listen(win, 'pagehide', leave);
 
   return {
     /**
@@ -116,6 +133,11 @@ export function createInput({ bus, stage, doc = stage.root.ownerDocument, schedu
     onActivity(handler) {
       activityHandlers.push(handler);
       return () => activityHandlers.splice(activityHandlers.indexOf(handler), 1);
+    },
+    /** The page is being hidden or closed (pagehide, tab hidden): handler() should flush what it holds. */
+    onLeave(handler) {
+      leaveHandlers.push(handler);
+      return () => leaveHandlers.splice(leaveHandlers.indexOf(handler), 1);
     },
     /** Abandon any gesture in progress (e.g. at a phase change). */
     cancelGesture(reason = 'phase_end') { recognizer.cancel(reason); },

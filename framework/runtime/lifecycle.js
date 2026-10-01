@@ -12,6 +12,9 @@ import { askAction, buildSurvey, showConsent, showForm } from '../authoring/modu
 import { admitDevice, deviceRecord, profileConditions, readEnvironment, resolveProfile } from '../foundation/device.js';
 import { matchesPredicate } from '../foundation/matcher.js';
 import { createRng } from '../foundation/rng.js';
+import { sessionArchive, SUPPORTED_FORMATS } from '../storage/export.js';
+import { downloadFile } from './download.js';
+import { recoverSessions } from './recovery.js';
 import { NEEDS_GESTURE } from './sinks.js';
 import { createConsentGate, createSessionRecord, finishSessionRecord, hashText, parseUrlParams, resolveSeed } from '../foundation/session.js';
 
@@ -129,6 +132,14 @@ function finishScreen(display, plan, record) {
   }
 }
 
+/** Download the finished session as one zip, if export_on_finish asks for a format we can write. */
+async function exportSession(doc, store, formats) {
+  if (!formats.some((format) => SUPPORTED_FORMATS.includes(format))) return;
+  const { record, events } = await store.snapshot();
+  const archive = sessionArchive(record, events, formats);
+  downloadFile(doc, { name: archive.name, data: archive.data });
+}
+
 /**
  * @param {{services: object, project: {plan: object, consentText?: string, specHash: string, customModules: object[]}, store: object, search?: string}} options
  * @returns {Promise<{status: string, record?: object}>}
@@ -138,6 +149,11 @@ export async function runSession({ services, project, store, search = globalThis
   const { bus, clock, display } = services;
   const screen = { jsPsych: services.jsPsych };
   const gate = createConsentGate(plan.consent);
+  const local = plan.storage?.local ?? {};
+  const exportFormats = local.export_on_finish ?? [];
+
+  // 0. interrupted sessions from earlier (before anything about this participant exists)
+  await recoverSessions({ screen, store, policy: local.recovery ?? 'offer', formats: exportFormats, doc: display.ownerDocument });
 
   // 1. consent (nothing is recorded: the bus is not recording yet)
   if (!(await askConsent(screen, plan, project.consentText, gate))) {
@@ -194,7 +210,10 @@ export async function runSession({ services, project, store, search = globalThis
   });
   store.begin(record);
   bus.on('*', (event) => store.append(event));
+  services.input.onLeave(() => store.flush());
   bus.startRecording();
+  // 'closed' is not logged: it would come after the last event the record counts.
+  store.onStatus?.((status) => status.state !== 'closed' && bus.emit({ source: 'storage', type: 'storage.status', data: { sink: 'local', ...status } }));
   bus.emit({ source: 'system', type: 'session.start', data: { experiment: plan.name, spec_version: plan.spec_version, spec_hash: project.specHash, framework_version: FRAMEWORK_VERSION, seed, profile } });
   bus.emit({ source: 'system', type: 'session.clock_anchor', data: { time_origin_ms: record.clock.time_origin_ms, wall_iso: record.clock.wall_iso } });
   if (debug.time_scale !== undefined && debug.time_scale !== 1) {
@@ -207,13 +226,13 @@ export async function runSession({ services, project, store, search = globalThis
   }
 
   const admission = admitDevice(bus, plan.device ?? {}, { env, chosen: resolved.reason === 'prompt' ? profile : undefined, override: debug.simulate_profile });
-  const finish = (reason) => {
+  const finish = async (reason) => {
     const done = finishSessionRecord(record, { reason, endedAt: isoNow(), lastSeq: bus.lastSeq });
-    store.finish(done);
+    await store.finish(done);
     return done;
   };
   if (!admission.admitted) {
-    const done = finish('device_rejected');
+    const done = await finish('device_rejected');
     showMessage(display, admission.message);
     return { status: 'device_rejected', record: done };
   }
@@ -231,7 +250,7 @@ export async function runSession({ services, project, store, search = globalThis
   } catch (error) {
     bus.emit({ source: 'system', type: 'system.error', data: { code: 'exception', message: String(error.message ?? error), fatal: true } });
     bus.emit({ source: 'system', type: 'session.end', data: { reason: 'error' } });
-    const done = finish('error');
+    const done = await finish('error');
     await sinkSet.closeAll();
     showMessage(display, 'Something went wrong and the session had to stop. Please tell the experimenter.');
     return { status: 'error', record: done, error };
@@ -239,9 +258,14 @@ export async function runSession({ services, project, store, search = globalThis
 
   // 7. finish: let queued triggers go out (and be logged) before the session ends
   await sinkSet.drain();
+  const unsupported = exportFormats.filter((format) => !SUPPORTED_FORMATS.includes(format));
+  if (unsupported.length) {
+    bus.emit({ source: 'system', type: 'system.warning', data: { code: 'export_format_unsupported', message: `export_on_finish ${unsupported.join(', ')} is not available yet and was skipped` } });
+  }
   bus.emit({ source: 'system', type: 'session.end', data: { reason: 'complete' } });
-  const done = finish('complete');
+  const done = await finish('complete');
   await sinkSet.closeAll();
+  await exportSession(display.ownerDocument, store, exportFormats);
   finishScreen(display, plan, done);
   return { status: 'complete', record: done };
 }

@@ -17,4 +17,4 @@ Browser experiment framework (`expfw` is a placeholder name). Read `ARCHITECTURE
     npm run test:browser    # Playwright (run `npx playwright install chromium` once)
     npm run ci              # everything except the browser tests
 
-Status: M5 (triggers and relay). See docs/triggers.md. See `docs/decisions.md`.
+Status: M6 (local storage and recovery). See docs/triggers.md for trigger sinks. See `docs/decisions.md`.

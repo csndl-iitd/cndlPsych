@@ -7,6 +7,9 @@ export function createMemoryStore() {
     events: [],
     finished: false,
     begin(record) { store.record = record; },
+    flush() {},
+    /** Same shape as the local store's snapshot, so export code does not care which store it has. */
+    async snapshot() { return { record: store.record, events: [...store.events] }; },
     append(event) { store.events.push(event); },
     finish(record) {
       store.record = record;

@@ -2,6 +2,7 @@
 // shows compile errors instead of starting when there are any, and runs the session.
 import { markdownToHtml } from '../authoring/modules/markdown.js';
 import { runSession } from './lifecycle.js';
+import { createLocalStore } from '../storage/local.js';
 import { createMemoryStore } from './memory-store.js';
 import { loadProject } from './project.js';
 import { createServices } from './services.js';
@@ -14,14 +15,14 @@ function showDiagnostics(root, errors) {
 /**
  * @param {{
  *   root: HTMLElement, url?: string, schemas: object, store?: object, styles?: string[],
- *   validate?: Function, patchExperiment?: (doc: object) => void, onReady?: (services: object) => void,
+ *   validate?: Function, patchExperiment?: (doc: object) => void, onReady?: (services: object, store: object) => void,
  * }} options
  *   `schemas` is the generated spec/schema/*.json by file name (the bundle provides it);
  *   `validate` (dev) checks every emitted event; `patchExperiment` edits experiment.yaml before compiling;
- *   `onReady` receives the services (bus, stage, ...) before the session starts.
+ *   `onReady` receives the services (bus, stage, ...) and the store before the session starts.
  * @returns {Promise<{status: string, services?: object, store?: object, record?: object, diagnostics: object[]}>}
  */
-export async function boot({ root, url = './', schemas, store = createMemoryStore(), styles = [], validate, patchExperiment, onReady }) {
+export async function boot({ root, url = './', schemas, store, styles = [], validate, patchExperiment, onReady }) {
   const project = await loadProject({ url, schemas, patchExperiment });
   const errors = project.diagnostics.filter((d) => d.severity === 'error');
   if (errors.length || !project.plan) {
@@ -30,7 +31,9 @@ export async function boot({ root, url = './', schemas, store = createMemoryStor
   }
   const timeScale = project.plan.debug?.enabled ? (project.plan.debug.time_scale ?? 1) : 1;
   const services = createServices({ root, plan: project.plan, generators: project.generators, validate, timeScale, styles });
-  onReady?.(services);
-  const result = await runSession({ services, project, store });
-  return { ...result, services, store, diagnostics: project.diagnostics };
+  const local = project.plan.storage?.local ?? {};
+  const chosen = store ?? (local.enabled === false ? createMemoryStore() : createLocalStore({ flushMs: local.flush_ms }));
+  onReady?.(services, chosen);
+  const result = await runSession({ services, project, store: chosen });
+  return { ...result, services, store: chosen, diagnostics: project.diagnostics };
 }

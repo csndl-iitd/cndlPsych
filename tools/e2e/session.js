@@ -4,6 +4,7 @@ import Ajv from 'ajv';
 import surveyCss from '@jspsych/plugin-survey/css/survey.css';
 import { boot } from '../../framework/runtime/boot.js';
 import { createMemoryStore } from '../../framework/runtime/memory-store.js';
+import { createLocalStore } from '../../framework/storage/local.js';
 import { schemas } from './schemas.js';
 
 const validateEvent = new Ajv({ strict: false, allErrors: true }).compile(schemas['event.schema.json']);
@@ -16,12 +17,15 @@ function merge(target, patch) {
   }
 }
 
-/** @param {{url?: string, merge?: object}} options `merge` is deep-merged into experiment.yaml */
+/**
+ * @param {{url?: string, merge?: object, local?: boolean}} options `merge` is deep-merged into experiment.yaml;
+ *   `local: true` uses the project's real storage (IndexedDB) instead of the in-memory test store
+ */
 window.runSession = (options = {}) => {
   const root = document.createElement('div');
   document.body.append(root);
   window.sessionRoot = root;
-  window.sessionStore = createMemoryStore();
+  window.sessionStore = options.local ? undefined : createMemoryStore();
   window.sessionPromise = boot({
     root,
     store: window.sessionStore,
@@ -30,8 +34,9 @@ window.runSession = (options = {}) => {
     styles: [surveyCss],
     validate: problemsOf,
     patchExperiment: (doc) => merge(doc, options.merge ?? {}),
-    onReady: (services) => { window.sessionServices = services; },
+    onReady: (services, store) => { window.sessionServices = services; window.sessionStore = store; },
   }).then((result) => { window.sessionResult = result; return result; });
   return window.sessionPromise;
 };
+window.expfwStorage = { createLocalStore };
 window.sessionReady = true;
