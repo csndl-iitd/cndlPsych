@@ -15,4 +15,4 @@ Browser experiment framework (`expfw` is a placeholder name). Read `ARCHITECTURE
     npm run test:browser    # Playwright (run `npx playwright install chromium` once)
     npm run ci              # everything except the browser tests
 
-Status: M2 (foundation runtime). See `docs/decisions.md`.
+Status: M3 (input pipeline and jsPsych bridge). See `docs/decisions.md`.

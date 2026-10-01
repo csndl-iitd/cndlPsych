@@ -11,7 +11,7 @@ export default defineConfig({
   reporter: process.env.CI ? 'github' : 'list',
   use: { baseURL: `http://localhost:${PORT}` },
   webServer: {
-    command: 'node tools/static-server.js',
+    command: 'node tools/build-e2e.js && node tools/static-server.js',
     url: `http://localhost:${PORT}/tools/blank.html`,
     reuseExistingServer: !process.env.CI,
     env: { PORT: String(PORT) },

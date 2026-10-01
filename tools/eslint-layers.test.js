@@ -55,6 +55,18 @@ describe('ESLint layer rules', () => {
     expect(await ruleIds(file, code)).toContain(rule);
   });
 
+  it.each([
+    ['framework/pipeline/mapping.js', 'export const f = (el) => el.addEventListener("click", () => {});', 'no-restricted-syntax'],
+    ['framework/stage/stage.js', 'export const f = (el) => el.removeEventListener("click", () => {});', 'no-restricted-syntax'],
+    ['framework/storage/firebase.js', 'export const f = (el) => el.addEventListener("online", () => {});', 'no-restricted-syntax'],
+  ])('rejects raw listeners outside input.js: %s', async (file, code, rule) => {
+    expect(await ruleIds(file, code)).toContain(rule);
+  });
+
+  it('allows listeners inside pipeline/input.js', async () => {
+    expect(await ruleIds('framework/pipeline/input.js', 'export const f = (el) => el.addEventListener("click", () => {});')).toEqual([]);
+  });
+
   it('allows indexedDB inside storage/local.js', async () => {
     expect(await ruleIds('framework/storage/local.js', 'export const open = () => indexedDB.open("log");\n')).toEqual([]);
   });

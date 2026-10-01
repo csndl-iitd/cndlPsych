@@ -29,6 +29,12 @@ export function createClock(source = {}) {
   };
 }
 
+/** Run `callback` after `ms`; returns a function that cancels it. Injectable for tests. */
+export function schedule(ms, callback) {
+  const handle = setTimeout(callback, ms);
+  return () => clearTimeout(handle);
+}
+
 /** Resolves with the timestamp of the next animation frame (the rAF callback argument). */
 export function nextFrame(raf = globalThis.requestAnimationFrame) {
   return new Promise((resolve) => raf(resolve));

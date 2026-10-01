@@ -126,8 +126,9 @@ function distinctPredicate(field) {
   };
 }
 
-function orderedMatcher(steps, { within, distinct, cap }) {
-  let partials = [];
+function orderedMatcher(steps, options, initial = []) {
+  const { within, distinct, cap } = options;
+  let partials = initial;
 
   function advance(event) {
     const extended = [];
@@ -160,6 +161,7 @@ function orderedMatcher(steps, { within, distinct, cap }) {
       return null;
     },
     reset() { partials = []; },
+    clone: () => orderedMatcher(steps, options, partials.map((chain) => [...chain])),
   };
 }
 
@@ -182,8 +184,8 @@ function assign(steps, candidates, newest, { within, distinct }) {
   return search(0) ? [...chosen].sort((a, b) => a.t - b.t) : null;
 }
 
-function unorderedMatcher(steps, options) {
-  let candidates = [];
+function unorderedMatcher(steps, options, initial = []) {
+  let candidates = initial;
   return {
     feed(event) {
       if (!steps.some((step) => step(event))) return null;
@@ -196,6 +198,7 @@ function unorderedMatcher(steps, options) {
       return result(found);
     },
     reset() { candidates = []; },
+    clone: () => unorderedMatcher(steps, options, [...candidates]),
   };
 }
 
@@ -204,17 +207,21 @@ function unorderedMatcher(steps, options) {
  * `unordered: true` accepts any order) with optional `distinct_by` and `within`.
  * Feed it every event in order; it returns {events, t_first, t_last} when the pattern
  * completes (and then starts over), otherwise null. Non-matching events are ignored.
+ * `peek(event)` says whether feeding the event would complete the pattern, without changing state.
  * Ordered sequences are matched greedily: the latest-starting partial match wins.
  * @param {{frameMs?: number}} [options] only needed when `within` is given in frames
  */
 export function createPatternMatcher(pattern, { frameMs } = {}) {
   if (!pattern.sequence) {
     const step = compileStep(pattern);
-    return { feed: (event) => (step(event) ? result([event]) : null), reset() {} };
+    const matcher = { feed: (event) => (step(event) ? result([event]) : null), reset() {}, clone: () => matcher };
+    return { ...matcher, peek: (event) => matcher.feed(event) !== null };
   }
   const steps = pattern.sequence.map(compileStep);
   const distinct = distinctPredicate(pattern.distinct_by);
   const within = pattern.within === undefined ? Infinity : durationMs(pattern.within, frameMs);
-  if (pattern.unordered) return unorderedMatcher(steps, { within, distinct });
-  return orderedMatcher(steps, { within, distinct, cap: pattern.distinct_by ? MAX_PARTIALS_WITH_DISTINCT : 1 });
+  const matcher = pattern.unordered
+    ? unorderedMatcher(steps, { within, distinct })
+    : orderedMatcher(steps, { within, distinct, cap: pattern.distinct_by ? MAX_PARTIALS_WITH_DISTINCT : 1 });
+  return { ...matcher, peek: (event) => matcher.clone().feed(event) !== null };
 }

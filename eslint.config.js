@@ -37,6 +37,10 @@ const restrictedGlobals = (names) => names.map((name) => ({
   name,
   message: 'No browser storage in the runtime (CLAUDE.md hard rule 3). IndexedDB only in storage/local.js.',
 }));
+const noListeners = {
+  selector: "CallExpression[callee.property.name=/^(add|remove)EventListener$/]",
+  message: 'Raw DOM listeners live only in pipeline/input.js (hard rule 4); use the bus.',
+};
 const frameworkGlobals = restrictedGlobals(['localStorage', 'sessionStorage', 'indexedDB', 'IDBKeyRange']);
 const localStorageGlobals = restrictedGlobals(['localStorage', 'sessionStorage']);
 
@@ -51,7 +55,7 @@ export default [
   },
   {
     // page.evaluate callbacks run in the browser.
-    files: ['**/*.e2e.js'],
+    files: ['**/*.e2e.js', 'tools/e2e/**/*.js'],
     languageOptions: { globals: { ...globals.browser } },
   },
   {
@@ -65,7 +69,7 @@ export default [
         { object: 'window', property: 'sessionStorage', message: 'No browser storage (hard rule 3).' },
         { object: 'Math', property: 'random', message: 'Use the seeded rng (hard rule 5).' },
       ],
-      'no-restricted-syntax': ['error', dynamicSdkImport(['firebase', 'webgazer', 'jspsych', '@jspsych'])],
+      'no-restricted-syntax': ['error', noListeners, dynamicSdkImport(['firebase', 'webgazer', 'jspsych', '@jspsych'])],
     },
   },
   { files: ['framework/foundation/**/*.js'], ignores: TEST_FILES, rules: foundationImports },
@@ -83,14 +87,18 @@ export default [
   {
     files: ['framework/storage/firebase.js'],
     rules: {
-      'no-restricted-syntax': ['error', dynamicSdkImport(['webgazer', 'jspsych', '@jspsych'])],
+      'no-restricted-syntax': ['error', noListeners, dynamicSdkImport(['webgazer', 'jspsych', '@jspsych'])],
     },
   },
   {
     files: ['framework/pipeline/gaze.js'],
     rules: {
-      'no-restricted-syntax': ['error', dynamicSdkImport(['firebase', 'jspsych', '@jspsych'])],
+      'no-restricted-syntax': ['error', noListeners, dynamicSdkImport(['firebase', 'jspsych', '@jspsych'])],
     },
+  },
+  {
+    files: ['framework/pipeline/input.js'],
+    rules: { 'no-restricted-syntax': ['error', dynamicSdkImport(['firebase', 'webgazer', 'jspsych', '@jspsych'])] },
   },
   {
     files: ['framework/storage/local.js'],
