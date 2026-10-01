@@ -6,6 +6,8 @@ import globals from 'globals';
 // (and also sees dynamic imports and re-exports).
 const SDK_PATTERNS = ['jspsych', 'jspsych/*', '@jspsych/*', 'firebase', 'firebase/*', 'webgazer', 'webgazer/*'];
 const JSPSYCH_PATTERNS = ['jspsych', 'jspsych/*', '@jspsych/*'];
+// Tests may import across layers (they are not part of the shipped framework).
+const TEST_FILES = ['**/*.test.js', '**/*.e2e.js'];
 const ALL_LAYERS = ['foundation', 'pipeline', 'storage', 'stage', 'authoring', 'runtime'];
 
 const layerImport = (allowed) => ALL_LAYERS
@@ -54,7 +56,7 @@ export default [
   },
   {
     files: ['framework/**/*.js'],
-    ignores: ['**/*.test.js'],
+    ignores: TEST_FILES,
     languageOptions: { globals: { ...globals.browser } },
     rules: {
       'no-restricted-globals': ['error', ...frameworkGlobals],
@@ -66,13 +68,13 @@ export default [
       'no-restricted-syntax': ['error', dynamicSdkImport(['firebase', 'webgazer', 'jspsych', '@jspsych'])],
     },
   },
-  { files: ['framework/foundation/**/*.js'], ignores: ['**/*.test.js'], rules: foundationImports },
-  { files: ['framework/{pipeline,storage,stage}/**/*.js'], ignores: ['**/*.test.js'], rules: importRules(['foundation']) },
-  { files: ['framework/authoring/**/*.js'], ignores: ['**/*.test.js'], rules: importRules(['foundation']) },
-  { files: ['framework/runtime/**/*.js'], ignores: ['**/*.test.js'], rules: importRules(ALL_LAYERS) },
+  { files: ['framework/foundation/**/*.js'], ignores: TEST_FILES, rules: foundationImports },
+  { files: ['framework/{pipeline,storage,stage}/**/*.js'], ignores: TEST_FILES, rules: importRules(['foundation']) },
+  { files: ['framework/authoring/**/*.js'], ignores: TEST_FILES, rules: importRules(['foundation']) },
+  { files: ['framework/runtime/**/*.js'], ignores: TEST_FILES, rules: importRules(ALL_LAYERS) },
   {
     files: ['framework/pipeline/bridge.js', 'framework/authoring/modules/*.js'],
-    ignores: ['**/*.test.js'],
+    ignores: TEST_FILES,
     rules: restrictImports(
       [...layerImport(['foundation']), ...SDK_PATTERNS.filter((p) => !JSPSYCH_PATTERNS.includes(p))],
       'Only jsPsych may be imported here (hard rule 2).',

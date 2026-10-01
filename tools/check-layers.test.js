@@ -67,6 +67,7 @@ describe('checkTree', () => {
     const root = tree({
       'foundation/clock.js': 'export const now = () => 0;\n',
       'foundation/clock.test.js': "import { it } from 'vitest';\n",
+      'foundation/clock.e2e.js': "import { test } from '@playwright/test';\n",
       'pipeline/input.js': "import { now } from '../foundation/clock.js';\n",
     });
     expect(checkTree(root)).toEqual([]);

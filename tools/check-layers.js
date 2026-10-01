@@ -65,7 +65,7 @@ function* sourceFiles(dir) {
   for (const entry of readdirSync(dir)) {
     const path = join(dir, entry);
     if (statSync(path).isDirectory()) yield* sourceFiles(path);
-    else if (entry.endsWith('.js') && !entry.endsWith('.test.js')) yield path;
+    else if (entry.endsWith('.js') && !entry.endsWith('.test.js') && !entry.endsWith('.e2e.js')) yield path;
   }
 }
 

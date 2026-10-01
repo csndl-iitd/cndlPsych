@@ -40,7 +40,7 @@ Layer rules (enforced by lint, see CLAUDE.md): `foundation` imports nothing. `pi
 
 ## 3. Foundation
 
-- **clock.js**: one monotonic clock (`performance.now()` origin) plus a wall-clock anchor recorded in `session.clock_anchor`. Every event has `t` (ms since origin) and `seq` (gap-free integer from 1). Frame-aligned stamps for visual onsets come from a `requestAnimationFrame` callback after the paint that shows the stimulus (intent; document measured error in the session record).
+- **clock.js**: one monotonic clock (`performance.now()` origin) plus a wall-clock anchor recorded in `session.clock_anchor`. Every event has `t` (ms since origin) and `seq` (gap-free integer from 0). Frame-aligned stamps for visual onsets come from a `requestAnimationFrame` callback after the paint that shows the stimulus (intent; document measured error in the session record).
 - **events.js**: synchronous bus. Envelope and per-type data schemas come from `spec/schema/event.schema.json` (generated from `spec/src/events.catalog.yaml`). In dev builds every emit is validated; in production only the envelope. Namespaces: framework types from the catalog, plus `task.*` (emitted by tasks) and `semantic.*` (emitted by rules). Events carry `caused_by` (seq of the cause) where meaningful.
 - **matcher.js**: the one predicate/pattern engine used by input rules and trigger rules. Implements `predicate` (equality, list membership, operators, globs, `all/any/not`) and `pattern` (single step or `sequence` with `distinct_by`, `within`, `unordered`) from `common.schema`. Pure, no DOM, exhaustively unit-tested.
 - **session.js**: session record (`session.schema.json`), ids, consent gate, collected subject/session answers, `capture_url_params`.
