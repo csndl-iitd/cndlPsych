@@ -60,10 +60,10 @@ describe('sessionArchive', () => {
     expect(archive.skipped).toEqual([]);
   });
 
-  it('skips formats it cannot write yet and says so', () => {
-    const archive = sessionArchive(record, events, ['jsonl', 'bids']);
-    expect(archive.skipped).toEqual(['bids']);
+  it('skips formats it cannot write and says so', () => {
+    const archive = sessionArchive(record, events, ['jsonl', 'parquet']);
+    expect(archive.skipped).toEqual(['parquet']);
     expect(Object.keys(unzip(archive.data))).toEqual(['session.json', 'events.jsonl']);
-    expect(SUPPORTED_FORMATS).toEqual(['jsonl', 'csv']);
+    expect(SUPPORTED_FORMATS).toEqual(['jsonl', 'csv', 'bids']);
   });
 });

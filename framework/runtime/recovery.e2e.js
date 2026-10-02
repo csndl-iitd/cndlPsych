@@ -1,14 +1,18 @@
-import { readFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { expect, test } from '@playwright/test';
 import { killProfile, launchProfile, newProfileDir, removeProfileDir } from '../../tools/e2e/hard-kill.js';
 import { sessionProblems } from '../../tools/validators.js';
+import { writeFiles } from '../../cli/export-firestore.js';
+import { validateBids } from '../../tools/bids-validate.js';
 import { unzip } from '../../tools/unzip.js';
 import {
   answerConsent, answerPostTask, answerSession, answerSubject, continueDeviceScreen, finished, installAutopilot,
   passEntryScreens, startSession,
 } from '../../tools/e2e/session-helpers.js';
 
-test.setTimeout(90_000);
+test.setTimeout(180_000);
 
 const STORAGE = { storage: { local: { flush_ms: 200 } } };
 const NO_SINKS = { triggers: { sinks: [] } };
@@ -88,7 +92,7 @@ test('declining consent or failing min_age leaves no database at all', async ({ 
   expect(await databases(page)).not.toContain('expfw');
 });
 
-test('a finished session is downloaded as one zip (jsonl + csv + session.json) and matches the log', async ({ page, isMobile }) => {
+test('a finished session is downloaded as one zip (jsonl + csv + bids + session.json) and matches the log', async ({ page, isMobile }) => {
   test.skip(isMobile, 'a full session; the touch devices are covered elsewhere');
   await startSession(page, { local: true, merge: { ...FAST, storage: { local: { flush_ms: 200, export_on_finish: ['jsonl', 'csv', 'bids'] } } } });
   await captureLog(page);
@@ -100,7 +104,7 @@ test('a finished session is downloaded as one zip (jsonl + csv + session.json) a
 
   expect(download.suggestedFilename()).toBe('sub-007_ses-01.zip');
   const files = await readZip(download);
-  expect(Object.keys(files)).toEqual(['session.json', 'events.jsonl', 'events.csv']);
+  expect(Object.keys(files).filter((name) => !name.startsWith('bids/'))).toEqual(['session.json', 'events.jsonl', 'events.csv']);
   const events = parseJsonl(files['events.jsonl']);
   const log = await page.evaluate(() => window.__log);
   const record = JSON.parse(files['session.json']);
@@ -112,8 +116,24 @@ test('a finished session is downloaded as one zip (jsonl + csv + session.json) a
   expect(sessionProblems(record)).toEqual([]);
   expect(files['events.csv'].split('\r\n')).toHaveLength(events.length + 2);
 
-  // bids is not available until M8: the log says so instead of silently ignoring it.
-  expect(ofType(events, 'system.warning').map((e) => e.data.code)).toContain('export_format_unsupported');
+  // BIDS: the files of a real session pass the official validator (no errors) and carry the whole log.
+  const bidsNames = Object.keys(files).filter((name) => name.startsWith('bids/'));
+  expect(bidsNames).toContain('bids/sub-007/ses-01/beh/sub-007_ses-01_task-Oddballflashesandvisualsearch_events.tsv');
+  expect(files['bids/sourcedata/sub-007/ses-01/events.jsonl']).toBe(files['events.jsonl']);
+  const rows = files['bids/sub-007/ses-01/beh/sub-007_ses-01_task-Oddballflashesandvisualsearch_events.tsv'].trim().split(/\n/);
+  expect(rows.length).toBeGreaterThan(30);
+  expect(rows.filter((row) => row.split(/\t/)[2] === 'trial').length).toBe(ofType(events, 'trial.end').length);
+  const dataset = mkdtempSync(join(tmpdir(), 'expfw-bids-'));
+  try {
+    writeFiles(dataset, bidsNames.map((name) => ({ name: name.slice('bids/'.length), data: files[name] })));
+    const verdict = validateBids(dataset);
+    expect(verdict.errors.map((issue) => `${issue.code} ${issue.location}`)).toEqual([]);
+    // what is left are recommendations about metadata the framework cannot know (authors, license, institution, ...)
+    expect(new Set(verdict.warnings.map((issue) => issue.code))).toEqual(new Set(['TOO_FEW_AUTHORS', 'NO_AUTHORS', 'JSON_KEY_RECOMMENDED', 'SIDECAR_KEY_RECOMMENDED']));
+  } finally {
+    rmSync(dataset, { recursive: true, force: true });
+  }
+  expect(ofType(events, 'system.warning').map((e) => e.data.code)).not.toContain('export_format_unsupported');
   expect(ofType(events, 'storage.status').map((e) => e.data.state)).toEqual(['opening', 'ready']);
 
   // The finished session is not offered for recovery.

@@ -1,10 +1,10 @@
-// Turning a session (record + events) into files: JSONL, CSV and a store-only zip so one
-// download carries everything. Pure and dependency free. BIDS output is added in M8; this
-// module is also where it will live.
-const encoder = new TextEncoder();
+// Turning a session (record + events) into files: JSONL, CSV, BIDS (storage/bids.js) and a
+// store-only zip so one download carries everything. Pure and dependency free.
+import { bidsFiles } from './bids.js';
+import { eventsJsonl } from './jsonl.js';
 
-// ---- JSONL / CSV ---------------------------------------------------------------------
-export const eventsJsonl = (events) => `${events.map((event) => JSON.stringify(event)).join('\n')}${events.length ? '\n' : ''}`;
+export { eventsJsonl };
+const encoder = new TextEncoder();
 
 const CSV_COLUMNS = ['seq', 't', 't_bus', 'source', 'type', 'block', 'trial', 'phase', 'caused_by', 'data'];
 
@@ -76,9 +76,10 @@ export function zip(files) {
 const EXPORTERS = {
   jsonl: (record, events) => [{ name: 'events.jsonl', data: eventsJsonl(events) }],
   csv: (record, events) => [{ name: 'events.csv', data: eventsCsv(events) }],
+  bids: (record, events) => bidsFiles([{ record, events }], { prefix: 'bids/' }),
 };
 
-/** Formats this module can write (bids arrives in M8). */
+/** Formats this module can write. */
 export const SUPPORTED_FORMATS = Object.keys(EXPORTERS);
 
 /**

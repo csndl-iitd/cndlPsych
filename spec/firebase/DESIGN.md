@@ -52,6 +52,8 @@ Writes: 1 claim + 1 marker + 1 session + 1 session update + N chunks. A 20-minut
 
 ## Export contract
 
+Implemented by `cli/export-firestore.js` (`npm run export-firestore -- --project <id> --experiment <experiment_id> --out <dir> [--key service-account.json]`; `--emulator host:port` for the emulator). The BIDS files come from `framework/storage/bids.js`, the same writer the browser uses, so a session exported from Firestore and the same session exported locally give identical BIDS files (the `sourcedata/` copy of the record differs only by the Firestore-only fields `uid` and `experiment_id`).
+
 Export is independent of storage. `cli export-firestore` uses the **Admin SDK** (bypasses rules) with `collectionGroup('sessions')` filtered by `experiment_id`, reads each session's `chunks` ordered by `i`, and runs `read_chunks`-equivalent integrity checks:
 
 - chunk indices consecutive `0..n_chunks-1` (missing -> incomplete)

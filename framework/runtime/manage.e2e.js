@@ -5,7 +5,7 @@ import { clickContinue, continueDeviceScreen, startSession } from '../../tools/e
 
 test.setTimeout(60_000);
 
-const FAST = { debug: { enabled: true, time_scale: 0.2 }, triggers: { sinks: [] }, storage: { local: { flush_ms: 100 } } };
+const FAST = { debug: { enabled: true, time_scale: 0.2 }, triggers: { sinks: [] }, storage: { local: { flush_ms: 100, export_on_finish: ['jsonl'] } } };
 
 /** Put sessions into the browser's local database: [{n, status}] with n making ids and times unique. */
 async function seed(page, sessions) {
