@@ -1,0 +1,151 @@
+// Firebase in a whole session, in a real browser. Firestore is replaced by an in-memory fake
+// that lives in the test process (tools/e2e/fake-firestore.js), so these tests cover the
+// lifecycle (sign-in, subject numbers, mirroring, resume), not Firestore itself: the rules and
+// the SDK are tested against the emulator (spec/firebase, framework/storage/firebase.emulator.test.js).
+import { expect, test } from '@playwright/test';
+import { killProfile, launchProfile, newProfileDir, removeProfileDir } from '../../tools/e2e/hard-kill.js';
+import { createFakeFirestore } from '../../tools/e2e/fake-firestore.js';
+import {
+  answerConsent, answerPostTask, answerSession, answerSubject, captureLog, continueDeviceScreen, finished, installAutopilot,
+  passEntryScreens, recorded, startSession,
+} from '../../tools/e2e/session-helpers.js';
+import { integrityReport } from '../storage/integrity.js';
+
+test.setTimeout(180_000);
+
+const BASE = 'http://localhost:4173';
+const KEY = 'sub-001_ses-01';
+const merge = (access, extra = {}) => ({
+  debug: { enabled: true, time_scale: 0.2 },
+  triggers: { sinks: [] },
+  storage: { local: { flush_ms: 200 }, firebase: { access, subject_id: { override: false }, chunk: { max_events: 60, flush_ms: 500 }, ...extra } },
+});
+
+async function begin(context, page, fake, { access, extra, local = false } = {}) {
+  await context.exposeBinding('fakeFirestore', fake.handle);
+  await startSession(page, { local, merge: merge(access, extra), firebase: { uid: 'anon-1', access } });
+  await captureLog(page);
+}
+
+test('public: the number is assigned late, the form has no ID field, and the session is mirrored completely', async ({ context, page, isMobile }) => {
+  test.skip(isMobile, 'a full session; the device kind is irrelevant to storage');
+  const fake = createFakeFirestore({ access: 'public' });
+  await begin(context, page, fake, { access: 'public' });
+  await installAutopilot(page, { touch: false });
+  await answerConsent(page);
+  await page.locator('[data-name="sex"]').waitFor();
+  expect(fake.state.signIns).toBe(1);
+  await expect(page.locator('[data-name="subject_id"]')).toHaveCount(0);
+  expect(fake.state.claims.size).toBe(0); // nothing is claimed until the participant is eligible and about to start
+  await answerSubject(page, { id: null });
+  await answerSession(page);
+  await page.locator('[data-name="difficulty"]').waitFor({ timeout: 120_000 });
+  await answerPostTask(page);
+  expect(await finished(page)).toBe('complete');
+
+  const { record, events } = await recorded(page);
+  expect(record.subject_id).toBe('sub-001');
+  expect(record.sinks.storage).toEqual(['local', 'firebase']);
+  const stored = fake.stored(KEY);
+  expect(stored.claims).toEqual([{ n: 1, label: 'sub-001', status: 'complete' }]);
+  expect(stored.session).toMatchObject({ status: 'complete', uid: 'anon-1', experiment_id: 'oddball-flashes-and-visual-search', n_chunks: stored.chunks.length, last_seq: events.at(-1).seq });
+  expect(stored.chunks.length).toBeGreaterThan(1);
+  const report = await integrityReport(stored.session, stored.chunks);
+  expect(report).toMatchObject({ partial: false, issues: [] });
+  expect(report.events).toEqual(events);
+  expect(events.filter((e) => e.type === 'storage.status' && e.data.sink === 'firebase').map((e) => e.data.state)).toEqual(expect.arrayContaining(['opening', 'ready']));
+});
+
+test('public: a participant who declines does not sign in and claims no number', async ({ context, page }) => {
+  const fake = createFakeFirestore({ access: 'public' });
+  await begin(context, page, fake, { access: 'public' });
+  await answerConsent(page, { agree: false });
+  await page.getByText('Nothing has been stored').waitFor();
+  expect(fake.state.signIns).toBe(0);
+  expect(fake.state.claims.size).toBe(0);
+});
+
+test('public: if sign-in fails nothing starts and nothing is claimed', async ({ context, page }) => {
+  const fake = createFakeFirestore({ access: 'public', failSignIn: 'auth is down' });
+  await begin(context, page, fake, { access: 'public' });
+  await answerConsent(page);
+  await page.getByText('Could not connect to the data server: auth is down').waitFor();
+  expect((await page.evaluate(() => window.sessionPromise)).status).toBe('remote_failed');
+  expect(fake.state.claims.size).toBe(0);
+  expect(await page.evaluate(() => window.sessionStore.record)).toBeNull();
+});
+
+test('controlled: the experimenter signs in first, and the ID is prefilled and locked', async ({ context, page }) => {
+  const fake = createFakeFirestore({ uid: 'admin-1', access: 'controlled' });
+  fake.state.claims.set(1, { n: 1, label: 'sub-001', status: 'complete' });
+  fake.state.claims.set(2, { n: 2, label: 'sub-002', status: 'complete' });
+  await context.exposeBinding('fakeFirestore', fake.handle);
+  await startSession(page, { merge: merge('controlled'), firebase: { uid: 'admin-1', access: 'controlled' } });
+  await page.getByText('Sign in with your lab account').waitFor();
+  expect(fake.state.signIns).toBe(0);
+  await continueDeviceScreen(page);
+  await answerConsent(page);
+  const field = page.locator('[data-name="subject_id"] input');
+  await expect(field).toHaveValue('sub-003');
+  await expect(field).toHaveAttribute('readonly', '');
+});
+
+test('controlled: with override a taken number is refused and nothing is stored', async ({ context, page }) => {
+  const fake = createFakeFirestore({ uid: 'admin-1', access: 'controlled' });
+  fake.state.claims.set(5, { n: 5, label: 'sub-005', status: 'complete' });
+  await context.exposeBinding('fakeFirestore', fake.handle);
+  await startSession(page, { merge: merge('controlled', { subject_id: { override: true } }), firebase: { uid: 'admin-1', access: 'controlled' } });
+  await continueDeviceScreen(page);
+  await answerConsent(page);
+  await expect(page.locator('[data-name="subject_id"] input')).toHaveValue('sub-001');
+  await answerSubject(page, { id: '5' });
+  await answerSession(page);
+  await page.getByText('subject number 5 is already taken').waitFor();
+  expect(fake.state.sessions.size).toBe(0);
+  expect([...fake.state.claims.keys()]).toEqual([5]);
+});
+
+test('a killed session resumes into the same Firestore session and ends complete, with no chunk missing or doubled', async ({ isMobile }) => {
+  test.skip(isMobile, 'a full session with a browser kill');
+  const fake = createFakeFirestore({ access: 'public' });
+  const dir = newProfileDir();
+  try {
+    const first = await launchProfile(dir, BASE);
+    await first.exposeBinding('fakeFirestore', fake.handle);
+    const page = await first.newPage();
+    await startSession(page, { local: true, merge: merge('public'), firebase: { uid: 'anon-1', access: 'public' } });
+    await captureLog(page);
+    await installAutopilot(page, { touch: false });
+    await passEntryScreens(page, { subject: { id: null } });
+    await expect.poll(() => page.evaluate(() => window.__log.filter((e) => e.type === 'trial.end' && e.block === 'oddball_task').length), { timeout: 90_000 }).toBeGreaterThanOrEqual(2);
+    await page.waitForTimeout(1500);
+    await killProfile(dir);
+    const before = fake.stored(KEY);
+    expect(before.session.status).toBe('in_progress');
+    expect(before.chunks.length).toBeGreaterThan(0);
+    expect((await integrityReport(before.session, before.chunks)).partial).toBe(true);
+
+    const second = await launchProfile(dir, BASE);
+    await second.exposeBinding('fakeFirestore', fake.handle);
+    const again = await second.newPage();
+    await startSession(again, { local: true, merge: merge('public'), firebase: { uid: 'anon-1', access: 'public' } });
+    await installAutopilot(again, { touch: false });
+    await expect(again.getByText('It can be')).toBeVisible();
+    await continueDeviceScreen(again, 'resume');
+    await again.locator('[data-name="difficulty"]').waitFor({ timeout: 120_000 });
+    await answerPostTask(again);
+    expect(await finished(again)).toBe('complete');
+
+    const { events } = await again.evaluate(() => window.sessionStore.snapshot());
+    const stored = fake.stored(KEY);
+    expect(stored.claims).toEqual([{ n: 1, label: 'sub-001', status: 'complete' }]);
+    expect(stored.session.status).toBe('complete');
+    const report = await integrityReport(stored.session, stored.chunks);
+    expect(report).toMatchObject({ partial: false, issues: [] });
+    expect(report.events).toEqual(events);
+    expect(events.filter((e) => e.type === 'session.resume')).toHaveLength(1);
+    await second.close();
+  } finally {
+    removeProfileDir(dir);
+  }
+});

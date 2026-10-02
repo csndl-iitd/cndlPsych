@@ -24,7 +24,7 @@ export async function answerConsent(page, { agree = true } = {}) {
 }
 
 export async function answerSubject(page, { id = '007', sex = 'female', age = '24', handedness = 'right' } = {}) {
-  await page.locator('[data-name="subject_id"] input').fill(id);
+  if (id !== null) await page.locator('[data-name="subject_id"] input').fill(id);
   await choose(page, 'sex', sex);
   await page.locator('[data-name="age"] input').fill(age);
   await choose(page, 'handedness', handedness);

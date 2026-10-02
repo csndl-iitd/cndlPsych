@@ -8,7 +8,7 @@ schema/     generated JSON Schema (draft-07) - point editors and the runtime at 
 types.d.ts  contracts for custom tasks / stimulus generators
 examples/   your oddball / flashes / visual-search project, migrated; sample events + session
 tools/      build.js (src -> schema), validate.test.js, yaml12.js (YAML 1.2 loader),
-            gen_rules.py (Firestore rules), chunks.py + chunks.js (Firestore chunk codec)
+            gen_rules.js (Firestore rules), chunks.py (reference for the runtime chunk codec, framework/storage/chunks.js)
 firebase/   DESIGN.md, generated firestore.{public,controlled}.rules, firestore.indexes.json
 ```
 
@@ -49,7 +49,7 @@ Lifecycle these schemas assume: consent -> subject -> session -> device check ->
 - `storage.firebase.experiment_id` namespaces an experiment inside a project; `chunk.max_bytes` (default 600000) and `chunk.flush_ms` (default 10000, one billed write per flush) control chunking.
 - Session record gains `end_reason`, `experiment_id`, `uid`, `n_chunks`, `last_seq` (export integrity checks).
 - Events are stored as one NDJSON string per chunk because Firestore rejects nested arrays.
-- Rules are generated per access mode. **They have not been run in the emulator**; the test matrix is in `firebase/DESIGN.md`.
+- Rules are generated per access mode (`tools/gen_rules.js`). They are tested against the Firestore emulator (`npm run test:emulator`, the matrix in `firebase/DESIGN.md` plus a few more); they have not been deployed to a real project.
 
 ## Checks the schemas cannot express (compiler / `cli validate`)
 

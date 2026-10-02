@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { compile } from './compiler.js';
+import { compile, slugify } from './compiler.js';
 import { compileVariant, exampleProject, variant } from '../../tools/project-fixture.js';
 
 const EXPERIMENT = 'experiment.yaml';
@@ -181,6 +181,25 @@ describe('spec/examples', () => {
     expect(plan.consent.statements.map((st) => st.id)).toEqual(['read', 'voluntary', 'camera']);
     const off = compile(await exampleProject()).plan;
     expect(off.consent.statements.map((st) => st.id)).toEqual(['read', 'voluntary']);
+  });
+});
+
+describe('firebase experiment id', () => {
+  it('defaults to a slug of the experiment name, and an explicit id is kept', async () => {
+    const { plan } = compile(await exampleProject());
+    expect(plan.storage.firebase.experiment_id).toBe('oddball-flashes-and-visual-search');
+    const named = await compileVariant((s) => { s.experiment.storage.firebase.experiment_id = 'my-study'; });
+    expect(named.plan.storage.firebase.experiment_id).toBe('my-study');
+  });
+
+  it.each([
+    ['Oddball, flashes!', 'oddball-flashes'],
+    ['  --A  b--  ', 'a-b'],
+    ['x'.repeat(60), 'x'.repeat(41)],
+    ['ab-'.repeat(20), `${'ab-'.repeat(13)}ab`],
+  ])('slugifies %j to a valid id', (name, expected) => {
+    expect(slugify(name)).toBe(expected);
+    expect(slugify(name)).toMatch(/^[a-z0-9][a-z0-9-]{1,40}$/);
   });
 });
 

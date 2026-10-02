@@ -17,6 +17,7 @@ import { downloadFile } from './download.js';
 import { manageSessions } from './manage.js';
 import { recoverSessions } from './recovery.js';
 import { checkResumable, resumedRecord } from './resume.js';
+import { mirrored } from './remote.js';
 import { NEEDS_GESTURE } from './sinks.js';
 import { createConsentGate, createSessionRecord, finishSessionRecord, hashText, parseUrlParams, resolveSeed } from '../foundation/session.js';
 
@@ -152,7 +153,7 @@ async function exportSession(doc, store, formats) {
   downloadFile(doc, { name: archive.name, data: archive.data });
 }
 
-const sinkRecord = (sinkSet) => ({ ...(sinkSet.configs.length ? { trigger: sinkSet.record() } : {}), storage: ['local'] });
+const sinkRecord = (sinkSet, remote) => ({ ...(sinkSet.configs.length ? { trigger: sinkSet.record() } : {}), storage: remote ? ['local', 'firebase'] : ['local'] });
 
 /** Close the record with a reason and hand it to the store. */
 const closer = ({ record, store, bus }) => async (reason) => {
@@ -167,9 +168,35 @@ function connectStore({ services, store }) {
   services.input.onLeave(() => store.flush());
 }
 
-/** 'closed' is not logged: it would come after the last event the record counts. */
+/** 'closed' is not logged: it would come after the last event the record counts. A status names its sink; the local store's does not. */
 function logStorageStatus({ bus, store }) {
   store.onStatus?.((status) => status.state !== 'closed' && bus.emit({ source: 'storage', type: 'storage.status', data: { sink: 'local', ...status } }));
+}
+
+/** Sign in to Firebase; controlled mode needs a click for the Google popup. Returns an error message, or null when connected. */
+async function signInRemote(screen, remote) {
+  if (remote.access === 'controlled') {
+    await askAction(screen, { message: `## Sign in
+
+This experiment stores its data in Firebase. Sign in with your lab account to continue.`, choices: [{ value: 'signin', text: 'Sign in' }], submitLabel: 'Continue' });
+  }
+  try {
+    await remote.signIn();
+    return null;
+  } catch (error) {
+    return String(error.message ?? error);
+  }
+}
+
+const REMOTE_FAILED = (reason) => `Could not connect to the data server: ${reason}
+
+Nothing has been stored. Please tell the experimenter.`;
+
+/** The subject ID field when Firebase assigns the number: hidden (public) or prefilled (controlled). */
+async function assignedSubject(remote) {
+  if (!remote) return {};
+  if (remote.access === 'public') return { hidden: true };
+  return { value: (await remote.suggest()).label, locked: !remote.allowOverride };
 }
 
 function emitStartNotices({ bus, debug, sinkSet, sinkWarnings }) {
@@ -217,10 +244,10 @@ async function runAndFinish({ services, project, store, profile, seed, answers, 
  * Carry on an interrupted session: same participant, seed and device kind, new page clock.
  * The log continues at last_seq + 1 with a session.clock_anchor and a session.resume event.
  */
-async function resumeSession({ services, project, store, item, env, debug, screen }) {
+async function resumeSession({ services, project, store: local, item, env, debug, screen, remote }) {
   const { plan } = project;
   const { bus, clock, display, sinkSet } = services;
-  const saved = await store.read(item.key);
+  const saved = await local.read(item.key);
   const verdict = saved
     ? checkResumable({ record: saved.record, events: saved.events, plan, specHash: project.specHash, env, override: debug.simulate_profile })
     : { ok: false, reason: 'The saved session could not be read.' };
@@ -240,10 +267,27 @@ async function resumeSession({ services, project, store, item, env, debug, scree
     sinkWarnings = connected.warnings;
   }
 
+  // the mirror carries on only if this session was being mirrored; otherwise it stays local
+  const mirrorable = remote && saved.remote?.claim_n !== undefined;
+  if (mirrorable) {
+    const failure = await signInRemote(screen, remote);
+    if (failure) {
+      await sinkSet.closeAll();
+      showMessage(display, `${REMOTE_FAILED(failure)} The saved data is unchanged.`);
+      return { status: 'remote_failed' };
+    }
+  }
+
   const lastSeq = saved.events.at(-1).seq;
   const anchor = clock.anchor();
-  const record = resumedRecord(saved.record, { lastSeq, anchor, resumedAt: isoNow(), point: verdict.point, plan, frameworkVersion: FRAMEWORK_VERSION, sinks: sinkRecord(sinkSet) });
-  await store.resume(item.key, record);
+  const record = resumedRecord(saved.record, { lastSeq, anchor, resumedAt: isoNow(), point: verdict.point, plan, frameworkVersion: FRAMEWORK_VERSION, sinks: sinkRecord(sinkSet, mirrorable ? remote : null) });
+  await local.resume(item.key, record);
+  let store = local;
+  if (mirrorable) {
+    const mirror = remote.store({ claim: { n: saved.remote.claim_n }, onProgress: (progress) => local.setRemote({ claim_n: saved.remote.claim_n, ...progress }) });
+    mirror.resume(record, saved.remote, saved.events);
+    store = mirrored(local, mirror);
+  }
   connectStore({ services, store });
   bus.startRecording({ fromSeq: lastSeq + 1 });
   const entry = record.resumes.at(-1);
@@ -261,11 +305,12 @@ async function resumeSession({ services, project, store, item, env, debug, scree
 }
 
 /**
- * @param {{services: object, project: {plan: object, consentText?: string, specHash: string, customModules: object[]}, store: object, search?: string}} options
+ * @param {{services: object, project: {plan: object, consentText?: string, specHash: string, customModules: object[]}, store: object, remote?: object|null, search?: string}} options
+ *   `remote` is the Firebase side (runtime/remote.js), present when `storage.firebase` is enabled
  *   `?manage=1` in `search` opens the local data screen instead of starting a session
  * @returns {Promise<{status: string, record?: object}>}
  */
-export async function runSession({ services, project, store, search = globalThis.location?.search ?? '' }) {
+export async function runSession({ services, project, store, remote = null, search = globalThis.location?.search ?? '' }) {
   const { plan } = project;
   const { bus, clock, display } = services;
   const screen = { jsPsych: services.jsPsych };
@@ -298,18 +343,35 @@ export async function runSession({ services, project, store, search = globalThis
   } else {
     chosen = (await recoverSessions({ screen, store, policy: local.recovery ?? 'offer', formats: exportFormats, doc, check })).resume;
   }
-  if (chosen) return resumeSession({ services, project, store, item: chosen, env, debug, screen });
+  if (chosen) return resumeSession({ services, project, store, item: chosen, env, debug, screen, remote });
 
-  // 1. consent (nothing is recorded: the bus is not recording yet)
+  // 1. consent (nothing is recorded: the bus is not recording yet). In controlled mode the
+  //    experimenter signs in first, because the subject ID field is prefilled from Firebase;
+  //    public participants are signed in anonymously only after they agreed.
+  if (remote?.access === 'controlled') {
+    const failure = await signInRemote(screen, remote);
+    if (failure) {
+      showMessage(display, REMOTE_FAILED(failure));
+      return { status: 'remote_failed' };
+    }
+  }
   if (!(await askConsent(screen, plan, project.consentText, gate))) {
     showMessage(display, plan.consent.decline_message ?? 'You chose not to take part. Nothing has been stored. You can close this window.');
     return { status: 'declined' };
   }
   const acceptedAt = isoNow();
+  if (remote?.access === 'public') {
+    const failure = await signInRemote(screen, remote);
+    if (failure) {
+      showMessage(display, REMOTE_FAILED(failure));
+      return { status: 'remote_failed' };
+    }
+  }
 
   // 2. subject and session forms
-  const subjectForm = await showForm(screen, { title: plan.forms.subject?.title ?? 'About you', intro: plan.forms.subject?.intro, elements: subjectElements(plan.forms.subject) });
-  const { subjectId, subject } = subjectAnswers(subjectForm.values);
+  const subjectForm = await showForm(screen, { title: plan.forms.subject?.title ?? 'About you', intro: plan.forms.subject?.intro, elements: subjectElements(plan.forms.subject, await assignedSubject(remote)) });
+  const answered = subjectAnswers(subjectForm.values);
+  const { subject } = answered;
   if (!gate.checkAge(subject.age).eligible) {
     showMessage(display, plan.consent.decline_message ?? 'Sorry, you are not eligible to take part in this study. Nothing has been stored. You can close this window.');
     return { status: 'ineligible' };
@@ -335,7 +397,20 @@ export async function runSession({ services, project, store, search = globalThis
     sinkWarnings = connected.warnings;
   }
 
-  // 5. start recording: record, store, then session.start as the first event
+  // 5. subject number (Firebase), then start recording: record, store, session.start first
+  let claim = null;
+  if (remote) {
+    try {
+      claim = await remote.claim(subjectForm.values.subject_id);
+    } catch (error) {
+      await sinkSet.closeAll();
+      showMessage(display, `Could not get a subject number: ${String(error.message ?? error)}
+
+Nothing has been stored.`);
+      return { status: 'remote_failed' };
+    }
+  }
+  const subjectId = claim?.label ?? answered.subjectId;
   const seed = resolveSeed(plan.seed);
   const textHash = await hashText(project.consentText ?? '');
   const record = createSessionRecord({
@@ -348,17 +423,20 @@ export async function runSession({ services, project, store, search = globalThis
     subject,
     session_fields: sessionFields,
     url_params: parseUrlParams(search, plan.capture_url_params),
-    sinks: sinkRecord(sinkSet),
+    sinks: sinkRecord(sinkSet, remote),
   });
-  store.begin(record);
-  connectStore({ services, store });
+  const sessionStore = remote
+    ? mirrored(store, remote.store({ claim, onProgress: (progress) => store.setRemote?.({ claim_n: claim.n, ...progress }) }))
+    : store;
+  sessionStore.begin(record);
+  connectStore({ services, store: sessionStore });
   bus.startRecording();
   bus.emit({ source: 'system', type: 'session.start', data: { experiment: plan.name, spec_version: plan.spec_version, spec_hash: project.specHash, framework_version: FRAMEWORK_VERSION, seed, profile } });
   bus.emit({ source: 'system', type: 'session.clock_anchor', data: { time_origin_ms: record.clock.time_origin_ms, wall_iso: record.clock.wall_iso } });
-  logStorageStatus({ bus, store }); // after session.start: the log must begin with it
+  logStorageStatus({ bus, store: sessionStore }); // after session.start: the log must begin with it
   emitStartNotices({ bus, debug, sinkSet, sinkWarnings });
 
-  const finish = closer({ record, store, bus });
+  const finish = closer({ record, store: sessionStore, bus });
   const admission = admitDevice(bus, plan.device ?? {}, { env, chosen: resolved.reason === 'prompt' ? profile : undefined, override: debug.simulate_profile });
   if (!admission.admitted) {
     const done = await finish('device_rejected');
@@ -373,5 +451,5 @@ export async function runSession({ services, project, store, search = globalThis
 
   // 6. blocks and finish
   const answers = { subject: { subject_id: subjectId, ...subject }, session: { session_id: sessionId, ...sessionFields }, device: { profile } };
-  return runAndFinish({ services, project, store, profile, seed, answers, resume: null, finish });
+  return runAndFinish({ services, project, store: sessionStore, profile, seed, answers, resume: null, finish });
 }

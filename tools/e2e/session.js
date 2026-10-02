@@ -17,9 +17,24 @@ function merge(target, patch) {
   }
 }
 
+/** A Firebase connection whose operations are answered by the test process (tools/e2e/fake-firestore.js). */
+function fakeConnect({ uid, access }) {
+  const call = async (op, ...args) => {
+    const { value, error } = await window.fakeFirestore(op, args);
+    if (error) throw Object.assign(new Error(error.message), { code: error.code });
+    return value;
+  };
+  const names = ['claimExists', 'markerNumber', 'listClaimNumbers', 'createPublicClaim', 'createClaim', 'setClaimStatus', 'createSession', 'updateSession', 'putChunk'];
+  return async () => {
+    await call('signIn');
+    return { uid, access, width: 3, ops: Object.fromEntries(names.map((name) => [name, (...args) => call(name, ...args)])) };
+  };
+}
+
 /**
- * @param {{url?: string, merge?: object, local?: boolean}} options `merge` is deep-merged into experiment.yaml;
- *   `local: true` uses the project's real storage (IndexedDB) instead of the in-memory test store
+ * @param {{url?: string, merge?: object, local?: boolean, firebase?: {uid: string}}} options `merge` is deep-merged into experiment.yaml;
+ *   `local: true` uses the project's real storage (IndexedDB) instead of the in-memory test store;
+ *   `firebase` runs against the fake Firestore the test exposed as window.fakeFirestore
  */
 window.runSession = (options = {}) => {
   const root = document.createElement('div');
@@ -33,7 +48,11 @@ window.runSession = (options = {}) => {
     schemas,
     styles: [surveyCss],
     validate: problemsOf,
-    patchExperiment: (doc) => merge(doc, options.merge ?? {}),
+    connectFirebase: options.firebase ? fakeConnect({ uid: options.firebase.uid, access: options.firebase.access }) : undefined,
+    patchExperiment: (doc) => {
+      if (!options.firebase) doc.storage.firebase.enabled = false; // the example enables it; only Firebase tests want it
+      merge(doc, options.merge ?? {});
+    },
     onReady: (services, store) => { window.sessionServices = services; window.sessionStore = store; },
   }).then((result) => { window.sessionResult = result; return result; });
   return window.sessionPromise;

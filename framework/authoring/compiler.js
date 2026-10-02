@@ -39,12 +39,22 @@ function loadDocuments(project, report) {
   return docs;
 }
 
+/** The Firestore root document id when experiment.yaml does not name one: a slug of the experiment name. */
+export const slugify = (name) => name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 41).replace(/-+$/, '');
+
+/** `storage.firebase.experiment_id` filled in (the schema promises this default). */
+function withExperimentId(storage, name) {
+  if (!storage?.firebase || storage.firebase.experiment_id) return storage;
+  return { ...storage, firebase: { ...storage.firebase, experiment_id: slugify(name) } };
+}
+
 function assemblePlan(ctx, blocks) {
   const { input, triggers, consent, ...experiment } = ctx.experiment;
   const statements = consent.statements ?? [];
   const needsCamera = experiment.eyetracking?.enabled && !statements.some(({ id }) => id === CAMERA_CONSENT.id);
   return {
     ...experiment,
+    ...(experiment.storage ? { storage: withExperimentId(experiment.storage, experiment.name) } : {}),
     consent: { ...consent, statements: needsCamera ? [...statements, CAMERA_CONSENT] : statements },
     triggers: { sinks: ctx.sinks, ...(triggers?.defaults ? { defaults: triggers.defaults } : {}) },
     styles: ctx.stimuliDoc.styles ?? {},

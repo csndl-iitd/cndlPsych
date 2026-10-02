@@ -7,7 +7,7 @@ import Ajv from 'ajv';
 import addFormats from 'ajv-formats';
 import { describe, it, expect } from 'vitest';
 import { loadYaml } from './yaml12.js';
-import { makeChunks, readChunks, hasNestedArray } from './chunks.js';
+import { hasNestedArray } from '../../framework/storage/chunks.js';
 
 const SPEC = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SCHEMAS = join(SPEC, 'schema');
@@ -182,56 +182,5 @@ describe('Firestore documents', () => {
     const nested = new Set(events.filter(hasNestedArray).map((e) => e.type));
     expect(events.filter(hasNestedArray).length).toBeGreaterThanOrEqual(2);
     expect(nested.size).toBeGreaterThan(0);
-  });
-
-  describe.each(['json', 'gzip-base64'])('%s encoding', (encoding) => {
-    const chunks = makeChunks(events, { maxEvents: 10, encoding });
-
-    it('chunks validate against the chunk schema', () => {
-      const bad = chunks.filter((c) => errors('firestore.schema.json', c, '#/definitions/chunk').length).map((c) => c.i);
-      expect(bad).toEqual([]);
-    });
-
-    it('round-trips to the original events', () => {
-      const { events: back, issues } = readChunks(chunks);
-      expect(issues).toEqual([]);
-      expect(back).toEqual(events);
-    });
-
-    it('respects chunk sizes and indices', () => {
-      expect(chunks.every((c) => c.n_events <= 10)).toBe(true);
-      expect(chunks.map((c) => c.i)).toEqual(chunks.map((_, i) => i));
-    });
-  });
-
-  it('export detects a missing chunk', () => {
-    const chunks = makeChunks(events, { maxEvents: 10 });
-    const { issues } = readChunks([chunks[0], ...chunks.slice(2)]);
-    expect(issues.some((m) => m.includes('missing chunk'))).toBe(true);
-  });
-
-  it('export tolerates a retried (duplicate) chunk', () => {
-    const chunks = makeChunks(events, { maxEvents: 10 });
-    const { issues } = readChunks([...chunks, chunks[1]]);
-    expect(issues.some((m) => m.includes('duplicate'))).toBe(true);
-    expect(issues.some((m) => m.includes('missing'))).toBe(false);
-  });
-
-  it('byte limit splits chunks', () => {
-    const small = makeChunks(events, { maxEvents: 5000, maxBytes: 2500 });
-    expect(small.length).toBeGreaterThan(1);
-    expect(small.every((c) => c.payload.length <= 2500)).toBe(true);
-  });
-
-  it('refuses a single oversized event', () => {
-    const huge = { ...events[0], data: { blob: 'x'.repeat(5000) } };
-    expect(() => makeChunks([huge], { maxBytes: 2500 })).toThrow(/exceeds the chunk limit/);
-  });
-
-  it('payloads are ASCII-only (length == bytes, matches the rules\' size() check)', () => {
-    const odd = { ...events[0], data: { ...events[0].data, note: 'Ǝ \u{1f600}' } };
-    const [chunk] = makeChunks([odd]);
-    expect([...chunk.payload].every((ch) => ch.charCodeAt(0) < 128)).toBe(true);
-    expect(readChunks([chunk]).events).toEqual([odd]);
   });
 });

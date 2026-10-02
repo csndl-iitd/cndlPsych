@@ -6,7 +6,8 @@
   "description": "Browser experiment framework (placeholder name)",
   "scripts": {
     "build:schemas": "node spec/tools/build.js",
-    "check:schemas": "node spec/tools/build.js --check",
+    "build:rules": "node spec/tools/gen_rules.js",
+    "check:schemas": "node spec/tools/build.js --check && node spec/tools/gen_rules.js --check",
     "lint": "eslint .",
     "validate": "node cli/validate.js",
     "play": "node tools/build-e2e.js && node tools/static-server.js",
@@ -14,10 +15,12 @@
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run",
     "test:browser": "playwright test",
+    "test:emulator": "vitest run -c vitest.emulator.config.js",
     "ci": "npm run check:schemas && npm run lint && npm run check:layers && npm run typecheck && npm test"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@firebase/rules-unit-testing": "^5.0.2",
     "@playwright/test": "^1.63.0",
     "ajv-formats": "^3.0.1",
     "esbuild": "^0.28.2",
@@ -30,6 +33,7 @@
     "@jspsych/plugin-html-keyboard-response": "^2.2.0",
     "@jspsych/plugin-survey": "^4.0.0",
     "ajv": "^8.20.0",
+    "firebase": "^12.19.0",
     "js-yaml": "^4.3.2",
     "jspsych": "^8.3.0"
   }

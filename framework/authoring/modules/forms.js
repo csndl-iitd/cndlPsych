@@ -100,8 +100,10 @@ function withOverride(element, override = {}) {
 /**
  * The questions of the built-in `subject` form: subject_id, sex, age, then forms.yaml extras.
  * @param {object} [form] forms.yaml `subject`
+ * @param {{value?: string, locked?: boolean, hidden?: boolean}} [assigned] a subject ID chosen by the
+ *   storage backend: prefilled (and read-only when `locked`), or left out of the form when `hidden`
  */
-export function subjectElements(form = {}) {
+export function subjectElements(form = {}, assigned = {}) {
   const { overrides = {}, questions = [] } = form;
   const age = withOverride({
     type: 'text', name: 'age', title: 'Age (years, or n/a)', isRequired: true,
@@ -109,11 +111,13 @@ export function subjectElements(form = {}) {
   }, overrides.age);
   const bounds = [overrides.age?.min !== undefined ? `{age} >= ${overrides.age.min}` : null, overrides.age?.max !== undefined ? `{age} <= ${overrides.age.max}` : null].filter(Boolean);
   if (bounds.length) age.validators.push({ type: 'expression', expression: `{age} = 'n/a' or (${bounds.join(' and ')})`, text: 'Please check your age' });
+  const subjectId = withOverride({
+    type: 'text', name: 'subject_id', title: 'Participant ID', isRequired: true,
+    validators: [{ type: 'regex', regex: '^(sub-)?[A-Za-z0-9]+$', text: 'Use letters and digits only (for example 007)' }],
+  }, overrides.subject_id);
+  if (assigned.value !== undefined) Object.assign(subjectId, { defaultValue: assigned.value, readOnly: assigned.locked === true });
   return [
-    withOverride({
-      type: 'text', name: 'subject_id', title: 'Participant ID', isRequired: true,
-      validators: [{ type: 'regex', regex: '^(sub-)?[A-Za-z0-9]+$', text: 'Use letters and digits only (for example 007)' }],
-    }, overrides.subject_id),
+    ...(assigned.hidden ? [] : [subjectId]),
     withOverride({ type: 'radiogroup', name: 'sex', title: 'Sex', isRequired: true, choices: SEX_OPTIONS }, overrides.sex),
     age,
     ...questions.map(questionElement),
@@ -136,10 +140,12 @@ const parseAge = (value) => (value === 'n/a' ? 'n/a' : Number(value));
 
 /**
  * Subject form answers -> { subjectId, subject: {sex, age, ...extras} } (BIDS participants.tsv columns).
+ * @param {object} values
+ * @param {string} [assignedId] the subject ID the storage backend assigned, when the form did not ask
  * @returns {{subjectId: string|null, subject: object}}
  */
-export function subjectAnswers(values) {
-  const { subject_id: id, sex, age, ...extras } = values;
+export function subjectAnswers(values, assignedId) {
+  const { subject_id: id = assignedId, sex, age, ...extras } = values;
   return { subjectId: normalizeSubjectId(id), subject: { sex, age: parseAge(age), ...extras } };
 }
 

@@ -22,5 +22,12 @@ jobs:
       - name: Type-check custom code against spec/types.d.ts
         run: npm run typecheck
       - run: npm test
+      - name: Cache the Firestore emulator and its Java runtime
+        uses: actions/cache@v4
+        with:
+          path: .tools
+          key: firestore-emulator-${{ hashFiles('tools/emulator.js') }}
+      - name: Firestore rules matrix and Firebase client (emulator)
+        run: npm run test:emulator
       - run: npx playwright install --with-deps chromium
       - run: npm run test:browser

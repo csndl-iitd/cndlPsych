@@ -221,14 +221,20 @@ export function createLocalStore({
       return { lastSeq: row.last_seq };
     },
 
-    /** @returns {Promise<{record: object, events: object[]}|null>} */
+    /** What the Firebase mirror reports about its progress (see storage/firebase.js); kept so a resumed session can carry on. */
+    setRemote(remote) {
+      chain = chain.then(() => putSession({ remote }));
+      return chain;
+    },
+
+    /** @returns {Promise<{record: object, events: object[], remote?: object}|null>} */
     async read(key) {
       await ready();
       if (!db) return null;
       return work([SESSIONS, EVENTS], 'readonly', async (sessions, events) => {
         const row = await request(sessions.get(key));
         if (!row) return null;
-        return { record: row.record, events: (await request(events.getAll(range(key)))).map((r) => r.event) };
+        return { record: row.record, remote: row.remote, events: (await request(events.getAll(range(key)))).map((r) => r.event) };
       });
     },
 
