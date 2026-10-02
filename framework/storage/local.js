@@ -191,6 +191,36 @@ export function createLocalStore({
         .map((row) => ({ key: row.key, record: row.record, lastSeq: row.last_seq, updatedAt: row.updated_at })));
     },
 
+    /** Every stored session, newest first, whatever its status (the manager screen lists these). */
+    async listSessions() {
+      if (!(await exists())) return [];
+      await ready();
+      if (!db) return [];
+      const rows = await work([SESSIONS], 'readonly', (sessions) => request(sessions.getAll()));
+      return rows
+        .map((row) => ({ key: row.key, record: row.record, status: row.status, lastSeq: row.last_seq, updatedAt: row.updated_at }))
+        .sort((a, b) => String(b.record.started_at).localeCompare(String(a.record.started_at)));
+    },
+
+    /**
+     * Reopen a stored session so new events continue its log. The next event must be
+     * `lastSeq + 1`; the record is replaced by the resumed one (status in_progress).
+     * @returns {Promise<{lastSeq: number}>}
+     */
+    async resume(key, record) {
+      await ready();
+      if (!db) throw new Error('local storage is not available, so the session cannot be resumed');
+      const row = await work([SESSIONS], 'readonly', (sessions) => request(sessions.get(key)));
+      if (!row) throw new Error('the stored session no longer exists');
+      session = { key, record };
+      lastSeq = row.last_seq;
+      buffer = [];
+      memory = [];
+      await putSession({ record, status: 'in_progress' });
+      setStatus('ready');
+      return { lastSeq: row.last_seq };
+    },
+
     /** @returns {Promise<{record: object, events: object[]}|null>} */
     async read(key) {
       await ready();

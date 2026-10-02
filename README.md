@@ -11,6 +11,7 @@ Browser experiment framework (`expfw` is a placeholder name). Read `ARCHITECTURE
     npm run check:layers    # independent import-layer check (CI)
     npm run validate -- <dir> # compile a project folder (e.g. spec/examples) and print diagnostics
     npm run play            # serve the example for manual testing (open http://localhost:4173/)
+                            #   add ?manage=1 for the local data screen (delete / download / resume stored sessions)
     node cli/relay.js ...   # websocket-to-serial relay for trigger sinks (see docs/triggers.md)
     npm run typecheck       # custom-code examples against spec/types.d.ts
     npm test                # Vitest

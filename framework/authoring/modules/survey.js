@@ -41,6 +41,22 @@ export async function askAction(ctx, { message, choices, submitLabel = 'Continue
 }
 
 /**
+ * A list of items with checkboxes (including a built-in "Select all"), followed by one action.
+ * Used by the local data manager. The selection and the chosen action come back together.
+ * @param {{message: string, items: {value: string, text: string}[], actions: {value: string, text: string}[], submitLabel?: string}} options
+ * @returns {Promise<{selected: string[], action: string}>}
+ */
+export async function askSelection(ctx, { message, items, actions, submitLabel = 'Continue' }) {
+  const elements = [
+    html(markdownToHtml(message)),
+    { type: 'checkbox', name: 'selected', title: 'Stored sessions', choices: items, showSelectAllItem: true, selectAllText: 'Select all', colCount: 1 },
+    { type: 'radiogroup', name: 'action', title: 'What to do with the selected sessions', isRequired: true, defaultValue: actions[0].value, choices: actions },
+  ];
+  const { values } = await showSurvey(ctx, surveyJson({ questions: elements, submitLabel }));
+  return { selected: values.selected ?? [], action: values.action };
+}
+
+/**
  * The consent screen: the text, a decision, and one checkbox per statement (required unless
  * `required: false`), which only appear once the participant agrees.
  * @returns {Promise<{agreed: boolean, statements: Record<string, boolean>}>}

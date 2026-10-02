@@ -59,6 +59,22 @@ test('nothing is stored before consent: no database exists until the participant
   await expect.poll(() => databases(page)).toContain('expfw');
 });
 
+test('with the real local store the persisted log still starts with session.start at seq 0', async ({ page }) => {
+  await startSession(page, { local: true, merge: FAST });
+  await captureLog(page);
+  await passEntryScreens(page);
+  await expect.poll(() => page.evaluate(() => window.sessionServices.bus.lastSeq)).toBeGreaterThan(8);
+  await page.waitForTimeout(600);
+  const stored = await page.evaluate(async () => {
+    const store = window.expfwStorage.createLocalStore();
+    const [item] = await store.findUnfinished();
+    return (await store.read(item.key)).events.slice(0, 8).map((e) => [e.seq, e.type]);
+  });
+  expect(stored[0]).toEqual([0, 'session.start']);
+  expect(stored[1]).toEqual([1, 'session.clock_anchor']);
+  expect(stored.map(([, type]) => type)).toContain('storage.status');
+});
+
 test('declining consent or failing min_age leaves no database at all', async ({ page }) => {
   await startSession(page, { local: true, merge: FAST });
   await answerConsent(page, { agree: false });

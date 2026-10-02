@@ -11,7 +11,12 @@ export async function launchProfile(dir, baseURL) {
 }
 
 export const newProfileDir = () => mkdtempSync(join(tmpdir(), 'expfw-profile-'));
-export const removeProfileDir = (dir) => rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+/** Best effort: Chromium can hold files for a moment after it exits, and this is only a temp folder. */
+export function removeProfileDir(dir) {
+  try {
+    rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+  } catch { /* left for the OS to clean up */ }
+}
 
 /** Kill every browser process that was started with this profile directory. */
 export async function killProfile(dir) {

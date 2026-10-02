@@ -11,7 +11,10 @@
   //   ?project=/path/ project folder to load (default /spec/examples/)
   //   ?sinks=example  keep the example's trigger sinks (needs a serial device and the relay);
   //                   by default they are removed so the example runs without hardware
-  // When the session ends, the log is in the console: window.sessionStore.events / .record,
+  //   ?manage=1       the local data screen: list, select, delete, download, resume stored sessions
+  //   ?memory=1       keep the session in memory only (nothing is stored in the browser)
+  // Sessions are stored in this browser (IndexedDB). Close the tab mid-session and reload to be
+  // offered to resume it. When the session ends, the log is in the console: window.sessionStore.snapshot() (events and record),
   // and window.downloadLog() saves it as a .jsonl file.
   const params = new URLSearchParams(location.search);
   await new Promise((resolve) => { const t = setInterval(() => window.sessionReady && (clearInterval(t), resolve()), 20); });
@@ -21,12 +24,12 @@
   const merge = {};
   if (debug.time_scale || debug.simulate_profile) merge.debug = debug;
   if (params.get('sinks') !== 'example') merge.triggers = { sinks: [] };
-  window.downloadLog = () => {
-    const lines = window.sessionStore.events.map((e) => JSON.stringify(e)).join('\n');
+  window.downloadLog = async () => {
+    const lines = (await window.sessionStore.snapshot()).events.map((e) => JSON.stringify(e)).join(String.fromCharCode(10));
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([lines], { type: 'application/x-ndjson' }));
     a.download = 'events.jsonl';
     a.click();
   };
-  window.runSession({ url: params.get('project') ?? '/spec/examples/', merge }).then((result) => console.log('session finished:', result.status, window.sessionStore));
+  window.runSession({ url: params.get('project') ?? '/spec/examples/', merge, local: !params.has('memory') }).then((result) => console.log('session finished:', result.status, window.sessionStore));
 </script>

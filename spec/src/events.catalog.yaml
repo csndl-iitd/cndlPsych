@@ -72,6 +72,19 @@ events:
     data:
       time_origin_ms: {type: number}
       wall_iso: {type: string, format: date-time}
+  session.resume:
+    source: system
+    doc: >
+      An interrupted session was continued. seq carries on from from_seq + 1; the page clock
+      starts over, so a session.clock_anchor follows and applies to every later event. The
+      interrupted trial restarts, so its trial.start appears twice.
+    required: [from_seq, time_origin_ms, wall_iso]
+    data:
+      from_seq: {type: integer, minimum: 0, description: "last event that had been saved before the interruption"}
+      time_origin_ms: {type: number}
+      wall_iso: {type: string, format: date-time}
+      block_id: {type: [string, "null"], description: "block that was resumed (null: only the end of the session was left)"}
+      trial: {type: [integer, "null"], description: "first trial that runs again"}
   session.end:
     source: system
     required: [reason]

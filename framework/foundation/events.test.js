@@ -142,6 +142,21 @@ describe('recording switch', () => {
     expect(bus.recording).toBe(true);
   });
 
+  it('can continue a saved log: the next event is fromSeq, with no gap and no repeat', () => {
+    const bus = createBus({ clock: fakeClock(), recording: false });
+    const seen = collect(bus);
+    bus.startRecording({ fromSeq: 121 });
+    bus.emit(system('page.focus', { focused: true }));
+    bus.emit(system('page.focus', { focused: false }));
+    expect(seen.map((e) => e.seq)).toEqual([121, 122]);
+    expect(bus.lastSeq).toBe(122);
+  });
+
+  it('rejects a bad fromSeq', () => {
+    const bus = createBus({ clock: fakeClock(), recording: false });
+    for (const fromSeq of [-1, 1.5, '3']) expect(() => bus.startRecording({ fromSeq })).toThrow(RangeError);
+  });
+
   it('does not validate or reject events while dropping them', () => {
     const bus = createBus({ clock: fakeClock(), recording: false, validate: eventProblems });
     expect(bus.emit({ source: 'nope', type: 'x', data: [] })).toBeNull();

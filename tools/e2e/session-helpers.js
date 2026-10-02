@@ -4,7 +4,7 @@
 export async function startSession(page, options = {}) {
   page.appErrors = [];
   page.on('pageerror', (error) => page.appErrors.push(error.message));
-  await page.goto('/tools/e2e/session.html');
+  await page.goto(`/tools/e2e/session.html${options.query ?? ''}`);
   await page.waitForFunction(() => window.sessionReady === true);
   await page.evaluate((o) => { window.runSession(o); }, options);
   await page.waitForFunction(() => window.sessionServices !== undefined);
@@ -110,3 +110,9 @@ export async function finished(page, timeout = 90_000) {
 export function recorded(page) {
   return page.evaluate(() => ({ events: window.sessionStore.events, record: window.sessionStore.record, finished: window.sessionStore.finished }));
 }
+
+/** Record every event in the page (events are only delivered once recording has started). */
+export const captureLog = (page) => page.evaluate(() => {
+  window.__log = [];
+  window.sessionServices.bus.on('*', (event) => window.__log.push(event));
+});

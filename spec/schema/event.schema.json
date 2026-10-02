@@ -180,6 +180,7 @@
           "enum": [
             "session.start",
             "session.clock_anchor",
+            "session.resume",
             "session.end",
             "device.profile",
             "consent.accepted",
@@ -326,6 +327,62 @@
             },
             "additionalProperties": false,
             "required": [
+              "time_origin_ms",
+              "wall_iso"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "session.resume"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "source": {
+            "const": "system"
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "from_seq": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "last event that had been saved before the interruption"
+              },
+              "time_origin_ms": {
+                "type": "number"
+              },
+              "wall_iso": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "block_id": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "block that was resumed (null: only the end of the session was left)"
+              },
+              "trial": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "description": "first trial that runs again"
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "from_seq",
               "time_origin_ms",
               "wall_iso"
             ]

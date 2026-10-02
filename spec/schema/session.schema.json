@@ -57,6 +57,53 @@
         "device_rejected"
       ]
     },
+    "resumes": {
+      "description": "One entry each time the session was continued after an interruption. The page clock restarts at every resume: for events after at_seq, wall time = time_origin_ms + t of that entry.\n",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "at_seq",
+          "resumed_at",
+          "time_origin_ms",
+          "wall_iso"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "at_seq": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "last event saved before the interruption"
+          },
+          "resumed_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "time_origin_ms": {
+            "type": "number"
+          },
+          "wall_iso": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "block_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "trial": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "framework_version": {
+            "type": "string"
+          }
+        }
+      }
+    },
     "experiment_id": {
       "type": "string",
       "description": "storage.firebase.experiment_id"

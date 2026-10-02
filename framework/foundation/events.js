@@ -109,8 +109,13 @@ export function createBus({ clock, validate, onHandlerError, recording = true })
       };
     },
 
-    /** Begin numbering and delivering events; the next event is seq 0. */
-    startRecording() {
+    /**
+     * Begin numbering and delivering events; the next event is seq 0, or `fromSeq` when a
+     * saved session is being resumed (the log carries on without a gap or a repeat).
+     */
+    startRecording({ fromSeq = 0 } = {}) {
+      if (!Number.isInteger(fromSeq) || fromSeq < 0) throw new RangeError('fromSeq must be a non-negative integer');
+      nextSeq = fromSeq;
       isRecording = true;
     },
 
