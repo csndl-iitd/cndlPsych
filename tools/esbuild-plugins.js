@@ -29,3 +29,20 @@ export function webgazerAddOn(entry) {
     },
   };
 }
+
+/**
+ * Give the lazily loaded Firebase SDK files readable names (parts/firebase-firestore-<hash>.js
+ * instead of index.esm-<hash>.js). The framework's `import('firebase/firestore')` is pointed at a
+ * one-line wrapper module; the wrapper itself imports the real package.
+ */
+export function namedFirebaseParts(partsDir) {
+  return {
+    name: 'named-firebase-parts',
+    setup(build) {
+      build.onResolve({ filter: /^firebase\/(app|firestore|auth|app-check)$/ }, (args) => {
+        if (args.importer.startsWith(partsDir)) return undefined;
+        return { path: `${partsDir}/firebase-${args.path.slice('firebase/'.length)}.js` };
+      });
+    },
+  };
+}

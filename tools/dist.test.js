@@ -15,13 +15,20 @@ const ADDON = join(OUT, 'expfw-eyetracking');
 const WEBGAZER_MARKER = 'WebGazer works only over https';
 const PERMISSIVE = /^(MIT|ISC|BSD-[23]-Clause|Apache-2\.0|0BSD|BlueOak-1\.0\.0|Python-2\.0|\(MIT OR CC0-1\.0\)|Apache-2\.0 AND MIT)$/;
 
-const scripts = (dir) => readdirSync(dir).filter((name) => name.endsWith('.js')).map((name) => readFileSync(join(dir, name), 'utf8'));
+const scripts = (dir) => readdirSync(dir, { recursive: true }).filter((name) => name.endsWith('.js')).map((name) => readFileSync(join(dir, name), 'utf8'));
 const licenceLines = (text) => [...text.matchAll(/^(\S+) (\S+) {2}\((.+)\)$/gm)].map(([, name, version, licence]) => ({ name, version, licence }));
 
 beforeAll(() => { execFileSync(process.execPath, [join(ROOT, 'tools', 'build-dist.js')], { stdio: 'pipe', env: { ...process.env, EXPFW_DIST_DIR: OUT } }); }, 120_000);
 afterAll(() => rmSync(OUT, { recursive: true, force: true }));
 
 describe('core bundle (dist/expfw)', () => {
+  it('has boot.js and a parts/ folder with readable names, nothing else loose', () => {
+    expect(readdirSync(CORE).sort()).toEqual(['LICENSE', 'README.txt', 'THIRD-PARTY-LICENSES.txt', 'VERSION', 'boot.js', 'parts']);
+    const parts = readdirSync(join(CORE, 'parts'));
+    expect(parts.every((name) => /^(firebase-(app|app-check|auth|firestore)|eyetracking-stub|chunk)-[A-Z0-9]+\.js$/.test(name)), parts.join(', ')).toBe(true);
+    for (const wanted of ['firebase-app', 'firebase-auth', 'firebase-firestore', 'eyetracking-stub']) expect(parts.some((name) => name.startsWith(`${wanted}-`)), wanted).toBe(true);
+  });
+
   it('contains no WebGazer', () => {
     for (const code of scripts(CORE)) {
       expect(code).not.toContain(WEBGAZER_MARKER);

@@ -1,10 +1,10 @@
 // What `import('webgazer')` resolves to in the core bundle, which does not contain WebGazer
 // (it is GPL-3.0-or-later; the core is MIT). The real module is the add-on folder
-// `expfw-eyetracking/` next to `expfw/`; this loads it when eye tracking is used, and says what
+// `expfw-eyetracking/` next to `expfw/` (this file is built into expfw/parts/); this loads it when eye tracking is used, and says what
 // to do when it is not there.
 import { ADDON_MISSING } from '../framework/pipeline/gaze.js';
 
-const url = new URL('../expfw-eyetracking/webgazer.js', import.meta.url).href;
+const url = new URL('../../expfw-eyetracking/webgazer.js', import.meta.url).href;
 
 let addOn;
 try {

@@ -7,7 +7,7 @@
 import { build } from 'esbuild';
 import { cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { localFontsOnly } from './esbuild-plugins.js';
+import { localFontsOnly, namedFirebaseParts } from './esbuild-plugins.js';
 import { bundledPackages, noticesFor } from './notices.js';
 
 const root = join(import.meta.dirname, '..');
@@ -16,6 +16,15 @@ const out = process.env.EXPFW_DIST_DIR ?? join(root, 'dist');
 export const DIST = join(out, 'expfw');
 export const DIST_EYETRACKING = join(out, 'expfw-eyetracking');
 const { version } = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
+const README = `expfw ${version}: the framework, bundled. Do not edit these files.
+
+boot.js    what index.html loads
+parts/     pieces boot.js loads only when an experiment needs them:
+             firebase-*.js      the Firebase SDK (only if storage.firebase is enabled)
+             eyetracking-stub   loads the eye tracking add-on from ../expfw-eyetracking/ (only if eye tracking is on)
+             chunk-*.js         code shared between the above (the names carry a content hash)
+LICENSE, THIRD-PARTY-LICENSES.txt   the licences of this software and of what it contains
+`;
 const common = { bundle: true, format: 'esm', platform: 'browser', minify: true, plugins: [localFontsOnly], legalComments: 'none', metafile: true, logLevel: 'warning' };
 
 for (const dir of [DIST, DIST_EYETRACKING]) {
@@ -26,14 +35,17 @@ for (const dir of [DIST, DIST_EYETRACKING]) {
 // ---- core: no WebGazer; `webgazer` resolves to the stub that loads the add-on ----
 const core = await build({
   ...common,
+  plugins: [localFontsOnly, namedFirebaseParts(join(root, 'bundle', 'parts'))],
   entryPoints: { boot: join(root, 'bundle', 'entry.js') },
   outdir: DIST,
-  splitting: true, // the Firebase SDK is a dynamic import: a separate file, fetched only when used
+  splitting: true, // the Firebase SDK is a dynamic import: separate files, fetched only when used
+  chunkNames: 'parts/[name]-[hash]', // everything except boot.js lives in expfw/parts/
   alias: { webgazer: join(root, 'bundle', 'eyetracking-stub.js') },
 });
 cpSync(join(root, 'LICENSE'), join(DIST, 'LICENSE'));
 writeFileSync(join(DIST, 'THIRD-PARTY-LICENSES.txt'), noticesFor(bundledPackages(core.metafile), 'Third-party software bundled in expfw/ (all under permissive licences).'));
 writeFileSync(join(DIST, 'VERSION'), `expfw ${version}\n`);
+writeFileSync(join(DIST, 'README.txt'), README);
 
 // ---- add-on: WebGazer and the face model it loads ----
 const addOn = await build({ ...common, entryPoints: { webgazer: join(root, 'bundle', 'eyetracking-addon.js') }, outdir: DIST_EYETRACKING, splitting: false });

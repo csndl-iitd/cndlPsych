@@ -1,6 +1,6 @@
 // The eye tracking add-on is a separate, GPL-licensed folder next to the MIT-licensed core:
 // without it eye tracking stops with a clear message; with it, WebGazer is fetched from it.
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { expect, test } from '@playwright/test';
@@ -81,6 +81,23 @@ test('with the add-on, WebGazer and the face model come from that folder; the co
     expect(requested.some((path) => path.startsWith('/expfw-eyetracking/mediapipe/'))).toBe(true);
     expect(requested.filter((path) => path.startsWith('/expfw/') && path.endsWith('.js')).length).toBeGreaterThan(0);
     expect(requested.some((path) => path.startsWith('/expfw-eyetracking/') && path.includes('/expfw/'))).toBe(false);
+  } finally {
+    await served.close();
+  }
+});
+
+test('the lazily loaded Firebase files in expfw/parts load in a browser and export the SDK', async ({ page }) => {
+  project({ eyetracking: false });
+  const served = await serveDirectory({ dir });
+  try {
+    await page.goto(served.url);
+    const parts = readdirSync(join(dir, 'expfw', 'parts')).filter((name) => name.startsWith('firebase-'));
+    expect(parts.length).toBe(4);
+    const exported = await page.evaluate(async (names) => Object.fromEntries(await Promise.all(names.map(async (name) => [name.replace(/-[A-Z0-9]+\.js$/, ''), Object.keys(await import(`/expfw/parts/${name}`))]))), parts);
+    expect(exported['firebase-app']).toContain('initializeApp');
+    expect(exported['firebase-firestore']).toEqual(expect.arrayContaining(['getFirestore', 'writeBatch', 'runTransaction']));
+    expect(exported['firebase-auth']).toEqual(expect.arrayContaining(['getAuth', 'signInAnonymously']));
+    expect(exported['firebase-app-check']).toContain('initializeAppCheck');
   } finally {
     await served.close();
   }
