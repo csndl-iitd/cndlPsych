@@ -2,11 +2,10 @@
 // subject and session forms, and turning the answers back into values the framework uses.
 import { normalizeSessionId, normalizeSubjectId } from '../../foundation/session.js';
 
+// Biological sex, as BIDS records it. forms.yaml can change the options (`overrides.sex.options`).
 const SEX_OPTIONS = [
   { value: 'male', text: 'Male' },
   { value: 'female', text: 'Female' },
-  { value: 'other', text: 'Other' },
-  { value: 'n/a', text: 'Prefer not to say' },
 ];
 const quote = (value) => (typeof value === 'string' ? `'${value.replace(/'/g, "\\'")}'` : String(value));
 
@@ -42,6 +41,10 @@ export function predicateToExpression(predicate) {
 // ---- questions ---------------------------------------------------------------------
 const choiceOf = (option) => (typeof option === 'string' ? option : { value: option.value, text: option.label });
 
+const SHORT_CHOICE = 18;
+/** A few short choices fit in one row; a long list or long texts stay one per line. */
+const inline = (choices) => (choices.length <= 4 && choices.every((choice) => String(choice.text ?? choice).length <= SHORT_CHOICE) ? { colCount: 0 } : {});
+
 /** One forms.yaml question as a SurveyJS element. */
 export function questionElement(question) {
   const element = {
@@ -61,7 +64,10 @@ export function questionElement(question) {
     }
     case 'textarea': return { ...element, type: 'comment', rows: question.rows ?? 4, ...(question.placeholder ? { placeholder: question.placeholder } : {}), validators };
     case 'number': return { ...element, type: 'text', inputType: 'number', ...(question.min === undefined ? {} : { min: question.min }), ...(question.max === undefined ? {} : { max: question.max }), ...(question.unit ? { description: question.unit } : {}) };
-    case 'multi-choice': return { ...element, type: 'radiogroup', choices: question.options.map(choiceOf) };
+    case 'multi-choice': {
+      const choices = question.options.map(choiceOf);
+      return { ...element, type: 'radiogroup', choices, ...inline(choices) };
+    }
     case 'multi-select': return { ...element, type: 'checkbox', choices: question.options.map(choiceOf) };
     case 'dropdown': return { ...element, type: 'dropdown', choices: question.options.map(choiceOf) };
     case 'likert': {
@@ -93,7 +99,10 @@ function withOverride(element, override = {}) {
   if (override.help) next.description = override.help;
   if (override.placeholder) next.placeholder = override.placeholder;
   if (override.required !== undefined) next.isRequired = override.required;
-  if (override.options) next.choices = override.options.map(choiceOf);
+  if (override.options) {
+    next.choices = override.options.map(choiceOf);
+    Object.assign(next, inline(next.choices));
+  }
   return next;
 }
 
@@ -105,12 +114,12 @@ function withOverride(element, override = {}) {
  */
 export function subjectElements(form = {}, assigned = {}) {
   const { overrides = {}, questions = [] } = form;
+  // Any age is accepted here; an experiment that needs a minimum says so (consent.min_age) or bounds it (overrides.age.min / max).
   const age = withOverride({
-    type: 'text', name: 'age', title: 'Age (years, or n/a)', isRequired: true,
-    validators: [{ type: 'regex', regex: '^(\\d{1,3}|n/a)$', text: 'Enter your age in years, or n/a' }],
+    type: 'text', inputType: 'number', name: 'age', title: 'Age (years)', isRequired: true, min: 0, validators: [],
   }, overrides.age);
   const bounds = [overrides.age?.min !== undefined ? `{age} >= ${overrides.age.min}` : null, overrides.age?.max !== undefined ? `{age} <= ${overrides.age.max}` : null].filter(Boolean);
-  if (bounds.length) age.validators.push({ type: 'expression', expression: `{age} = 'n/a' or (${bounds.join(' and ')})`, text: 'Please check your age' });
+  if (bounds.length) age.validators.push({ type: 'expression', expression: `{age} empty or (${bounds.join(' and ')})`, text: 'Please check your age' });
   const subjectId = withOverride({
     type: 'text', name: 'subject_id', title: 'Participant ID', isRequired: true,
     validators: [{ type: 'regex', regex: '^(sub-)?[A-Za-z0-9]+$', text: 'Use letters and digits only (for example 007)' }],
@@ -118,7 +127,7 @@ export function subjectElements(form = {}, assigned = {}) {
   if (assigned.value !== undefined) Object.assign(subjectId, { defaultValue: assigned.value, readOnly: assigned.locked === true });
   return [
     ...(assigned.hidden ? [] : [subjectId]),
-    withOverride({ type: 'radiogroup', name: 'sex', title: 'Sex', isRequired: true, choices: SEX_OPTIONS }, overrides.sex),
+    withOverride({ type: 'radiogroup', name: 'sex', title: 'Sex', isRequired: true, choices: SEX_OPTIONS, ...inline(SEX_OPTIONS) }, overrides.sex),
     age,
     ...questions.map(questionElement),
   ];
@@ -136,7 +145,7 @@ export function sessionElements(form = {}) {
   ];
 }
 
-const parseAge = (value) => (value === 'n/a' ? 'n/a' : Number(value));
+const parseAge = (value) => (value === undefined || value === null || value === '' ? undefined : Number(value));
 
 /**
  * Subject form answers -> { subjectId, subject: {sex, age, ...extras} } (BIDS participants.tsv columns).

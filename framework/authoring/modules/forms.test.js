@@ -83,7 +83,7 @@ describe('built-in subject form', () => {
     const elements = subjectElements({ questions: [{ name: 'handedness', prompt: 'Hand', type: 'multi-choice', options: ['right', 'left'] }] });
     expect(elements.map((e) => e.name)).toEqual(['subject_id', 'sex', 'age', 'handedness']);
     expect(elements.slice(0, 3).every((e) => e.isRequired)).toBe(true);
-    expect(elements[1].choices.map((c) => c.value)).toEqual(['male', 'female', 'other', 'n/a']);
+    expect(elements[1].choices.map((c) => c.value)).toEqual(['male', 'female']);
   });
 
   it('applies overrides to prompts, help, requiredness, options and numeric bounds', () => {
@@ -97,17 +97,28 @@ describe('built-in subject form', () => {
     expect(elements[0]).toMatchObject({ title: 'Code', placeholder: '001' });
     expect(elements[1].choices).toEqual([{ value: 'male', text: 'M' }, { value: 'female', text: 'F' }]);
     expect(elements[2]).toMatchObject({ isRequired: false, description: 'years' });
-    expect(elements[2].validators.at(-1).expression).toBe("{age} = 'n/a' or ({age} >= 18 and {age} <= 99)");
+    expect(elements[2].validators.at(-1).expression).toBe('{age} empty or ({age} >= 18 and {age} <= 99)');
   });
 
-  it('validates ids and ages with patterns that match what the session record accepts', () => {
-    const [id, , age] = subjectElements();
+  it('validates ids with a pattern that matches what the session record accepts', () => {
+    const [id] = subjectElements();
     const idPattern = new RegExp(id.validators[0].regex);
     expect(['007', 'sub-007', 'AB9'].every((v) => idPattern.test(v))).toBe(true);
     expect(['sub_1', 'a b', ''].some((v) => idPattern.test(v))).toBe(false);
-    const agePattern = new RegExp(age.validators[0].regex);
-    expect(['24', '7', 'n/a', '120'].every((v) => agePattern.test(v))).toBe(true);
-    expect(['abc', '1234', '-3', ''].some((v) => agePattern.test(v))).toBe(false);
+  });
+
+  it('puts no limit on age: a number input, no pattern, no maximum, no minimum except zero', () => {
+    const [, , age] = subjectElements();
+    expect(age).toMatchObject({ type: 'text', inputType: 'number', min: 0, isRequired: true, validators: [] });
+    expect(age.max).toBeUndefined();
+  });
+
+  it('shows short choices in one row and long ones as a list', () => {
+    const [, sex] = subjectElements();
+    expect(sex.colCount).toBe(0);
+    const long = questionElement({ name: 'q', prompt: 'Q', type: 'multi-choice', options: ['a very long answer that needs its own line', 'b'] });
+    expect(long.colCount).toBeUndefined();
+    expect(questionElement({ name: 'q', prompt: 'Q', type: 'multi-choice', options: ['1', '2', '3', '4', '5'] }).colCount).toBeUndefined();
   });
 });
 
@@ -120,11 +131,12 @@ describe('built-in session form', () => {
 });
 
 describe('answers', () => {
-  it('subjectAnswers: BIDS id, numeric age or n/a, extras kept', () => {
+  it('subjectAnswers: BIDS id, numeric age, extras kept', () => {
     expect(subjectAnswers({ subject_id: '007', sex: 'female', age: '24', handedness: 'right' })).toEqual({
       subjectId: 'sub-007', subject: { sex: 'female', age: 24, handedness: 'right' },
     });
-    expect(subjectAnswers({ subject_id: 'sub-A1', sex: 'n/a', age: 'n/a' })).toEqual({ subjectId: 'sub-A1', subject: { sex: 'n/a', age: 'n/a' } });
+    expect(subjectAnswers({ subject_id: 'sub-A1', sex: 'male', age: '' })).toEqual({ subjectId: 'sub-A1', subject: { sex: 'male', age: undefined } });
+    expect(subjectAnswers({ subject_id: '1', sex: 'male', age: '104.5' }).subject.age).toBe(104.5);
     expect(subjectAnswers({ subject_id: 'bad id', sex: 'male', age: '3' }).subjectId).toBeNull();
   });
 

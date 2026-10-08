@@ -137,7 +137,7 @@ my-experiment/
 1. Keep `on:` as the event key; the loader must be YAML 1.2. (Alternative: rename.)
 2. Profile groups (`touch: [phone, tablet]`) not in v1; the example uses a YAML anchor.
 3. `design:` stays small: factors, repetitions, `max_run`. No block-order counterbalancing in v1.
-4. `sex` enum `male|female|other|n/a` (decided M8: kept; the BIDS validator accepts all four values).
+4. `sex`: the form offers `male` and `female` by default; the schema still accepts `other` and `n/a` for experiments that add them (changed after M8, see decisions).
 5. Custom events limited to `task.*` and `semantic.*`.
 6. Real accounts for multi-device, multi-session public studies: not built.
 

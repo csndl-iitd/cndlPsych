@@ -100,7 +100,7 @@ export function buildSurvey(ctx, planBlock) {
     nodes: [{
       type: survey,
       survey_json: json,
-      on_start() { ctx.applyScope(planBlock.input[ctx.profile]); },
+      on_start() { ctx.applyScope(ctx.inputScope(planBlock.input)); },
       on_finish(data) {
         ctx.bus.emit({ source: 'system', type: 'form.submitted', data: { form_id: formId, values: data.response, duration_ms: data.rt } });
       },

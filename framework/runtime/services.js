@@ -8,6 +8,7 @@ import { createJsPsych } from '../authoring/modules/jspsych.js';
 import { createBridge } from '../pipeline/bridge.js';
 import { createFrames } from '../pipeline/frames.js';
 import { createInput } from '../pipeline/input.js';
+import { mergeScopes } from '../pipeline/input-scope.js';
 import { createMapping } from '../pipeline/mapping.js';
 import { createTriggers } from '../pipeline/triggers.js';
 import { createSinks } from './sinks.js';
@@ -15,6 +16,7 @@ import { createCursor } from '../stage/cursor.js';
 import { createLayout } from '../stage/layout.js';
 import { createOverlay, overlayReserve } from '../stage/overlay.js';
 import { createStage } from '../stage/stage.js';
+import { THEME_CSS } from '../stage/theme.js';
 
 /** Frame time assumed for `{frames}` durations until the display is measured (M10). */
 export const DEFAULT_FRAME_MS = 1000 / 60;
@@ -44,18 +46,24 @@ export function createServices({ root, plan, generators = {}, validate, timeScal
   const mapping = createMapping({ bus, hooks: { applyEffect: (effect, refs) => stage.applyEffect(effect, refs) } });
   input.setConsumer((candidate) => mapping.wouldConsume(candidate));
 
+  injectCss(doc, 'expfw-theme', THEME_CSS); // before the experiment's styles, so those win
   styles.forEach((css, i) => injectCss(doc, `expfw-style-${i}`, css));
   const display = doc.createElement('div');
   display.className = 'expfw-display';
-  Object.assign(display.style, { position: 'absolute', inset: '0', display: 'flex', alignItems: 'center', justifyContent: 'center' });
   stage.element.append(display);
   const jsPsych = createJsPsych({ display, extensions: [bridge.Extension] });
 
-  const state = { profile: null, scope: null, session: {}, onRequiredLost: () => {}, frameMs: DEFAULT_FRAME_MS };
+  const state = { profile: null, scope: null, session: {}, onRequiredLost: () => {}, frameMs: DEFAULT_FRAME_MS, inputProfiles: [] };
   const sinkSet = createSinks({ plan, bus, clock, apis, onRequiredLost: (id) => state.onRequiredLost(id) });
   const triggers = createTriggers({ bus, clock, sinks: sinkSet.sinks, context: () => state.session });
   const frames = createFrames({ frameMs: DEFAULT_FRAME_MS });
   const scale = (ms) => Math.max(0, Math.round(ms * timeScale));
+
+  /** The scope for this device from `{profile: scope}`: its own profile's, plus those of the other input sources it has. */
+  function inputScope(byProfile) {
+    const [own, ...others] = [state.profile, ...state.inputProfiles.filter((id) => id !== state.profile)];
+    return mergeScopes(byProfile[own], others.map((id) => byProfile[id]));
+  }
 
   // The hint of an intent: from the current scope, else from the first block that defines it
   // (instructions often mention an intent that a later block declares).
@@ -63,7 +71,7 @@ export function createServices({ root, plan, generators = {}, validate, timeScal
     const own = state.scope?.intents[name]?.hint;
     if (own !== undefined) return own;
     for (const block of plan.blocks) {
-      const found = block.input[state.profile]?.intents[name]?.hint;
+      const found = inputScope(block.input)?.intents[name]?.hint;
       if (found !== undefined) return found;
     }
     return undefined;
@@ -96,6 +104,7 @@ export function createServices({ root, plan, generators = {}, validate, timeScal
       scale,
       schedule: defaultSchedule,
       frames,
+      inputScope,
       applyScope(scope) {
         state.scope = scope;
         mapping.setScope(scope, profile, { toPx: (length) => stage.lengthToPx(length) });
@@ -120,6 +129,8 @@ export function createServices({ root, plan, generators = {}, validate, timeScal
     /** Called when a required sink is lost while recording. */
     onRequiredSinkLost(handler) { state.onRequiredLost = handler; },
     /** The measured frame time, used for `{frames}` durations from the next block on. */
+    /** The profiles whose inputs the device has (its own first); their bindings all apply. */
+    setInputProfiles(profiles) { state.inputProfiles = profiles; },
     setFrameMs(ms) {
       state.frameMs = ms;
       frames.setFrameMs(ms);

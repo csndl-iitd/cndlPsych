@@ -18,7 +18,7 @@ consent:
   statements:
     - { id: read, text: "I have read the information above." }
     - { id: voluntary, text: "I understand that taking part is voluntary and I can stop at any time." }
-  min_age: 18
+  # min_age: 18          # uncomment to stop younger participants (adds the age check to the subject form)
 
 # "go" is the one response in this experiment: SPACE on a computer, a tap on a phone or tablet.
 input:

@@ -158,7 +158,7 @@ function instanceNode(ctx, planBlock, instance) {
     timeline,
     on_timeline_start() {
       ctx.bus.setContext({ trial: number, phase: null });
-      ctx.applyScope(planBlock.trials[defIndex].input[ctx.profile]);
+      ctx.applyScope(ctx.inputScope(planBlock.trials[defIndex].input));
       ctx.applyTriggers(planBlock.trials[defIndex].triggers);
       state.unsubscribe = ctx.bus.on('semantic.*', onSemantic);
       ctx.bus.emit({ source: 'task', type: 'trial.start', data: { trial: number, name: def.name, conditions } });

@@ -67,7 +67,7 @@ export function buildInstructions(ctx, planBlock) {
     timeline: [pageNode, ...(post === undefined ? [] : [phaseTrial(ctx, { name: 'post', html: () => '', durationMs: ctx.scale(drawDuration(post, rng, ctx.frameMs)) })])],
     on_timeline_start() {
       state.index = 0;
-      ctx.applyScope(planBlock.input[ctx.profile]);
+      ctx.applyScope(ctx.inputScope(planBlock.input));
       state.unsubscribe = ctx.bus.on('semantic.*', (event) => {
         if (accepted.includes(event.data.intent)) state.last = state.last === back && back !== null ? back : event.data.intent;
       });

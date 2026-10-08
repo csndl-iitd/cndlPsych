@@ -13,6 +13,9 @@ export const BUILTIN_PROFILE_CONDITIONS = {
  * Snapshot of what the browser can do. `short_side_px` is the shorter side of the
  * screen in CSS px, so rotating a phone does not turn it into a tablet.
  * `keyboard` is assumed on devices whose primary pointer is fine (it cannot be detected).
+ * `any_fine`, `any_coarse` and `any_hover` say what the device can do with ANY of its inputs (a
+ * touch laptop has a fine pointer and a touch screen), where `pointer` and `hover` describe only
+ * the primary one.
  */
 export function readEnvironment(win = globalThis) {
   const query = (text) => win.matchMedia?.(text).matches ?? false;
@@ -24,6 +27,9 @@ export function readEnvironment(win = globalThis) {
   return {
     pointer,
     hover: query('(hover: hover)') ? 'hover' : 'none',
+    any_fine: query('(any-pointer: fine)') || pointer === 'fine',
+    any_coarse: query('(any-pointer: coarse)') || pointer === 'coarse',
+    any_hover: query('(any-hover: hover)') || query('(hover: hover)'),
     keyboard: pointer === 'fine',
     touch: touchPoints > 0,
     touch_points: touchPoints,
@@ -58,6 +64,32 @@ export function profileConditions(deviceSpec = {}) {
   const custom = Object.fromEntries(Object.entries(deviceSpec.profiles ?? {}).map(([id, { when }]) => [id, when]));
   const builtin = Object.fromEntries(Object.entries(BUILTIN_PROFILE_CONDITIONS).filter(([id]) => !(id in custom)));
   return { ...custom, ...builtin };
+}
+
+const INPUT_KEYS = ['pointer', 'hover', 'keyboard', 'touch'];
+
+/** Could this device provide the inputs a profile asks for, through any of its input sources? Size and orientation are not inputs. */
+function hasInputsOf(when, env) {
+  const asked = INPUT_KEYS.filter((key) => key in when);
+  return asked.length > 0 && asked.every((key) => {
+    switch (key) {
+      case 'pointer': return when.pointer === 'none' || (when.pointer === 'fine' ? env.any_fine : env.any_coarse || env.touch);
+      case 'hover': return when.hover === 'none' || env.any_hover;
+      case 'keyboard': return when.keyboard === false || env.keyboard || env.any_fine;
+      default: return when.touch === false || env.touch;
+    }
+  });
+}
+
+/**
+ * The profiles whose input bindings apply together. The device's own profile comes first and decides
+ * everything that is not an input; every other profile whose inputs the device also has (a touch laptop
+ * has a mouse, a keyboard and a touch screen) adds its bindings, so a participant can use any of them.
+ * @returns {string[]}
+ */
+export function inputProfiles(env, deviceSpec, active) {
+  const others = Object.entries(profileConditions(deviceSpec)).filter(([id, when]) => id !== active && hasInputsOf(when, env)).map(([id]) => id);
+  return [active, ...others];
 }
 
 /** Every profile whose conditions the environment meets, in detection order. */
@@ -118,10 +150,11 @@ export function admitDevice(bus, deviceSpec = {}, input) {
 }
 
 /** The `device` block of the session record. */
-export function deviceRecord(env, { profile, reason }, calibration, refreshHz) {
+export function deviceRecord(env, { profile, reason, inputProfiles: sources }, calibration, refreshHz) {
   return {
     profile,
     profile_reason: reason,
+    ...(sources?.length > 1 ? { input_profiles: sources } : {}),
     user_agent: env.user_agent,
     ...(env.platform ? { platform: env.platform } : {}),
     ...(env.language ? { language: env.language } : {}),

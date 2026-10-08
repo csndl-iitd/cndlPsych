@@ -1,13 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import { eventProblems } from '../../tools/validators.js';
 import {
-  admitDevice, detectCandidates, deviceRecord, matchesWhen, profileConditions, readEnvironment, rejectionMessage, resolveProfile,
+  admitDevice, detectCandidates, deviceRecord, inputProfiles, matchesWhen, profileConditions, readEnvironment, rejectionMessage, resolveProfile,
 } from './device.js';
 import { createBus } from './events.js';
 
 /** A window-like object for the given capabilities. */
-function fakeWindow({ pointer, hover, touchPoints = 0, screen, inner = screen, ua = 'test-agent' }) {
-  const media = { '(pointer: fine)': pointer === 'fine', '(pointer: coarse)': pointer === 'coarse', '(hover: hover)': hover === 'hover' };
+function fakeWindow({ pointer, hover, touchPoints = 0, screen, inner = screen, ua = 'test-agent', anyFine = false, anyHover = false }) {
+  const media = {
+    '(pointer: fine)': pointer === 'fine', '(pointer: coarse)': pointer === 'coarse', '(hover: hover)': hover === 'hover',
+    '(any-pointer: fine)': anyFine, '(any-hover: hover)': anyHover,
+  };
   return {
     matchMedia: (query) => ({ matches: media[query] ?? false }),
     navigator: { maxTouchPoints: touchPoints, userAgent: ua, platform: 'TestOS', language: 'en-GB' },
@@ -27,6 +30,8 @@ const DEVICES = {
   smallPhone: { pointer: 'coarse', hover: 'none', touchPoints: 5, screen: [360, 640] },
   tablet: { pointer: 'coarse', hover: 'none', touchPoints: 5, screen: [800, 1280] },
   tabletLandscape: { pointer: 'coarse', hover: 'none', touchPoints: 5, screen: [1280, 800] },
+  // a touch tablet with a mouse and a keyboard attached (tablet mode of a convertible): primary input is touch
+  surface: { pointer: 'coarse', hover: 'none', touchPoints: 10, screen: [1368, 912], anyFine: true, anyHover: true },
   bigPhoneEdge: { pointer: 'coarse', hover: 'none', touchPoints: 5, screen: [600, 1000] },
 };
 const env = (name) => readEnvironment(fakeWindow(DEVICES[name]));
@@ -186,5 +191,38 @@ describe('deviceRecord', () => {
     const record = deviceRecord(env('phone'), { profile: 'phone', reason: 'auto' }, { method: 'none' });
     expect(record).toMatchObject({ profile: 'phone', profile_reason: 'auto', pointer: 'coarse', hover: 'none', keyboard: false, touch_points: 5, calibration: { method: 'none' } });
     expect(deviceRecord(env('desktop'), { profile: 'desktop', reason: 'fixed' })).not.toHaveProperty('calibration');
+  });
+});
+
+describe('inputProfiles', () => {
+  it('a touch tablet with a mouse and keyboard uses the bindings of the tablet, desktop and phone profiles together', () => {
+    const surface = env('surface');
+    expect(resolveProfile({}, { env: surface }).profile).toBe('tablet'); // its primary input is touch
+    expect(inputProfiles(surface, {}, 'tablet')).toEqual(['tablet', 'desktop', 'phone']);
+  });
+
+  it('a touch laptop (fine primary pointer, touch screen) gets both desktop and touch bindings', () => {
+    expect(inputProfiles(env('touchLaptop'), {}, 'desktop')).toEqual(['desktop', 'phone', 'tablet']);
+  });
+
+  it.each([
+    ['a desktop without touch', 'desktop', 'desktop', ['desktop']],
+    ['a phone', 'phone', 'phone', ['phone', 'tablet']],
+  ])('%s', (_label, device, active, expected) => {
+    expect(inputProfiles(env(device), {}, active)).toEqual(expected);
+  });
+
+  it('ignores profiles that only talk about size, and honours custom conditions', () => {
+    const spec = { profiles: { narrow: { when: { max_width_px: 400 } }, kiosk: { when: { touch: true, keyboard: false } } } };
+    expect(inputProfiles(env('phone'), spec, 'phone')).toEqual(['phone', 'kiosk', 'tablet']);
+    expect(inputProfiles(env('desktop'), spec, 'desktop')).toEqual(['desktop']);
+  });
+});
+
+describe('deviceRecord input profiles', () => {
+  const base = { user_agent: 'x', screen: {}, viewport: {} };
+  it('lists them only when there are several', () => {
+    expect(deviceRecord(base, { profile: 'tablet', reason: 'auto', inputProfiles: ['tablet', 'desktop'] }).input_profiles).toEqual(['tablet', 'desktop']);
+    expect(deviceRecord(base, { profile: 'tablet', reason: 'auto', inputProfiles: ['tablet'] }).input_profiles).toBeUndefined();
   });
 });

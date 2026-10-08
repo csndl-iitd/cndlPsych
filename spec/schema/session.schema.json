@@ -286,6 +286,14 @@
             "override"
           ]
         },
+        "input_profiles": {
+          "description": "When the device has several input sources (a touch laptop), the profiles whose input bindings were all active; the first is the profile.",
+          "type": "array",
+          "minItems": 2,
+          "items": {
+            "type": "string"
+          }
+        },
         "user_agent": {
           "type": "string"
         },

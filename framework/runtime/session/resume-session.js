@@ -99,5 +99,5 @@ export async function resumeSession(run, item) {
   const seed = record.experiment.seed;
   const prepared = await prepareEyeTracking({ run, profile, seed, finish, held });
   if (prepared.result) return prepared.result;
-  return conductSession({ run, store, profile, seed, answers, resume: verdict.point, finish, eye: prepared.eye });
+  return conductSession({ run, store, profile, inputProfiles: record.device.input_profiles ?? [profile], seed, answers, resume: verdict.point, finish, eye: prepared.eye });
 }

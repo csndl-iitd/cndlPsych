@@ -7,7 +7,7 @@
 import { sessionAnswers, sessionElements, subjectAnswers, subjectElements } from '../../authoring/modules/forms.js';
 import { showForm } from '../../authoring/modules/survey.js';
 import { isoNow } from '../../foundation/clock.js';
-import { admitDevice, profileConditions } from '../../foundation/device.js';
+import { admitDevice, inputProfiles, profileConditions } from '../../foundation/device.js';
 import { createConsentGate, hashText, resolveSeed } from '../../foundation/session.js';
 import { assignedSubject, mirrored, remoteFailedMessage } from '../remote.js';
 import { askConsent } from './consent.js';
@@ -81,7 +81,9 @@ async function checkDevice(run) {
     }
     sinkWarnings = connected.warnings;
   }
-  return { resolved, profile, sinkWarnings };
+  // An explicit choice (fixed, prompt, override) is respected; on auto, every input source the device has may answer.
+  const sources = resolved.reason === 'auto' && resolved.profile !== null ? inputProfiles(env, plan.device, profile) : [profile];
+  return { resolved, profile, sources, sinkWarnings };
 }
 
 /** The subject number from Firebase, if the session uses it. */
@@ -144,7 +146,7 @@ export async function runNewSession(run, search) {
     answers: { subject: participant.answered.subject, sessionFields: participant.sessionFields },
     gate,
     consent: { textHash, acceptedAt: consent.acceptedAt },
-    device: { profile, reason: resolved.reason },
+    device: { profile, reason: resolved.reason, inputProfiles: device.sources },
     seed,
     refreshHz: (await refresh)?.hz,
     search,
@@ -175,5 +177,5 @@ export async function runNewSession(run, search) {
   };
   const prepared = await prepareEyeTracking({ run, profile, seed, finish, held });
   if (prepared.result) return prepared.result;
-  return conductSession({ run, store: sessionStore, profile, seed, answers, resume: null, finish, eye: prepared.eye });
+  return conductSession({ run, store: sessionStore, profile, inputProfiles: device.sources, seed, answers, resume: null, finish, eye: prepared.eye });
 }

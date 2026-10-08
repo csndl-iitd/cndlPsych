@@ -139,9 +139,12 @@ function participantsTsv(sessions) {
   return tsv(participantColumns(subjects), subjects.map(({ id, fields }) => ({ participant_id: id, ...fields })));
 }
 
-const participantsJson = () => `${JSON.stringify({
+/** The sex values that occur, each as its own level (the form offers male and female; an experiment may offer others). */
+const sexLevels = (sessions) => Object.fromEntries([...new Set(['male', 'female', ...sessions.map(({ record }) => record.subject?.sex).filter(Boolean)])].map((value) => [value, value]));
+
+const participantsJson = (sessions) => `${JSON.stringify({
   participant_id: { Description: 'Participant identifier' },
-  sex: { Description: 'Sex as answered by the participant', Levels: { male: 'male', female: 'female', other: 'other', 'n/a': 'prefer not to say' } },
+  sex: { Description: 'Sex as answered by the participant', Levels: sexLevels(sessions) },
   age: { Description: 'Age in years (n/a when not given)', Units: 'year' },
 }, null, 2)}\n`;
 
@@ -178,7 +181,7 @@ export function bidsFiles(sessions, { prefix = '', frameworkVersion = sessions[0
     { name: 'dataset_description.json', data: datasetDescription(experiment.name, frameworkVersion) },
     { name: 'README', data: README(experiment.name) },
     { name: 'participants.tsv', data: participantsTsv(sessions) },
-    { name: 'participants.json', data: participantsJson() },
+    { name: 'participants.json', data: participantsJson(sessions) },
     { name: `task-${task}_events.json`, data: eventsJson({ name: experiment.name, frameworkVersion }) },
   ];
   const bySubject = Map.groupBy(sessions, ({ record }) => entity(record.subject_id));
