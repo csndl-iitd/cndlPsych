@@ -31,10 +31,10 @@ const VALIDATION_MS = 1000;
 
 const round = (value, digits) => Number(value.toFixed(digits));
 
-/** Load WebGazer and wrap it. `solutionPath` is where its face model files are served from. */
-export async function loadWebgazer({ solutionPath } = {}) {
+/** Load WebGazer and wrap it. `solutionPath` is where its face model files are served from (by default next to this script, in mediapipe/face_mesh). */
+export async function loadWebgazer({ solutionPath = new URL('mediapipe/face_mesh', import.meta.url).href } = {}) {
   const [{ default: webgazer }, manifest] = await Promise.all([import('webgazer'), import('webgazer/package.json')]);
-  if (solutionPath) webgazer.params.faceMeshSolutionPath = solutionPath;
+  webgazer.params.faceMeshSolutionPath = solutionPath;
   return {
     version: (manifest.default ?? manifest).version,
     async begin({ onSample, learnFromClicks }) {

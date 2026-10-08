@@ -129,7 +129,7 @@ my-experiment/
   expfw/                bundled framework + vendored jsPsych/WebGazer; do not edit
 ```
 
-`cli serve` hosts it locally; `cli deploy` pushes to Firebase Hosting; `cli dry-run` plays the timeline with synthetic input and prints the event stream and triggers; `cli migrate` upgrades `spec_version`.
+`cli serve` hosts it locally; `cli deploy` pushes to Firebase Hosting; `cli dry-run` plays the timeline with synthetic input and prints the event stream and triggers; `cli migrate` upgrades `spec_version`. Implemented in M10 as `expfw init|validate|dry-run|serve|deploy|migrate`; the bundle comes from `npm run build` (entry `bundle/entry.js`, outside the framework layers); see `docs/decisions.md`.
 
 ## 11. Open decisions (defaults assumed)
 

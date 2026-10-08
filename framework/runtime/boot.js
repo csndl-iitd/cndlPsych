@@ -16,12 +16,12 @@ function showDiagnostics(root, errors) {
 /**
  * @param {{
  *   root: HTMLElement, url?: string, schemas: object, store?: object, styles?: string[],
- *   validate?: Function, patchExperiment?: (doc: object) => void, onReady?: (services: object, store: object) => void,
+ *   validate?: Function, patchExperiment?: (doc: object) => void, onReady?: (services: object, store: object, plan: object) => void,
  *   connectFirebase?: Function, loadGazeEngine?: Function,
  * }} options
  *   `schemas` is the generated spec/schema/*.json by file name (the bundle provides it);
  *   `validate` (dev) checks every emitted event; `patchExperiment` edits experiment.yaml before compiling;
- *   `onReady` receives the services (bus, stage, ...) and the store before the session starts;
+ *   `onReady` receives the services (bus, stage, ...), the store and the compiled plan before the session starts;
  *   `connectFirebase` replaces the real Firebase connection and `loadGazeEngine` the WebGazer engine (tests).
  * @returns {Promise<{status: string, services?: object, store?: object, record?: object, diagnostics: object[]}>}
  */
@@ -36,7 +36,7 @@ export async function boot({ root, url = './', schemas, store, styles = [], vali
   const services = createServices({ root, plan: project.plan, generators: project.generators, validate, timeScale, styles });
   const local = project.plan.storage?.local ?? {};
   const chosen = store ?? (local.enabled === false ? createMemoryStore() : createLocalStore({ flushMs: local.flush_ms }));
-  onReady?.(services, chosen);
+  onReady?.(services, chosen, project.plan);
   const firebase = project.plan.storage?.firebase;
   const remote = firebase?.enabled ? createRemote(firebase, connectFirebase ? { connect: connectFirebase } : {}) : null;
   const result = await runSession({ services, project, store: chosen, remote, loadGazeEngine });

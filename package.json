@@ -7,7 +7,7 @@
   "scripts": {
     "build:schemas": "node spec/tools/build.js",
     "build:rules": "node spec/tools/gen_rules.js",
-    "check:schemas": "node spec/tools/build.js --check && node spec/tools/gen_rules.js --check",
+    "check:schemas": "node spec/tools/build.js --check && node spec/tools/gen_rules.js --check && node tools/build-docs.js --check",
     "lint": "eslint .",
     "validate": "node cli/validate.js",
     "export-firestore": "node cli/export-firestore.js",
@@ -17,7 +17,11 @@
     "test": "vitest run",
     "test:browser": "playwright test",
     "test:emulator": "vitest run -c vitest.emulator.config.js",
-    "ci": "npm run check:schemas && npm run lint && npm run check:layers && npm run typecheck && npm test"
+    "ci": "npm run check:schemas && npm run lint && npm run check:layers && npm run typecheck && npm test",
+    "build": "node tools/build-dist.js",
+    "expfw": "node cli/expfw.js",
+    "build:docs": "node tools/build-docs.js",
+    "timing": "node tools/timing/measure.js --write docs/timing.md"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -39,5 +43,8 @@
     "js-yaml": "^4.3.2",
     "jspsych": "^8.3.0",
     "webgazer": "^3.5.3"
+  },
+  "bin": {
+    "expfw": "cli/expfw.js"
   }
 }

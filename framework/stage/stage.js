@@ -14,10 +14,11 @@ function distanceToRect({ cx, cy }, rect) {
 }
 
 /**
- * @param {{root: HTMLElement, bus: object, spec?: object, calibration?: object, schedule?: Function}} options
- *   `root` fills the viewport; `spec` is experiment.yaml `stage`.
+ * @param {{root: HTMLElement, bus: object, spec?: object, calibration?: object, schedule?: Function, reserve?: (width: number, height: number) => number}} options
+ *   `root` fills the viewport; `spec` is experiment.yaml `stage`; `reserve` is a border the stage must
+ *   keep free on every side (overlays), used when larger than `spec.margin`.
  */
-export function createStage({ root, bus, spec = {}, calibration = {}, schedule = defaultSchedule }) {
+export function createStage({ root, bus, spec = {}, calibration = {}, schedule = defaultSchedule, reserve = () => 0 }) {
   const doc = root.ownerDocument;
   const win = doc.defaultView;
   const element = doc.createElement('div');
@@ -51,8 +52,8 @@ export function createStage({ root, bus, spec = {}, calibration = {}, schedule =
   }
 
   function marginPx(width, height) {
-    if (spec.margin === undefined) return 0;
-    return lengthToPx(spec.margin, { w: width, h: height }, calibration);
+    const own = spec.margin === undefined ? 0 : lengthToPx(spec.margin, { w: width, h: height }, calibration);
+    return Math.max(own, reserve(width, height));
   }
 
   /** Recompute the stage box; `force` emits stage.resize even if nothing changed (recording just started). */

@@ -10,7 +10,9 @@ import { runNodes } from '../authoring/modules/jspsych.js';
 import { buildResponseTask } from '../authoring/modules/response-task.js';
 import { askAction, buildSurvey, showConsent, showForm } from '../authoring/modules/survey.js';
 import { admitDevice, deviceRecord, profileConditions, readEnvironment, resolveProfile } from '../foundation/device.js';
+import { nextFrame } from '../foundation/clock.js';
 import { matchesPredicate } from '../foundation/matcher.js';
+import { estimateRefresh } from '../foundation/refresh.js';
 import { createRng } from '../foundation/rng.js';
 import { sessionArchive, SUPPORTED_FORMATS } from '../storage/export.js';
 import { downloadFile } from './download.js';
@@ -31,6 +33,15 @@ function showMessage(display, markdown) {
 }
 
 const isoNow = () => new Date().toISOString();
+
+const REFRESH_FRAMES = 40;
+
+/** Measure the display's frame time over ~0.7 s of animation frames (runs while the participant reads the consent screen). */
+async function measureRefresh() {
+  const stamps = [];
+  for (let i = 0; i < REFRESH_FRAMES; i += 1) stamps.push(await nextFrame());
+  return estimateRefresh(stamps.slice(1).map((t, i) => t - stamps[i]));
+}
 
 async function askConsent(screen, plan, consentText, gate) {
   for (;;) {
@@ -235,11 +246,13 @@ async function prepareEyeTracking({ services, screen, plan, profile, seed, finis
 }
 
 /** The blocks, then the end of the session (shared by new and resumed sessions). */
-async function runAndFinish({ services, project, store, profile, seed, answers, resume, finish, eye }) {
+async function runAndFinish({ services, project, store, profile, seed, answers, resume, finish, eye, refresh }) {
   const { plan } = project;
   const { bus, display, sinkSet } = services;
   const exportFormats = plan.storage?.local?.export_on_finish ?? [];
   services.setSessionContext(answers);
+  const measured = await refresh;
+  if (measured) services.setFrameMs(measured.frameMs);
   try {
     await runBlocks({ services, plan, profile, seed, answers, resume, beforeBlock: eye.beforeBlock });
   } catch (error) {
@@ -276,7 +289,7 @@ async function runAndFinish({ services, project, store, profile, seed, answers, 
  * Carry on an interrupted session: same participant, seed and device kind, new page clock.
  * The log continues at last_seq + 1 with a session.clock_anchor and a session.resume event.
  */
-async function resumeSession({ services, project, store: local, item, env, debug, screen, remote, loadEngine }) {
+async function resumeSession({ services, project, store: local, item, env, debug, screen, remote, loadEngine, refresh }) {
   const { plan } = project;
   const { bus, clock, display, sinkSet } = services;
   const saved = await local.read(item.key);
@@ -336,7 +349,7 @@ async function resumeSession({ services, project, store: local, item, env, debug
   const seed = record.experiment.seed;
   const prepared = await prepareEyeTracking({ services, screen, plan, profile, seed, finish, held, loadEngine });
   if (prepared.result) return prepared.result;
-  return runAndFinish({ services, project, store, profile, seed, answers, resume: verdict.point, finish, eye: prepared.eye });
+  return runAndFinish({ services, project, store, profile, seed, answers, resume: verdict.point, finish, eye: prepared.eye, refresh });
 }
 
 /**
@@ -354,6 +367,7 @@ export async function runSession({ services, project, store, remote = null, load
   const exportFormats = local.export_on_finish ?? [];
   const env = readEnvironment(globalThis);
   const debug = plan.debug?.enabled ? plan.debug : {};
+  const refresh = measureRefresh(); // started now, finished long before it is needed
   const doc = display.ownerDocument;
 
   // 0. earlier sessions: the local data screen (?manage=1), or the offer for interrupted ones;
@@ -378,7 +392,7 @@ export async function runSession({ services, project, store, remote = null, load
   } else {
     chosen = (await recoverSessions({ screen, store, policy: local.recovery ?? 'offer', formats: exportFormats, doc, check })).resume;
   }
-  if (chosen) return resumeSession({ services, project, store, item: chosen, env, debug, screen, remote, loadEngine: loadGazeEngine });
+  if (chosen) return resumeSession({ services, project, store, item: chosen, env, debug, screen, remote, loadEngine: loadGazeEngine, refresh });
 
   // 1. consent (nothing is recorded: the bus is not recording yet). In controlled mode the
   //    experimenter signs in first, because the subject ID field is prefilled from Firebase;
@@ -452,13 +466,14 @@ Nothing has been stored.`);
     subjectId, sessionId, startedAt: isoNow(),
     experiment: { name: plan.name, spec_version: plan.spec_version, spec_hash: project.specHash, framework_version: FRAMEWORK_VERSION, seed, ...(project.customModules.length ? { custom_modules: project.customModules } : {}) },
     consent: gate.record({ textHash, acceptedAt }),
-    device: deviceRecord(env, { profile, reason: resolved.reason }, plan.device?.calibration ? { method: plan.device.calibration.mode ?? 'none', viewing_distance_mm: plan.device.calibration.viewing_distance_mm } : undefined),
+    device: deviceRecord(env, { profile, reason: resolved.reason }, plan.device?.calibration ? { method: plan.device.calibration.mode ?? 'none', viewing_distance_mm: plan.device.calibration.viewing_distance_mm } : undefined, (await refresh)?.hz),
     clock: clock.anchor(),
     stage: { rect: services.stage.rect, aspect: services.stage.rect.w / services.stage.rect.h, letterboxed: plan.stage?.aspect !== undefined && plan.stage.aspect !== 'fill' },
     subject,
     session_fields: sessionFields,
     url_params: parseUrlParams(search, plan.capture_url_params),
     sinks: sinkRecord(sinkSet, remote),
+    overlays: services.overlay.record(),
   });
   const sessionStore = remote
     ? mirrored(store, remote.store({ claim, onProgress: (progress) => store.setRemote?.({ claim_n: claim.n, ...progress }) }))
@@ -489,5 +504,5 @@ Nothing has been stored.`);
   const answers = { subject: { subject_id: subjectId, ...subject }, session: { session_id: sessionId, ...sessionFields }, device: { profile } };
   const prepared = await prepareEyeTracking({ services, screen, plan, profile, seed, finish, held, loadEngine: loadGazeEngine });
   if (prepared.result) return prepared.result;
-  return runAndFinish({ services, project, store: sessionStore, profile, seed, answers, resume: null, finish, eye: prepared.eye });
+  return runAndFinish({ services, project, store: sessionStore, profile, seed, answers, resume: null, finish, eye: prepared.eye, refresh });
 }

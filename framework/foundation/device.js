@@ -118,7 +118,7 @@ export function admitDevice(bus, deviceSpec = {}, input) {
 }
 
 /** The `device` block of the session record. */
-export function deviceRecord(env, { profile, reason }, calibration) {
+export function deviceRecord(env, { profile, reason }, calibration, refreshHz) {
   return {
     profile,
     profile_reason: reason,
@@ -131,6 +131,7 @@ export function deviceRecord(env, { profile, reason }, calibration) {
     hover: env.hover,
     touch_points: env.touch_points,
     keyboard: env.keyboard,
+    ...(refreshHz ? { refresh_hz_est: refreshHz } : {}),
     ...(calibration ? { calibration } : {}),
   };
 }

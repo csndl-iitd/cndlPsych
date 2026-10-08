@@ -1,5 +1,6 @@
 // Bundle the browser test apps (framework + jsPsych + a validator) into dist/e2e/.
 import { build } from 'esbuild';
+import { localFontsOnly } from './esbuild-plugins.js';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -12,7 +13,7 @@ await build({
   format: 'esm',
   splitting: true, // WebGazer is a dynamic import: it must stay in its own file, loaded only when eye tracking runs
   platform: 'browser',
-  loader: { '.css': 'text' },
+  plugins: [localFontsOnly],
   sourcemap: true,
   logLevel: 'warning',
 });

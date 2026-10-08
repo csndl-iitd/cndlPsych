@@ -33,6 +33,8 @@ const INVALID = [
   ['duplicate stimulus name', (s) => { s.stimuli.stimuli.push({ ...s.stimuli.stimuli[5] }); }, { code: 'duplicate-stimulus', file: STIMULI, path: 'stimuli[9]' }],
   ['each entry without a name placeholder', (s) => { s.stimuli.stimuli[3].name = 'oddball_x'; }, { code: 'each-name-template', file: STIMULI, path: 'stimuli[3].name' }],
   ['placeholder name without each', (s) => { s.stimuli.stimuli[1].name = 'fix_{value}'; }, { code: 'each-name-template', file: STIMULI, path: 'stimuli[1].name' }],
+  ['apriltag family without images', (s) => { s.experiment.overlay.apriltags.family = 'tag25h9'; }, { code: 'overlay-tag-family', file: EXPERIMENT, path: 'overlay.apriltags.family' }],
+  ['apriltag id without an image', (s) => { s.experiment.overlay.apriltags.ids = [0, 1, 2, 7]; }, { code: 'overlay-tag-id', file: EXPERIMENT, path: 'overlay.apriltags.ids[3]' }],
   ['duplicate sink id', (s) => { s.experiment.triggers.sinks[1].id = 'eeg_serial'; }, { code: 'duplicate-sink-id', file: EXPERIMENT, path: 'triggers.sinks[1]' }],
   ['duplicate form id', (s) => { s.forms.forms.push({ ...s.forms.forms[0] }); }, { code: 'duplicate-form-id', file: FORMS, path: 'forms[1]' }],
   ['duplicate question name', (s) => { const q = s.forms.forms[0].questions; q.push({ ...q[0] }); }, { code: 'duplicate-question', file: FORMS, path: 'forms[0].questions[3]' }],

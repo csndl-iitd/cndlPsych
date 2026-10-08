@@ -8,6 +8,7 @@
 // }
 import { checkIntents } from './checks/intents.js';
 import { checkNames } from './checks/names.js';
+import { checkOverlay } from './checks/overlay.js';
 import { checkParams } from './checks/params.js';
 import { checkReferences } from './checks/references.js';
 import { checkTriggers } from './checks/triggers.js';
@@ -73,6 +74,7 @@ export function compile(project) {
 
   const ctx = createContext({ docs, schemas: project.schemas, custom: project.custom, assets: project.assets, report });
   checkNames(ctx);
+  checkOverlay(ctx);
   checkReferences(ctx);
   checkParams(ctx);
   const { blocks, scopes } = resolveBlocks(ctx);

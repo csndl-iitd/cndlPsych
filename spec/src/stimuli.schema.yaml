@@ -43,7 +43,10 @@ definitions:
         type: string
         pattern: "^[\\p{L}_{][\\p{L}\\p{N}_.{}-]*$"
         maxLength: 64
-      type: {$ref: "common.schema.json#/definitions/id"}
+      type:
+        description: "Built in: html, text, image, audio, shape, fill, blank. Any other value names a custom generator in custom/stimuli/<type>.js."
+        type: string
+        allOf: [{$ref: "common.schema.json#/definitions/id"}]
       each:
         type: array
         minItems: 1

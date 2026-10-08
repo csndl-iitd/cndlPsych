@@ -1,0 +1,5 @@
+# Extra questions. Subject ID, sex, age and session ID are built in; add only what you need.
+# Documented in docs/yaml/forms.md.
+subject:
+  questions:
+    - { name: handedness, prompt: "Handedness:", type: multi-choice, options: [right, left, ambidextrous] }

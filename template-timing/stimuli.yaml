@@ -1,0 +1,14 @@
+styles:
+  panel: { max-width: 600px, margin: 0 auto, padding: 30px, text-align: center, color: "#f8fafc", line-height: 1.6 }
+
+stimuli:
+  - name: instructions
+    type: html
+    style: panel
+    html: |
+      <h2>Timing measurement</h2>
+      <p>The screen will flash black and white 300 times. Point the photodiode at the bottom-left corner patch and record it together with the trigger line. {{go.hint}} to start.</p>
+    duration: null
+
+  - { name: flash_black, type: fill, color: "#000000", duration: 100, post: 100, trigger: 11 }
+  - { name: flash_white, type: fill, color: "#ffffff", duration: 100, post: 100, trigger: 10 }

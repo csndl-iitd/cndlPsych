@@ -1,0 +1,37 @@
+# The experiment: who can take part, what is stored, and how responses work.
+# Every setting is documented in docs/yaml/experiment.md.
+spec_version: 1
+name: My first experiment
+seed: auto
+
+stage:
+  aspect: fill
+  background: "#000000"
+  fullscreen: preferred
+
+device:
+  select: auto
+  allowed: [desktop, phone, tablet]
+
+consent:
+  file: consent.md
+  statements:
+    - { id: read, text: "I have read the information above." }
+    - { id: voluntary, text: "I understand that taking part is voluntary and I can stop at any time." }
+  min_age: 18
+
+# "go" is the one response in this experiment: SPACE on a computer, a tap on a phone or tablet.
+input:
+  intents:
+    go:
+      hint: { desktop: "Press SPACE", phone: "Tap the screen", tablet: "Tap the screen" }
+      desktop: { key: " " }
+      phone: { tap: true }
+      tablet: { tap: true }
+
+storage:
+  local: { enabled: true, recovery: offer, export_on_finish: [jsonl, csv, bids] }
+
+finish:
+  message: "Thank you - you can close this window."
+  show_session_code: true

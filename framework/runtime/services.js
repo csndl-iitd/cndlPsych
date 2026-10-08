@@ -12,6 +12,7 @@ import { createTriggers } from '../pipeline/triggers.js';
 import { createSinks } from './sinks.js';
 import { createCursor } from '../stage/cursor.js';
 import { createLayout } from '../stage/layout.js';
+import { createOverlay, overlayReserve } from '../stage/overlay.js';
 import { createStage } from '../stage/stage.js';
 
 /** Frame time assumed for `{frames}` durations until the display is measured (M10). */
@@ -32,7 +33,9 @@ export function createServices({ root, plan, generators = {}, validate, timeScal
   const doc = root.ownerDocument;
   const clock = createClock();
   const bus = createBus({ clock, validate, recording: false });
-  const stage = createStage({ root, bus, spec: plan.stage, calibration: plan.device?.calibration });
+  const calibration = plan.device?.calibration;
+  const stage = createStage({ root, bus, spec: plan.stage, calibration, reserve: overlayReserve(plan.overlay, calibration) });
+  const overlay = createOverlay({ root, bus, spec: plan.overlay, calibration, viewport: () => ({ w: root.clientWidth, h: root.clientHeight }), schedule: defaultSchedule });
   const input = createInput({ bus, stage });
   const cursor = createCursor({ element: stage.root });
   input.onActivity((move) => cursor.moved(move));
@@ -47,7 +50,7 @@ export function createServices({ root, plan, generators = {}, validate, timeScal
   stage.element.append(display);
   const jsPsych = createJsPsych({ display, extensions: [bridge.Extension] });
 
-  const state = { profile: null, scope: null, session: {}, onRequiredLost: () => {} };
+  const state = { profile: null, scope: null, session: {}, onRequiredLost: () => {}, frameMs: DEFAULT_FRAME_MS };
   const sinkSet = createSinks({ plan, bus, clock, apis, onRequiredLost: (id) => state.onRequiredLost(id) });
   const triggers = createTriggers({ bus, clock, sinks: sinkSet.sinks, context: () => state.session });
   const scale = (ms) => Math.max(0, Math.round(ms * timeScale));
@@ -87,7 +90,7 @@ export function createServices({ root, plan, generators = {}, validate, timeScal
     state.profile = profile;
     return {
       bus, clock, rng, profile, jsPsych, bridge, mapping, plan,
-      frameMs: DEFAULT_FRAME_MS,
+      frameMs: state.frameMs,
       scale,
       schedule: defaultSchedule,
       nextFrame: () => nextFrame(),
@@ -109,10 +112,12 @@ export function createServices({ root, plan, generators = {}, validate, timeScal
   }
 
   return {
-    clock, bus, stage, input, cursor, bridge, mapping, jsPsych, display, moduleContext, defaultParams, triggers, sinkSet, scale,
+    clock, bus, stage, input, cursor, bridge, mapping, jsPsych, display, moduleContext, defaultParams, triggers, sinkSet, scale, overlay,
     /** Session answers that trigger values and fields can read ({subject, session, device}). */
     setSessionContext(context) { state.session = context; },
     /** Called when a required sink is lost while recording. */
     onRequiredSinkLost(handler) { state.onRequiredLost = handler; },
+    /** The measured frame time, used for `{frames}` durations from the next block on. */
+    setFrameMs(ms) { state.frameMs = ms; },
   };
 }

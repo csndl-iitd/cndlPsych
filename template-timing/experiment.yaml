@@ -1,0 +1,41 @@
+# Timing measurement project: 300 full-screen flashes, each also flipping the photodiode
+# patch (bottom-left corner) and sending a trigger byte. Procedure: docs/timing.md.
+spec_version: 1
+name: Timing measurement
+seed: 1
+
+stage:
+  aspect: fill
+  background: "#000000"
+  fullscreen: preferred
+
+device:
+  select: auto
+  allowed: [desktop, phone, tablet]
+
+consent:
+  file: consent.md
+  statements:
+    - { id: read, text: "I have read the information above." }
+
+input:
+  intents:
+    go:
+      hint: { desktop: "Press SPACE", phone: "Tap the screen", tablet: "Tap the screen" }
+      desktop: { key: " " }
+      phone: { tap: true }
+      tablet: { tap: true }
+
+triggers:
+  sinks:
+    # Serial (Web Serial, Chrome / Edge) straight into the EEG trigger port; or change to a websocket sink and run the relay.
+    - { id: eeg_serial, type: serial, format: raw, template: "{value:02x}", baud: 115200, reset_after_ms: 5, required: false }
+
+overlay:
+  photodiode: { enabled: true, corner: bl, size: 40px, mode: toggle }
+
+storage:
+  local: { enabled: true, recovery: off, export_on_finish: [jsonl] }
+
+finish:
+  message: "Done. Save the recording."

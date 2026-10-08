@@ -1,0 +1,18 @@
+# The order of things. Documented in docs/yaml/timeline.md.
+blocks:
+  - id: intro
+    module: instructions
+    config: { pages: [instructions] }
+
+  - id: reaction
+    module: response_task
+    config:
+      order: sequential
+      trials:
+        - name: react
+          start: fixation
+          sequence: [circle]
+          response: go
+          timeout: 2000
+          post: 800
+          repetitions: 10

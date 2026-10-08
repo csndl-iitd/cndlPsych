@@ -1,0 +1,15 @@
+blocks:
+  - id: intro
+    module: instructions
+    config: { pages: [instructions] }
+
+  - id: flashes
+    module: response_task
+    config:
+      order: sequential
+      trials:
+        - name: flash_pair
+          sequence: [flash_black, flash_white]
+          response: none
+          post: 0
+          repetitions: 150

@@ -65,7 +65,13 @@
           "maxLength": 64
         },
         "type": {
-          "$ref": "common.schema.json#/definitions/id"
+          "description": "Built in: html, text, image, audio, shape, fill, blank. Any other value names a custom generator in custom/stimuli/<type>.js.",
+          "type": "string",
+          "allOf": [
+            {
+              "$ref": "common.schema.json#/definitions/id"
+            }
+          ]
         },
         "each": {
           "type": "array",

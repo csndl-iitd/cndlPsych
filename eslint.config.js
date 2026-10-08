@@ -55,7 +55,7 @@ export default [
   },
   {
     // page.evaluate callbacks run in the browser.
-    files: ['**/*.e2e.js', 'tools/e2e/**/*.js'],
+    files: ['**/*.e2e.js', 'tools/e2e/**/*.js', 'cli/dry-run.js', 'bundle/**/*.js', 'tools/timing/measure.js'],
     languageOptions: { globals: { ...globals.browser } },
   },
   {
