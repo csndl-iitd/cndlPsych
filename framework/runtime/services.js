@@ -1,6 +1,6 @@
 // Wires the framework together for one page: clock, bus, stage, input, mapping, bridge,
 // jsPsych, and the ModuleContext that modules receive. Nothing here decides what happens
-// next; that is lifecycle.js.
+// next; that is session/run-session.js.
 import { schedule as defaultSchedule, createClock } from '../foundation/clock.js';
 import { createBus } from '../foundation/events.js';
 import { defaultParams, renderStimulus } from '../authoring/modules/render.js';

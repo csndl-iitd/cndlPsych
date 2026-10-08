@@ -305,3 +305,15 @@ Replaces the code-split, minified, hashed bundle of M10 (files like `chunk-3W74R
 - **Costs:** the participant's browser fetches about 150 module files instead of one bundle (negligible on localhost and over HTTP/2, noticeable on slow HTTP/1.1 hosting); there is no tree shaking, so `vendor/` is larger (about 5.7 MB unminified in total, with the Firebase SDK the biggest part and fetched only if used); import maps need a 2023-or-newer browser (Chrome 89, Firefox 108, Safari 16.4).
 - **Still bundled, and only for tests:** the Playwright test pages (`tools/build-e2e.js`) use esbuild bundles; they are never shipped.
 - Verified in a real browser: a fresh project runs end to end from the new layout on desktop, phone and tablet emulation (dry-run), with no failed request and nothing fetched from outside its folder; the Firebase SDK file loads and exports what the framework imports; the add-on loads from its folder and is reported missing when absent.
+
+## 2026-10-08 - lifecycle.js split into framework/runtime/session/
+
+`framework/runtime/lifecycle.js` (510 lines) did everything between the first screen and the last: consent, forms, device check, trigger sinks, Firebase sign-in, recovery and resume, eye tracking, refresh measurement, recording, finishing. It had no single name. It is replaced by `framework/runtime/session/`, with no change in behaviour (the browser suite passes unchanged apart from tests that import moved code):
+
+- `run-session.js` the entry (`runSession`): earlier sessions, resume, or a new session; builds the `run` object (services, project, store, remote, screen, env, debug, refresh) that every step shares
+- `earlier-sessions.js` the ?manage=1 screen and the offer to resume
+- `new-session.js` consent, forms, device check, subject number, start of recording, then the shared part; `resume-session.js` the same for an interrupted session
+- `conduct-session.js` what both share: run the blocks, then end the session
+- `run-blocks.js`, `finish.js` (closing the record, the export, the final screen, early stops), `recording.js`, `session-record.js`, `eye-tracking-step.js`, `trigger-devices.js`, `remote-sign-in.js`, `consent.js`, `device-check.js`, `refresh.js`, `messages.js`, `version.js`
+- Pure helpers went where they belong so they can be unit tested without jsPsych: `blockApplies` into `authoring/modules/plan.js`, `assignedSubject` / `remoteFailedMessage` into `runtime/remote.js`, `isoNow` into `foundation/clock.js`.
+- The largest file in `framework/runtime/` is now `session/new-session.js` at 179 lines; no file in `session/` has more than one reason to change. 27 new unit tests cover finishing, recording, the session record, block conditions and the Firebase prompts.

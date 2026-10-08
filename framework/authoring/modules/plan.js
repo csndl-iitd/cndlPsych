@@ -85,3 +85,9 @@ export function expandInstances(config, rng) {
   }
   return ordered.map((instance, i) => ({ number: i + 1, ...instance }));
 }
+
+/** Does this block run for this device profile and these answers (subject, session, device)? */
+export function blockApplies(planBlock, profile, answers) {
+  if (!planBlock.profiles.includes(profile)) return false;
+  return planBlock.when === undefined || matchesPredicate(planBlock.when, answers);
+}

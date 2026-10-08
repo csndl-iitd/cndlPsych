@@ -1,7 +1,7 @@
 // boot(): the single entry the user's index.html calls. Loads and compiles the project,
 // shows compile errors instead of starting when there are any, and runs the session.
 import { markdownToHtml } from '../authoring/modules/markdown.js';
-import { runSession } from './lifecycle.js';
+import { runSession } from './session/run-session.js';
 import { createLocalStore } from '../storage/local.js';
 import { createMemoryStore } from './memory-store.js';
 import { loadProject } from './project.js';

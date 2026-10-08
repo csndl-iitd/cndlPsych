@@ -29,6 +29,9 @@ export function createClock(source = {}) {
   };
 }
 
+/** The current wall-clock time as an ISO 8601 string. */
+export const isoNow = () => new Date().toISOString();
+
 /** Run `callback` after `ms`; returns a function that cancels it. Injectable for tests. */
 export function schedule(ms, callback) {
   const handle = setTimeout(callback, ms);

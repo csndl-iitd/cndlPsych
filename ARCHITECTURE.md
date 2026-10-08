@@ -30,7 +30,7 @@ framework/
   storage/      local.js firebase.js export.js
   stage/        stage.js overlay.js cursor.js
   authoring/    spec.js compiler.js modules/{response-task,survey,instructions}.js
-  runtime/      boot.js lifecycle.js
+  runtime/      boot.js services.js session/ (run-session.js and the steps of a session)
 cli/            relay, export-firestore, validate, dry-run, serve, deploy, migrate
 vscode-ext/     later
 spec/           schemas, types.d.ts, examples, firebase/

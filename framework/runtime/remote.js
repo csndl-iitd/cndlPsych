@@ -3,6 +3,18 @@
 // touches the SDK lives in storage/firebase.js; this wires it to the session.
 import { allocateSubject, connectFirebase, createFirebaseStore, suggestSubject } from '../storage/firebase.js';
 
+/** The message when the data server cannot be reached. */
+export const remoteFailedMessage = (reason) => `Could not connect to the data server: ${reason}
+
+Nothing has been stored. Please tell the experimenter.`;
+
+/** The subject ID field when Firebase assigns the number: hidden (public) or prefilled (controlled). */
+export async function assignedSubject(remote) {
+  if (!remote) return {};
+  if (remote.access === 'public') return { hidden: true };
+  return { value: (await remote.suggest()).label, locked: !remote.allowOverride };
+}
+
 const DIGITS = /^(?:sub-)?(\d+)$/;
 
 /** The claim number in a subject ID typed or prefilled in controlled mode ("007", "sub-007"), else null. */
