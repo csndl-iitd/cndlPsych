@@ -997,6 +997,11 @@
                 "type": "number",
                 "description": "when the DOM was updated, before paint"
               },
+              "planned_frames": {
+                "type": "integer",
+                "minimum": 1,
+                "description": "the duration in display frames, when the phase is ended by its duration"
+              },
               "frame": {
                 "type": "integer"
               },
@@ -1041,6 +1046,11 @@
               },
               "actual_ms": {
                 "type": "number"
+              },
+              "frames": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "frames the phase lasted; more than planned_frames means a frame was late"
               },
               "reason": {
                 "enum": [

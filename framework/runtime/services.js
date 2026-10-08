@@ -1,11 +1,12 @@
 // Wires the framework together for one page: clock, bus, stage, input, mapping, bridge,
 // jsPsych, and the ModuleContext that modules receive. Nothing here decides what happens
 // next; that is lifecycle.js.
-import { schedule as defaultSchedule, createClock, nextFrame } from '../foundation/clock.js';
+import { schedule as defaultSchedule, createClock } from '../foundation/clock.js';
 import { createBus } from '../foundation/events.js';
 import { defaultParams, renderStimulus } from '../authoring/modules/render.js';
 import { createJsPsych } from '../authoring/modules/jspsych.js';
 import { createBridge } from '../pipeline/bridge.js';
+import { createFrames } from '../pipeline/frames.js';
 import { createInput } from '../pipeline/input.js';
 import { createMapping } from '../pipeline/mapping.js';
 import { createTriggers } from '../pipeline/triggers.js';
@@ -53,6 +54,7 @@ export function createServices({ root, plan, generators = {}, validate, timeScal
   const state = { profile: null, scope: null, session: {}, onRequiredLost: () => {}, frameMs: DEFAULT_FRAME_MS };
   const sinkSet = createSinks({ plan, bus, clock, apis, onRequiredLost: (id) => state.onRequiredLost(id) });
   const triggers = createTriggers({ bus, clock, sinks: sinkSet.sinks, context: () => state.session });
+  const frames = createFrames({ frameMs: DEFAULT_FRAME_MS });
   const scale = (ms) => Math.max(0, Math.round(ms * timeScale));
 
   // The hint of an intent: from the current scope, else from the first block that defines it
@@ -93,7 +95,7 @@ export function createServices({ root, plan, generators = {}, validate, timeScal
       frameMs: state.frameMs,
       scale,
       schedule: defaultSchedule,
-      nextFrame: () => nextFrame(),
+      frames,
       applyScope(scope) {
         state.scope = scope;
         mapping.setScope(scope, profile, { toPx: (length) => stage.lengthToPx(length) });
@@ -112,12 +114,15 @@ export function createServices({ root, plan, generators = {}, validate, timeScal
   }
 
   return {
-    clock, bus, stage, input, cursor, bridge, mapping, jsPsych, display, moduleContext, defaultParams, triggers, sinkSet, scale, overlay,
+    clock, bus, stage, input, cursor, bridge, mapping, jsPsych, display, moduleContext, defaultParams, triggers, sinkSet, scale, overlay, frames,
     /** Session answers that trigger values and fields can read ({subject, session, device}). */
     setSessionContext(context) { state.session = context; },
     /** Called when a required sink is lost while recording. */
     onRequiredSinkLost(handler) { state.onRequiredLost = handler; },
     /** The measured frame time, used for `{frames}` durations from the next block on. */
-    setFrameMs(ms) { state.frameMs = ms; },
+    setFrameMs(ms) {
+      state.frameMs = ms;
+      frames.setFrameMs(ms);
+    },
   };
 }

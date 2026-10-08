@@ -5,22 +5,38 @@ those stamps mean, how to measure the delays around them, and what has been meas
 **No claim is made about display or trigger latency on any device until the hardware procedure
 below has been run on that device.**
 
+## How phases are timed
+
+Durations are counted in display frames (`pipeline/frames.js`). A phase of `duration: 100` on a
+60 Hz display is 6 frames; `{frames: 6}` says the same thing directly. The refresh rate is measured
+at the start of every session (`device.refresh_hz_est` in the session record), so the same YAML
+gives the right frame count on 60, 120 or 144 Hz displays.
+
+A phase ends inside the animation-frame callback of the frame that completes its count, and the
+next phase is drawn in the same callback, so it is painted in that same frame: no gap, and no extra
+rounding where one phase hands over to the next. Both events carry that frame's timestamp. Each
+phase counts its frames from its own onset frame, so a frame that arrives late delays what follows
+by that much and the phases keep their lengths. A response ends a phase when the response arrives,
+which is between frames, so the next phase is painted in the following frame.
+
+Not covered: nothing can make a frame arrive on time. If the main thread is blocked, a frame is late;
+the phase then lasts one frame more than planned, which shows in the log (`frames` in `phase.offset`
+differs from `planned_frames` in `phase.onset`). Background tabs stop animation frames altogether.
+Phases without a duration (waiting for a response) and the instructions pages use ordinary timers.
+
 ## What the stamps mean
 
 | Stamp | Meaning |
 |---|---|
-| `phase.onset` `t` | the `requestAnimationFrame` timestamp of the first frame after the stimulus was put in the page: the start of the frame in which it can first be painted. The light leaves the screen later (rest of the frame, compositor, scanout, panel). |
-| `phase.onset` `data.t_dom` | when the page was changed, just before. |
-| `phase.offset` `actual_ms` | clock time at the end of the phase minus the onset stamp. |
+| `phase.onset` `t` | the `requestAnimationFrame` timestamp of the frame in which the stimulus is first painted: the start of that frame. The light leaves the screen later (rest of the frame, compositor, scanout, panel). |
+| `phase.onset` `data.t_dom` | when the page was changed, a little after the frame start. |
+| `phase.offset` `t`, `actual_ms`, `frames` | the frame timestamp of the frame that ended the phase; `actual_ms` is that minus the onset stamp; `frames` is how many frames that is. |
 | `input.*` `t` | the browser's `event.timeStamp` of the input (when the browser received it). |
 | `trigger.sent` `t_event` / `t_sent` | the stamp of the event that caused the trigger, and the clock when the write to the sink was issued. The signal leaves the computer later (serial driver, USB, relay). |
 
-Stimulus durations in milliseconds are timed by jsPsych with a timer that starts when the stimulus
-is loaded, and each phase begins on a frame boundary, so planned and actual durations differ by whole
-frames, and the rhythm of a sequence can stretch (see the results; the extra frames are consistent
-with a frame of rounding at each step, which has not been confirmed in isolation). The displayed refresh rate is measured at the start of a session
-(`device.refresh_hz_est` in the session record) and is used to turn `{frames: n}` durations into
-milliseconds; the phases are **not** yet locked to frames.
+Because the frame timestamp is the start of the frame and is taken before the callback runs, an event
+can carry a `t` a few milliseconds earlier than events emitted before it in the same callback. Order
+by `seq`, not by `t`.
 
 ## Hardware procedure (the one that measures display and trigger latency)
 
@@ -52,9 +68,13 @@ has not yet been run on a real recording.
 
 `measure.js` runs the same timing project through the real framework in headless Chromium with
 recording fake devices and reports what the framework can see of its own scheduling. It
-measures software overhead and scheduling, **not** display latency (there is no display and no
-photodiode) and not the real serial path. These numbers describe this test setup (headless Chromium on one Windows machine) and
-should not be assumed to hold on a lab machine.
+measures software scheduling, **not** display latency (there is no display and no photodiode) and not
+the real serial path. These numbers describe this test setup (headless Chromium on one Windows
+machine) and should not be assumed to hold on a lab machine.
+
+Before frame-locking (timer-based durations, same machine, same project) the rows below read: stimulus
+duration minus planned, median +11 ms (p95 +24, max +31); onset-to-onset interval minus 200 ms, median
++17 ms (p95 +50, max +67). Frame-locking removed that stretch; the table is the current state.
 
 <!-- results:start -->
 - Browser: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/153.0.8010.12 Safari/537.36
@@ -63,23 +83,24 @@ should not be assumed to hold on a lab machine.
 
 | Measure | n | min | median | p95 | p99 | max |
 |---|---|---|---|---|---|---|
-| onset stamp - DOM update (rAF prediction) | 300 | -16.00 | -3.43 | 8.69 | 10.42 | 13.75 |
-| stimulus duration - planned (100 ms) | 300 | -11.45 | 11.19 | 24.02 | 27.41 | 30.91 |
-| onset-to-onset interval - 200 ms | 299 | -0.01 | 16.66 | 49.99 | 49.99 | 66.66 |
-| trigger written - onset stamp | 300 | 1.33 | 7.72 | 16.24 | 17.60 | 18.06 |
-| idle blank page: requestAnimationFrame interval (nominal 16.67) | 601 | 16.60 | 16.70 | 16.70 | 16.80 | 16.80 |
+| onset stamp - DOM update (frame start vs. page write) | 300 | -17.10 | -8.00 | -3.50 | -3.00 | -2.70 |
+| stimulus duration - planned (100 ms) | 300 | -0.10 | 0.00 | 0.10 | 0.10 | 0.10 |
+| onset-to-onset interval - 200 ms | 299 | -0.10 | 0.00 | 0.10 | 0.10 | 0.10 |
+| trigger written - onset stamp | 300 | 2.90 | 8.10 | 11.71 | 13.73 | 20.87 |
+| idle blank page: requestAnimationFrame interval (nominal 16.67) | 598 | 16.50 | 16.70 | 16.70 | 16.80 | 33.30 |
 
 All values are milliseconds. The first column of numbers is how many events were measured.
+
+Flashes that lasted a different number of frames than planned (a late frame): 0 of 300.
 <!-- results:end -->
 
 How to read the rows:
 
-- *onset stamp − DOM update*: the onset stamp is the start of a frame, which can be earlier than
-  the moment the page was changed, so this is not a latency; it shows the size of the frame
-  quantisation in the stamp.
+- *onset stamp − DOM update*: the onset stamp is the start of a frame; the page is written a few
+  milliseconds later inside that frame's callback, so this is negative. It is not a latency; it shows
+  how far into the frame the page was written.
 - *stimulus duration − planned*: how long a 100 ms stimulus stayed up, minus 100.
 - *onset-to-onset interval − 200 ms*: the rhythm of the sequence against the planned 200 ms.
-  Differences come in whole frames.
 - *trigger written − onset stamp*: from the onset stamp to the moment the write to the sink was
   issued (a recording fake here, so no device time is included).
 - *idle blank page*: the frame interval of an empty page in the same browser, to show the cadence
@@ -87,9 +108,11 @@ How to read the rows:
 
 ## What this means for experiments
 
-- Use `{frames: n}` for durations that must be a whole number of frames, and the photodiode
-  procedure above to learn the fixed delay between trigger and light on your device.
-- Expect planned and actual stimulus durations, and the rhythm of fast sequences, to differ by
-  whole frames. Analyse with the recorded `actual_ms` and onset stamps, not the planned values.
-- Frame-locked phase scheduling (ending a phase on the frame count rather than on a timer) is not
-  implemented. It is the change that would remove the stretch seen in the rhythm row.
+- Planned and actual stimulus durations, and the rhythm of sequences, agree to the timestamp
+  precision as long as no frame is late. Late frames are counted in the log (`frames` against
+  `planned_frames`); count them in your own data and decide what to do with those trials.
+- Use the photodiode procedure above to learn the fixed delay between trigger and light on your
+  device. The software cannot see it.
+- The next phase is built and drawn inside the same frame callback that ends the previous one, so a
+  stimulus that takes long to build (a heavy custom generator) or to decode (a large image) can make
+  that frame late. Nothing is prepared in advance yet; keep stimuli light and preload large images.

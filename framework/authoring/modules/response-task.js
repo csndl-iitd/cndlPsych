@@ -65,9 +65,10 @@ function instanceNode(ctx, planBlock, instance) {
     });
   }
 
-  function startTimeout(phase) {
+  /** The response window is counted in frames from the onset frame of the phase that opens it. */
+  function startTimeout(phase, onsetT) {
     if (timeoutMs === null || state.cancelTimer || state.responses.length) return;
-    state.cancelTimer = ctx.schedule(timeoutMs, () => {
+    state.cancelTimer = ctx.frames.after(onsetT, ctx.frames.framesFor(timeoutMs), () => {
       if (state.ended || state.responses.length) return;
       state.timedOut = true;
       state.ended = true;
@@ -114,7 +115,7 @@ function instanceNode(ctx, planBlock, instance) {
       },
       onOnset(t) {
         phase.onsetT = t;
-        if (accepts) startTimeout(phase);
+        if (accepts) startTimeout(phase, t);
       },
       onEnd() {
         missIfNeeded(phase);
@@ -124,10 +125,10 @@ function instanceNode(ctx, planBlock, instance) {
     });
   }
 
-  /** A blank screen of the given length (the gap after a stimulus or a trial). */
+  /** A blank screen of the given length (the gap after a stimulus or a trial); none for a gap of 0, which would still cost a frame. */
   function gapPhase(after, spec, skip) {
     const durationMs = ctx.scale(drawDuration(spec, rng.fork(`gap:${after}`), ctx.frameMs));
-    return phaseTrial(ctx, { name: `${after}_post`, html: () => '', durationMs, skip });
+    return durationMs > 0 ? phaseTrial(ctx, { name: `${after}_post`, html: () => '', durationMs, skip }) : null;
   }
 
   const skipWhenEnded = () => state.ended;
@@ -140,7 +141,8 @@ function instanceNode(ctx, planBlock, instance) {
     const accepts = accepted.length > 0 && (def.response_window === 'any' || i === items.length - 1);
     timeline.push(stimulusPhase({ name, stimulusName: item.stimulus, duration: item.duration, accepts, index: i + 1, skip: skipWhenEnded }));
     const post = item.post ?? definition.post;
-    if (post !== undefined) timeline.push(gapPhase(name, post, skipWhenEnded));
+    const gap = post === undefined ? null : gapPhase(name, post, skipWhenEnded);
+    if (gap) timeline.push(gap);
   });
 
   // Feedback: every branch is built up front and shown only for its outcome.
@@ -149,7 +151,8 @@ function instanceNode(ctx, planBlock, instance) {
     timeline.push(stimulusPhase({ name: 'feedback', stimulusName: name, skip: () => when !== 'always' && outcome() !== when }));
   }
   if (def.end) timeline.push(stimulusPhase({ name: 'end', stimulusName: def.end }));
-  if (def.post !== undefined) timeline.push(gapPhase('trial', def.post));
+  const trialGap = def.post === undefined ? null : gapPhase('trial', def.post);
+  if (trialGap) timeline.push(trialGap);
 
   return {
     timeline,

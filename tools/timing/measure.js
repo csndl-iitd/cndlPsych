@@ -25,7 +25,7 @@ export function measures(events) {
   const triggers = events.filter((e) => e.type === 'trigger.sent');
   const onsetBySeq = new Map(onsets.map((e) => [e.seq, e]));
   return {
-    'onset stamp - DOM update (rAF prediction)': onsets.map((e) => e.t - e.data.t_dom),
+    'onset stamp - DOM update (frame start vs. page write)': onsets.map((e) => e.t - e.data.t_dom),
     'stimulus duration - planned (100 ms)': offsets.map((e) => e.data.actual_ms - 100),
     'onset-to-onset interval - 200 ms': onsets.slice(1).map((e, i) => e.t - onsets[i].t - NOMINAL_CYCLE_MS),
     'trigger written - onset stamp': triggers.filter((e) => onsetBySeq.has(e.data.event_seq)).map((e) => e.data.t_sent - e.data.t_event),
@@ -62,6 +62,14 @@ export async function frameBaseline(seconds = 10) {
   }
 }
 
+/** "n of m" flashes whose frame count differs from the plan. */
+function late(events) {
+  const planned = new Map(events.filter((e) => e.type === 'phase.onset' && e.data.planned_frames !== undefined).map((e) => [`${e.block}|${e.trial}|${e.data.phase}`, e.data.planned_frames]));
+  const offsets = events.filter((e) => e.type === 'phase.offset' && e.data.stimulus?.startsWith('flash_') && e.data.frames !== undefined);
+  const off = offsets.filter((e) => e.data.frames !== planned.get(`${e.block}|${e.trial}|${e.data.phase}`));
+  return `${off.length} of ${offsets.length}`;
+}
+
 export function resultsMarkdown({ record, events, stuck, baseline }) {
   const rows = Object.entries(measures(events)).map(([name, values]) => [name, summarize(values)]);
   if (baseline) rows.push(['idle blank page: requestAnimationFrame interval (nominal 16.67)', summarize(baseline)]);
@@ -70,7 +78,9 @@ export function resultsMarkdown({ record, events, stuck, baseline }) {
 
 ${table}
 
-All values are milliseconds. The first column of numbers is how many events were measured.`;
+All values are milliseconds. The first column of numbers is how many events were measured.
+
+Flashes that lasted a different number of frames than planned (a late frame): ${late(events)}.`;
 }
 
 const START = '<!-- results:start -->';

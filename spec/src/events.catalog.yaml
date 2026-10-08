@@ -181,13 +181,16 @@ events:
   # ---- task flow (source: task) -----------------------------------------
   phase.onset:
     source: task
-    doc: A phase (stimulus or task-defined) became visible. t is the rAF-predicted onset.
+    doc: >
+      A phase (stimulus or task-defined) became visible. t is the timestamp of the animation frame
+      in which it is first painted (the start of that frame; light leaves the screen later).
     required: [phase, planned_ms]
     data:
       phase: {type: string}
       stimulus: {type: string}
       planned_ms: {type: [number, "null"]}
       t_dom: {type: number, description: "when the DOM was updated, before paint"}
+      planned_frames: {type: integer, minimum: 1, description: "the duration in display frames, when the phase is ended by its duration"}
       frame: {type: integer}
       stimulus_data: {type: object, description: "data returned by a custom stimulus generator (positions, identities)"}
   phase.offset:
@@ -197,6 +200,7 @@ events:
       phase: {type: string}
       stimulus: {type: string}
       actual_ms: {type: number}
+      frames: {type: integer, minimum: 0, description: "frames the phase lasted; more than planned_frames means a frame was late"}
       reason: {enum: [duration, response, abort, task]}
   response.evaluated:
     source: task
