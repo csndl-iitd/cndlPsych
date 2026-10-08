@@ -105,6 +105,10 @@ export async function setupEyeTracking({ services, screen, plan, profile, rng, l
   await askAction(screen, { message: INTRO, choices: [{ value: 'start', text: 'Start' }], submitLabel: 'Continue' });
   const started = await gaze.start();
   if (!started.ok) {
+    if (started.reason === 'no_addon') {
+      bus.emit({ source: 'system', type: 'system.error', data: { code: 'eyetracking_addon_missing', message: started.message, fatal: true } });
+      return result('aborted', { reason: 'no_addon' });
+    }
     bus.emit({ source: 'system', type: 'system.warning', data: { code: 'camera_unavailable', message: `the camera could not be used: ${started.message}`, detail: { reason: started.reason } } });
     return camera.on_denied === 'continue_without' ? result('continue_without', { reason: started.reason }) : result('aborted', { reason: started.reason });
   }

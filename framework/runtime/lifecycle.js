@@ -239,9 +239,11 @@ async function prepareEyeTracking({ services, screen, plan, profile, seed, finis
   await eye.stop();
   const record = await finish('aborted');
   await sinkSet.closeAll();
-  showMessage(display, eye.reason === 'validation_failed'
-    ? 'The session was stopped because eye tracking could not be made accurate enough. Please tell the experimenter.'
-    : 'This experiment needs your camera for eye tracking, and it could not be used. Please tell the experimenter.');
+  const messages = {
+    validation_failed: 'The session was stopped because eye tracking could not be made accurate enough. Please tell the experimenter.',
+    no_addon: 'Eye tracking is switched on for this experiment, but its software is not installed on this website. Please tell the experimenter.',
+  };
+  showMessage(display, messages[eye.reason] ?? 'This experiment needs your camera for eye tracking, and it could not be used. Please tell the experimenter.');
   return { result: { status: 'aborted', record } };
 }
 

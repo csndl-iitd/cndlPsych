@@ -15,3 +15,17 @@ export const localFontsOnly = {
     });
   },
 };
+
+/**
+ * Make `import('webgazer')` in framework code resolve to the add-on's entry (which wraps the real
+ * package), so test bundles get the same module shape as the add-on folder. The entry itself imports
+ * the real package.
+ */
+export function webgazerAddOn(entry) {
+  return {
+    name: 'webgazer-add-on',
+    setup(build) {
+      build.onResolve({ filter: /^webgazer$/ }, (args) => (args.importer === entry ? undefined : { path: entry }));
+    },
+  };
+}

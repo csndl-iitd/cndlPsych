@@ -1,6 +1,7 @@
 // Usage: node cli/validate.js <project-dir>
 // Compiles the project and prints every diagnostic; exits 1 if there are errors.
-import { resolve } from 'node:path';
+import { existsSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { compile } from '../framework/authoring/compiler.js';
 import { loadProject } from './project.js';
@@ -11,7 +12,10 @@ export async function validateProject(dir, options) {
   const problems = loadProblems.map(({ file, message }) => ({
     severity: 'error', code: 'custom-import', file, path: '', message: `could not load: ${message}`,
   }));
-  const diagnostics = [...problems, ...result.diagnostics];
+  const missingAddOn = result.plan?.eyetracking?.enabled && !existsSync(join(dir, 'expfw-eyetracking', 'webgazer.js'))
+    ? [{ severity: 'warning', code: 'eyetracking-addon-missing', file: 'experiment.yaml', path: 'eyetracking.enabled', message: 'eye tracking is on but expfw-eyetracking/ is not next to index.html; sessions will stop at the eye tracking step (expfw init <dir> --eyetracking copies it)' }]
+    : [];
+  const diagnostics = [...problems, ...result.diagnostics, ...missingAddOn];
   const ok = !diagnostics.some((d) => d.severity === 'error');
   return { ...result, diagnostics, ok };
 }

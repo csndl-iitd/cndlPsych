@@ -17,6 +17,8 @@ Edit `experiment.yaml`, `stimuli.yaml`, `timeline.yaml`, `forms.yaml`, `consent.
 
 Other commands: `expfw migrate <dir>` (spec_version), `expfw export-firestore ...` (BIDS from Firestore), `expfw relay ...` (WebSocket to serial; see `docs/triggers.md`).
 
+Eye tracking is an add-on: `node cli/expfw.js init my-study --eyetracking` also copies `expfw-eyetracking/` (WebGazer, GPL-3.0-or-later; see `LICENSE-eyetracking.md`). Without eye tracking nothing GPL is involved.
+
 ## Developing the framework
 
     npm run build:schemas   # spec/src -> spec/schema (generated; never hand-edit)
@@ -34,3 +36,7 @@ Other commands: `expfw migrate <dir>` (spec_version), `expfw export-firestore ..
 Read `ARCHITECTURE.md`, then `BUILD_PLAN.md`; `CLAUDE.md` holds the standing rules, `spec/README.md` describes the schemas, `docs/decisions.md` records every decision and what was not verified, and `docs/timing.md` says what is known about timing.
 
 Status: M10 (bundle, CLI, docs, timing). Not yet: the VS Code extension (M11).
+
+## Licence
+
+MIT (`LICENSE`); the eye tracking add-on is GPL-3.0-or-later (`LICENSE-eyetracking.md`). The bundled folders carry `THIRD-PARTY-LICENSES.txt`.

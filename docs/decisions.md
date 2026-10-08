@@ -262,3 +262,15 @@ Requested after M6: a screen to remove stored sessions (per session, with select
 - The licence question for the bundle is open: it can contain WebGazer (GPL-3.0-or-later); see the M9 entry.
 - The `README`'s `expfw` command needs the package installed with `bin`; only `node cli/expfw.js` was used.
 - One flaky browser test each time the full Playwright suite ran under load (a different test each time; each passed alone).
+
+## 2026-10-08 - Licence: MIT core, WebGazer as a separate GPL add-on
+
+Resolves the open licence question from M9 / M10.
+
+- **The repository is MIT** (`LICENSE`, `package.json`; the copyright line says "the expfw authors" and **needs the real holder's name before release**).
+- **Audit of the production dependencies** (transitive, from `node_modules`, by their declared licences): MIT 107, Apache-2.0 68, ISC 16, BSD-3-Clause 14, and single packages under 0BSD, BSD-2-Clause, BlueOak-1.0.0, Python-2.0, MIT-or-CC0 and Apache-2.0-and-MIT. **The only copyleft package is `webgazer` (GPL-3.0-or-later).** The check is declared licences only; nobody has read the licence files of 200+ packages.
+- **WebGazer is no longer in the core bundle.** `dist/expfw/` (MIT) has none of its code; `import('webgazer')` there resolves to `bundle/eyetracking-stub.js`, which loads `../expfw-eyetracking/webgazer.js` at the moment eye tracking starts. `dist/expfw-eyetracking/` holds WebGazer, its face model, the GPL text, a README with the source pointers (`LICENSE-eyetracking.md`), and its own notices. `expfw init <dir> --eyetracking` copies the add-on; without it, `validate` warns (`eyetracking-addon-missing`) and a session with eye tracking on stops with a clear message and a `system.error` (`eyetracking_addon_missing`), never "continues without". Both folders carry `THIRD-PARTY-LICENSES.txt` generated from what the bundler actually included.
+- **What this does and does not settle.** The core can be distributed under MIT. Anyone who publishes an experiment with the add-on folder serves GPL software to participants' browsers; the add-on README says what that requires. Whether an experiment's own YAML or custom JavaScript becomes subject to the GPL because it runs next to WebGazer is a legal question this repository does not answer (the add-on is separate files loaded at run time, which is the usual way to keep the boundary clear, but that is not a guarantee). **Not legal advice; confirm with your institution.**
+- `tools/dist.test.js` guards the boundary: no WebGazer string in the core, every bundled core package has a permissive licence and is named in the notices, the add-on has the GPL text and the source pointers, and `webgazer` is the only GPL production dependency.
+- `firebase-admin` (Apache-2.0) is used by the CLI only and is not in either bundle.
+- Test bundles (`tools/build-e2e.js`) resolve `webgazer` to the add-on's entry through a plugin so tests exercise the same module shape.

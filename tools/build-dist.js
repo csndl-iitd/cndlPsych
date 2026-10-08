@@ -1,31 +1,45 @@
-// Build the user-facing framework folder: dist/expfw/ (boot.js, its chunks, WebGazer's face
-// model). `expfw init` copies it next to a new experiment; users never edit it.
+// Build the user-facing folders into dist/:
+//   expfw/                 the framework (MIT, plus the permissive licences of what it bundles)
+//   expfw-eyetracking/     the eye tracking add-on: WebGazer (GPL-3.0-or-later) and its face model
+// `expfw init` copies expfw/ next to a new experiment (and the add-on with --eyetracking); users never edit them.
 //
 //   node tools/build-dist.js
 import { build } from 'esbuild';
-import { localFontsOnly } from './esbuild-plugins.js';
 import { cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { localFontsOnly } from './esbuild-plugins.js';
+import { bundledPackages, noticesFor } from './notices.js';
 
 const root = join(import.meta.dirname, '..');
-export const DIST = join(root, 'dist', 'expfw');
+// EXPFW_DIST_DIR lets a test build somewhere else without touching the folders other tests copy from.
+const out = process.env.EXPFW_DIST_DIR ?? join(root, 'dist');
+export const DIST = join(out, 'expfw');
+export const DIST_EYETRACKING = join(out, 'expfw-eyetracking');
 const { version } = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
+const common = { bundle: true, format: 'esm', platform: 'browser', minify: true, plugins: [localFontsOnly], legalComments: 'none', metafile: true, logLevel: 'warning' };
 
-rmSync(DIST, { recursive: true, force: true });
-mkdirSync(DIST, { recursive: true });
-await build({
+for (const dir of [DIST, DIST_EYETRACKING]) {
+  rmSync(dir, { recursive: true, force: true });
+  mkdirSync(dir, { recursive: true });
+}
+
+// ---- core: no WebGazer; `webgazer` resolves to the stub that loads the add-on ----
+const core = await build({
+  ...common,
   entryPoints: { boot: join(root, 'bundle', 'entry.js') },
   outdir: DIST,
-  bundle: true,
-  format: 'esm',
-  splitting: true, // WebGazer and Firebase are dynamic imports: separate files, fetched only when used
-  platform: 'browser',
-  minify: true,
-  plugins: [localFontsOnly],
-  legalComments: 'external',
-  logLevel: 'warning',
+  splitting: true, // the Firebase SDK is a dynamic import: a separate file, fetched only when used
+  alias: { webgazer: join(root, 'bundle', 'eyetracking-stub.js') },
 });
-// WebGazer looks for its MediaPipe face model next to the script (see pipeline/gaze.js).
-cpSync(join(root, 'node_modules', 'webgazer', 'dist', 'mediapipe'), join(DIST, 'mediapipe'), { recursive: true });
+cpSync(join(root, 'LICENSE'), join(DIST, 'LICENSE'));
+writeFileSync(join(DIST, 'THIRD-PARTY-LICENSES.txt'), noticesFor(bundledPackages(core.metafile), 'Third-party software bundled in expfw/ (all under permissive licences).'));
 writeFileSync(join(DIST, 'VERSION'), `expfw ${version}\n`);
-console.log(`built ${DIST}`);
+
+// ---- add-on: WebGazer and the face model it loads ----
+const addOn = await build({ ...common, entryPoints: { webgazer: join(root, 'bundle', 'eyetracking-addon.js') }, outdir: DIST_EYETRACKING, splitting: false });
+cpSync(join(root, 'node_modules', 'webgazer', 'dist', 'mediapipe'), join(DIST_EYETRACKING, 'mediapipe'), { recursive: true });
+cpSync(join(root, 'node_modules', 'webgazer', 'LICENSE.md'), join(DIST_EYETRACKING, 'LICENSE.md'));
+cpSync(join(root, 'LICENSE-eyetracking.md'), join(DIST_EYETRACKING, 'README.md'));
+writeFileSync(join(DIST_EYETRACKING, 'THIRD-PARTY-LICENSES.txt'), noticesFor(bundledPackages(addOn.metafile), 'Software bundled in expfw-eyetracking/ (WebGazer is GPL-3.0-or-later; the rest is listed with its own licence).'));
+writeFileSync(join(DIST_EYETRACKING, 'VERSION'), `expfw-eyetracking ${version}\n`);
+console.log(`built ${DIST} and ${DIST_EYETRACKING}`);

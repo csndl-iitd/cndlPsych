@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createBus } from '../foundation/events.js';
 import { createRng } from '../foundation/rng.js';
 import { makeChunks } from '../storage/chunks.js';
-import { createGaze } from './gaze.js';
+import { ADDON_MISSING, createGaze } from './gaze.js';
 
 /** A fake clock the test advances; schedule() runs callbacks when time passes. */
 function world() {
@@ -85,6 +85,17 @@ describe('start', () => {
     expect(gaze.summary().camera_denied).toBe(reason === 'denied' ? true : undefined);
     expect(gaze.summary().engine_version).toBeUndefined(); // it never ran
     await gaze.stop(); // must not try to end an engine that never began
+  });
+});
+
+describe('missing add-on', () => {
+  it('is reported as no_addon with the message from the loader, not as a camera problem', async () => {
+    const w = world();
+    const bus = createBus({ clock: w.clock });
+    const loadEngine = async () => { throw Object.assign(new Error('install the add-on'), { code: ADDON_MISSING }); };
+    const gaze = createGaze({ bus, clock: w.clock, stage, config: { enabled: true }, rng: createRng(5), loadEngine, schedule: w.schedule });
+    expect(await gaze.start()).toEqual({ ok: false, reason: 'no_addon', message: 'install the add-on' });
+    expect(gaze.summary().camera_denied).toBeUndefined();
   });
 });
 

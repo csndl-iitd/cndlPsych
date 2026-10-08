@@ -31,12 +31,18 @@ const VALIDATION_MS = 1000;
 
 const round = (value, digits) => Number(value.toFixed(digits));
 
-/** Load WebGazer and wrap it. `solutionPath` is where its face model files are served from (by default next to this script, in mediapipe/face_mesh). */
-export async function loadWebgazer({ solutionPath = new URL('mediapipe/face_mesh', import.meta.url).href } = {}) {
-  const [{ default: webgazer }, manifest] = await Promise.all([import('webgazer'), import('webgazer/package.json')]);
-  webgazer.params.faceMeshSolutionPath = solutionPath;
+/**
+ * Load WebGazer and wrap it. The module behind `webgazer` is the eye tracking add-on (a separate,
+ * GPL-licensed download; see bundle/eyetracking-stub.js): it exports WebGazer as `default`, its
+ * `version`, and `solutionPath`, where its face model files are served from.
+ * @param {{solutionPath?: string}} [options] `solutionPath` overrides the add-on's own
+ */
+export async function loadWebgazer({ solutionPath } = {}) {
+  const addOn = await import('webgazer');
+  const webgazer = addOn.default;
+  webgazer.params.faceMeshSolutionPath = solutionPath ?? addOn.solutionPath;
   return {
-    version: (manifest.default ?? manifest).version,
+    version: addOn.version,
     async begin({ onSample, learnFromClicks }) {
       webgazer.saveDataAcrossSessions(false); // nothing is kept in the browser between sessions
       webgazer.setGazeListener((data) => onSample(data ? { x: data.x, y: data.y } : null));
@@ -56,9 +62,11 @@ export async function loadWebgazer({ solutionPath = new URL('mediapipe/face_mesh
   };
 }
 
+/** The error code the stub throws when the add-on files are not next to the framework. */
+export const ADDON_MISSING = 'EYETRACKING_ADDON_MISSING';
 const DENIED = new Set(['NotAllowedError', 'PermissionDeniedError', 'SecurityError']);
 const MISSING = new Set(['NotFoundError', 'DevicesNotFoundError', 'OverconstrainedError']);
-const failureReason = (error) => (DENIED.has(error?.name) ? 'denied' : MISSING.has(error?.name) ? 'no_camera' : 'error');
+const failureReason = (error) => (error?.code === ADDON_MISSING ? 'no_addon' : DENIED.has(error?.name) ? 'denied' : MISSING.has(error?.name) ? 'no_camera' : 'error');
 
 /**
  * @param {{
@@ -139,7 +147,7 @@ export function createGaze({ bus, clock, stage, config, rng, loadEngine = loadWe
   return {
     /**
      * Load the engine and open the camera.
-     * @returns {Promise<{ok: true, version: string}|{ok: false, reason: 'denied'|'no_camera'|'error', message: string}>}
+     * @returns {Promise<{ok: true, version: string}|{ok: false, reason: 'denied'|'no_camera'|'no_addon'|'error', message: string}>}
      */
     async start() {
       try {
