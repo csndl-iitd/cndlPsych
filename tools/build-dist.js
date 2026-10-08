@@ -1,13 +1,19 @@
 // Build the user-facing folders into dist/:
-//   expfw/                 the framework (MIT, plus the permissive licences of what it bundles)
+//
+//   expfw/                 the framework, as source: the same readable ES modules as framework/,
+//                          unminified and unbundled, plus the third-party code it needs
 //   expfw-eyetracking/     the eye tracking add-on: WebGazer (GPL-3.0-or-later) and its face model
-// `expfw init` copies expfw/ next to a new experiment (and the add-on with --eyetracking); users never edit them.
+//
+// `expfw init` copies expfw/ next to a new experiment (and the add-on with --eyetracking); users never
+// edit them. The browser loads the modules directly (an import map in boot.js points the third-party
+// module names at expfw/vendor/), so there are no bundles, no hashes and no generated names.
 //
 //   node tools/build-dist.js
 import { build } from 'esbuild';
-import { cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
-import { localFontsOnly, namedFirebaseParts } from './esbuild-plugins.js';
+import { cpSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { SURVEY_CSS, VENDOR } from '../bundle/vendor.js';
+import { stripRemoteFonts } from './esbuild-plugins.js';
 import { bundledPackages, noticesFor } from './notices.js';
 
 const root = join(import.meta.dirname, '..');
@@ -16,42 +22,90 @@ const out = process.env.EXPFW_DIST_DIR ?? join(root, 'dist');
 export const DIST = join(out, 'expfw');
 export const DIST_EYETRACKING = join(out, 'expfw-eyetracking');
 const { version } = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
-const README = `expfw ${version}: the framework, bundled. Do not edit these files.
 
-boot.js    what index.html loads
-parts/     pieces boot.js loads only when an experiment needs them:
-             firebase-*.js      the Firebase SDK (only if storage.firebase is enabled)
-             eyetracking-stub   loads the eye tracking add-on from ../expfw-eyetracking/ (only if eye tracking is on)
-             chunk-*.js         code shared between the above (the names carry a content hash)
-LICENSE, THIRD-PARTY-LICENSES.txt   the licences of this software and of what it contains
+const README = `expfw ${version}: the framework. Do not edit these files; they are replaced when you update.
+
+boot.js        what index.html loads; says where the third-party modules are, then starts start.js
+start.js       loads the schemas and runs the framework on the files next to index.html
+framework/     the framework's own code, one folder per layer (read ARCHITECTURE.md in the repository)
+  foundation/  clock, event bus, matcher, random numbers, session record: depends on nothing
+  pipeline/    input, gestures, input mapping, triggers and sinks, frame timing, eye tracking
+  stage/       the stage, its layout, cursor and overlays
+  storage/     local storage (IndexedDB), Firebase, export formats (BIDS, CSV, JSONL)
+  authoring/   the YAML compiler and the modules that run blocks (instructions, response task, survey)
+  runtime/     wires everything together and runs a session
+schemas/       the JSON Schemas the YAML files are checked against
+vendor/        third-party code, one readable file per package (see THIRD-PARTY-LICENSES.txt)
+types.d.ts     types for custom stimuli and tasks
 `;
-const common = { bundle: true, format: 'esm', platform: 'browser', minify: true, plugins: [localFontsOnly], legalComments: 'none', metafile: true, logLevel: 'warning' };
+
+const copyText = (from, to) => {
+  mkdirSync(dirname(to), { recursive: true });
+  writeFileSync(to, readFileSync(from, 'utf8').replace(/\r\n/g, '\n'));
+};
+
+function* sourceFiles(dir) {
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const path = join(dir, entry.name);
+    if (entry.isDirectory()) yield* sourceFiles(path);
+    else if (entry.name.endsWith('.js') && !/\.(test|e2e)\.js$/.test(entry.name)) yield path;
+  }
+}
 
 for (const dir of [DIST, DIST_EYETRACKING]) {
   rmSync(dir, { recursive: true, force: true });
   mkdirSync(dir, { recursive: true });
 }
 
-// ---- core: no WebGazer; `webgazer` resolves to the stub that loads the add-on ----
-const core = await build({
-  ...common,
-  plugins: [localFontsOnly, namedFirebaseParts(join(root, 'bundle', 'parts'))],
-  entryPoints: { boot: join(root, 'bundle', 'entry.js') },
-  outdir: DIST,
-  splitting: true, // the Firebase SDK is a dynamic import: separate files, fetched only when used
-  chunkNames: 'parts/[name]-[hash]', // everything except boot.js lives in expfw/parts/
-  alias: { webgazer: join(root, 'bundle', 'eyetracking-stub.js') },
-});
+// ---- the framework itself: copied, not transformed ----
+const frameworkDir = join(root, 'framework');
+for (const file of sourceFiles(frameworkDir)) copyText(file, join(DIST, 'framework', file.slice(frameworkDir.length + 1)));
+for (const file of ['boot.js', 'start.js']) copyText(join(root, 'bundle', file), join(DIST, file));
+copyText(join(root, 'spec', 'types.d.ts'), join(DIST, 'types.d.ts'));
+
+const schemaFiles = readdirSync(join(root, 'spec', 'schema')).filter((name) => name.endsWith('.schema.json')).sort();
+for (const name of schemaFiles) copyText(join(root, 'spec', 'schema', name), join(DIST, 'schemas', name));
+writeFileSync(join(DIST, 'schemas', 'index.json'), `${JSON.stringify(schemaFiles, null, 2)}\n`);
+
+// ---- third-party code: one readable file per package ----
+const bundled = new Set(['@jspsych/plugin-survey']); // its stylesheet is copied below
+for (const vendor of VENDOR) {
+  const result = await build({
+    stdin: { contents: vendor.entry, resolveDir: root, sourcefile: `vendor/${vendor.file}` },
+    outfile: join(DIST, 'vendor', vendor.file),
+    bundle: true,
+    format: 'esm',
+    platform: 'browser',
+    minify: false,
+    external: vendor.external ?? [],
+    legalComments: 'inline',
+    metafile: true,
+    logLevel: 'warning',
+  });
+  bundledPackages(result.metafile).forEach((name) => bundled.add(name));
+}
+writeFileSync(join(DIST, 'vendor', SURVEY_CSS.file), stripRemoteFonts(readFileSync(join(root, 'node_modules', SURVEY_CSS.from), 'utf8')));
+
 cpSync(join(root, 'LICENSE'), join(DIST, 'LICENSE'));
-writeFileSync(join(DIST, 'THIRD-PARTY-LICENSES.txt'), noticesFor(bundledPackages(core.metafile), 'Third-party software bundled in expfw/ (all under permissive licences).'));
+writeFileSync(join(DIST, 'THIRD-PARTY-LICENSES.txt'), noticesFor([...bundled].sort(), 'Third-party software in expfw/vendor/ (all under permissive licences).'));
 writeFileSync(join(DIST, 'VERSION'), `expfw ${version}\n`);
 writeFileSync(join(DIST, 'README.txt'), README);
 
 // ---- add-on: WebGazer and the face model it loads ----
-const addOn = await build({ ...common, entryPoints: { webgazer: join(root, 'bundle', 'eyetracking-addon.js') }, outdir: DIST_EYETRACKING, splitting: false });
+const addOn = await build({
+  entryPoints: [join(root, 'bundle', 'eyetracking-addon.js')],
+  outfile: join(DIST_EYETRACKING, 'webgazer.js'),
+  bundle: true,
+  format: 'esm',
+  platform: 'browser',
+  minify: false,
+  legalComments: 'inline',
+  metafile: true,
+  logLevel: 'warning',
+});
 cpSync(join(root, 'node_modules', 'webgazer', 'dist', 'mediapipe'), join(DIST_EYETRACKING, 'mediapipe'), { recursive: true });
 cpSync(join(root, 'node_modules', 'webgazer', 'LICENSE.md'), join(DIST_EYETRACKING, 'LICENSE.md'));
 cpSync(join(root, 'LICENSE-eyetracking.md'), join(DIST_EYETRACKING, 'README.md'));
-writeFileSync(join(DIST_EYETRACKING, 'THIRD-PARTY-LICENSES.txt'), noticesFor(bundledPackages(addOn.metafile), 'Software bundled in expfw-eyetracking/ (WebGazer is GPL-3.0-or-later; the rest is listed with its own licence).'));
+writeFileSync(join(DIST_EYETRACKING, 'THIRD-PARTY-LICENSES.txt'), noticesFor(bundledPackages(addOn.metafile), 'Software in expfw-eyetracking/ (WebGazer is GPL-3.0-or-later; the rest is listed with its own licence).'));
 writeFileSync(join(DIST_EYETRACKING, 'VERSION'), `expfw-eyetracking ${version}\n`);
 console.log(`built ${DIST} and ${DIST_EYETRACKING}`);

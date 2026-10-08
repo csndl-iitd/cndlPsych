@@ -6,7 +6,7 @@ Browser experiment framework (`expfw` is a placeholder name). Experimenters writ
 
     npm install
     npx playwright install chromium      # once; only needed for dry-run and the browser tests
-    npm run build                        # bundles the framework into dist/expfw
+    npm run build                        # assembles dist/expfw (readable source + vendor code) and dist/expfw-eyetracking
     node cli/expfw.js init my-study      # a working template + the bundled framework
     node cli/expfw.js validate my-study  # check the YAML (file, path and message for every problem)
     node cli/expfw.js dry-run my-study   # play it with a synthetic participant and print what happened

@@ -34,7 +34,7 @@ describe('init', () => {
   it('creates the template and the bundled framework, and refuses a folder that is not empty', () => {
     const dir = join(tempDir(), 'my-study');
     initProject(dir);
-    for (const file of ['index.html', 'experiment.yaml', 'timeline.yaml', 'expfw/boot.js', 'expfw/LICENSE']) expect(existsSync(join(dir, file)), file).toBe(true);
+    for (const file of ['index.html', 'experiment.yaml', 'timeline.yaml', 'expfw/boot.js', 'expfw/start.js', 'expfw/framework/runtime/boot.js', 'expfw/vendor/jspsych.js', 'expfw/LICENSE']) expect(existsSync(join(dir, file)), file).toBe(true);
     expect(existsSync(join(dir, 'expfw-eyetracking'))).toBe(false);
     expect(() => initProject(dir)).toThrow('not empty');
   });

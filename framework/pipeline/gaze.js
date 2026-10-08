@@ -32,13 +32,18 @@ const VALIDATION_MS = 1000;
 const round = (value, digits) => Number(value.toFixed(digits));
 
 /**
- * Load WebGazer and wrap it. The module behind `webgazer` is the eye tracking add-on (a separate,
- * GPL-licensed download; see bundle/eyetracking-stub.js): it exports WebGazer as `default`, its
- * `version`, and `solutionPath`, where its face model files are served from.
+ * Load WebGazer and wrap it. The module behind `webgazer` is the eye tracking add-on (the separate,
+ * GPL-licensed folder expfw-eyetracking/, mapped in bundle/boot.js): it exports WebGazer as `default`,
+ * its `version`, and `solutionPath`, where its face model files are served from.
  * @param {{solutionPath?: string}} [options] `solutionPath` overrides the add-on's own
  */
 export async function loadWebgazer({ solutionPath } = {}) {
-  const addOn = await import('webgazer');
+  let addOn;
+  try {
+    addOn = await import('webgazer');
+  } catch (cause) {
+    throw Object.assign(new Error('Eye tracking is switched on, but the expfw-eyetracking add-on is not installed. Copy the expfw-eyetracking folder next to expfw/ (it is GPL-licensed software, which is why it is separate), or switch eyetracking off.', { cause }), { code: ADDON_MISSING });
+  }
   const webgazer = addOn.default;
   webgazer.params.faceMeshSolutionPath = solutionPath ?? addOn.solutionPath;
   return {

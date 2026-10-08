@@ -1,6 +1,11 @@
 // Bundler plugins shared by the user build and the browser-test build.
 import { readFile } from 'node:fs/promises';
 
+/** Remove the @font-face rules that load fonts from the web (see localFontsOnly). */
+export function stripRemoteFonts(css) {
+  return css.replace(/@font-face\s*\{[^}]*https?:\/\/[^}]*\}/g, '');
+}
+
 /**
  * The survey stylesheet loads "Open Sans" from fonts.gstatic.com. That would send every
  * participant's address to Google and fail offline, so those @font-face rules are removed
@@ -9,10 +14,7 @@ import { readFile } from 'node:fs/promises';
 export const localFontsOnly = {
   name: 'local-fonts-only',
   setup(build) {
-    build.onLoad({ filter: /\.css$/ }, async ({ path }) => {
-      const css = await readFile(path, 'utf8');
-      return { contents: css.replace(/@font-face\s*\{[^}]*https?:\/\/[^}]*\}/g, ''), loader: 'text' };
-    });
+    build.onLoad({ filter: /\.css$/ }, async ({ path }) => ({ contents: stripRemoteFonts(await readFile(path, 'utf8')), loader: 'text' }));
   },
 };
 
@@ -26,23 +28,6 @@ export function webgazerAddOn(entry) {
     name: 'webgazer-add-on',
     setup(build) {
       build.onResolve({ filter: /^webgazer$/ }, (args) => (args.importer === entry ? undefined : { path: entry }));
-    },
-  };
-}
-
-/**
- * Give the lazily loaded Firebase SDK files readable names (parts/firebase-firestore-<hash>.js
- * instead of index.esm-<hash>.js). The framework's `import('firebase/firestore')` is pointed at a
- * one-line wrapper module; the wrapper itself imports the real package.
- */
-export function namedFirebaseParts(partsDir) {
-  return {
-    name: 'named-firebase-parts',
-    setup(build) {
-      build.onResolve({ filter: /^firebase\/(app|firestore|auth|app-check)$/ }, (args) => {
-        if (args.importer.startsWith(partsDir)) return undefined;
-        return { path: `${partsDir}/firebase-${args.path.slice('firebase/'.length)}.js` };
-      });
     },
   };
 }
