@@ -109,7 +109,7 @@ export function createServices({ root, plan, generators = {}, validate, timeScal
   }
 
   return {
-    clock, bus, stage, input, cursor, bridge, mapping, jsPsych, display, moduleContext, defaultParams, triggers, sinkSet,
+    clock, bus, stage, input, cursor, bridge, mapping, jsPsych, display, moduleContext, defaultParams, triggers, sinkSet, scale,
     /** Session answers that trigger values and fields can read ({subject, session, device}). */
     setSessionContext(context) { state.session = context; },
     /** Called when a required sink is lost while recording. */

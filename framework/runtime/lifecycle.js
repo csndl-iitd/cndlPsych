@@ -17,6 +17,7 @@ import { downloadFile } from './download.js';
 import { manageSessions } from './manage.js';
 import { recoverSessions } from './recovery.js';
 import { checkResumable, resumedRecord } from './resume.js';
+import { setupEyeTracking } from './eyetracking.js';
 import { mirrored } from './remote.js';
 import { NEEDS_GESTURE } from './sinks.js';
 import { createConsentGate, createSessionRecord, finishSessionRecord, hashText, parseUrlParams, resolveSeed } from '../foundation/session.js';
@@ -99,9 +100,9 @@ function blockApplies(planBlock, profile, answers) {
 /**
  * Run the blocks in order. When resuming, `resume` says where to carry on: earlier blocks are
  * skipped, the interrupted run skips its finished trials, and its block.start (already in the
- * log) is not written again.
+ * log) is not written again. `beforeBlock` may stop the session by resolving to false.
  */
-async function runBlocks({ services, plan, profile, seed, answers, resume }) {
+async function runBlocks({ services, plan, profile, seed, answers, resume, beforeBlock }) {
   const { bus, jsPsych } = services;
   const master = createRng(seed);
   let lostSink = null;
@@ -117,6 +118,7 @@ async function runBlocks({ services, plan, profile, seed, answers, resume }) {
     }
     const build = BUILDERS[planBlock.module];
     if (!build) throw new Error(`module "${planBlock.module}" is not available (custom tasks are not supported yet)`);
+    if (!(await beforeBlock())) throw Object.assign(new Error('eye tracking could not be validated'), { endReason: 'aborted' });
     const resumedBlock = resume && index === resume.blockIndex;
     for (let run = resumedBlock ? resume.run : 1; run <= planBlock.repeat; run += 1) {
       const resumedRun = resumedBlock && run === resume.run;
@@ -156,8 +158,8 @@ async function exportSession(doc, store, formats) {
 const sinkRecord = (sinkSet, remote) => ({ ...(sinkSet.configs.length ? { trigger: sinkSet.record() } : {}), storage: remote ? ['local', 'firebase'] : ['local'] });
 
 /** Close the record with a reason and hand it to the store. */
-const closer = ({ record, store, bus }) => async (reason) => {
-  const done = finishSessionRecord(record, { reason, endedAt: isoNow(), lastSeq: bus.lastSeq });
+const closer = ({ record, store, bus, extras = () => ({}) }) => async (reason) => {
+  const done = finishSessionRecord({ ...record, ...extras() }, { reason, endedAt: isoNow(), lastSeq: bus.lastSeq });
   await store.finish(done);
   return done;
 };
@@ -209,19 +211,48 @@ function emitStartNotices({ bus, debug, sinkSet, sinkWarnings }) {
   }
 }
 
+/** What eye tracking adds to the session record when it ends. */
+const eyeExtras = (held) => () => (held.eye?.summary() ? { eyetracking: held.eye.summary() } : {});
+
+/**
+ * Set up eye tracking (camera, calibration, validation) once the participant is admitted.
+ * If it cannot go on, the session ends as aborted. `held.eye` is set so the record can carry the summary.
+ * @returns {Promise<{eye?: object, result?: object}>} `result` is the finished session when it was aborted
+ */
+async function prepareEyeTracking({ services, screen, plan, profile, seed, finish, held, loadEngine }) {
+  const eye = await setupEyeTracking({ services, screen, plan, profile, rng: createRng(seed), loadEngine });
+  held.eye = eye;
+  if (eye.status !== 'aborted') return { eye };
+  const { bus, display, sinkSet } = services;
+  bus.emit({ source: 'system', type: 'session.end', data: { reason: 'aborted' } });
+  await eye.stop();
+  const record = await finish('aborted');
+  await sinkSet.closeAll();
+  showMessage(display, eye.reason === 'validation_failed'
+    ? 'The session was stopped because eye tracking could not be made accurate enough. Please tell the experimenter.'
+    : 'This experiment needs your camera for eye tracking, and it could not be used. Please tell the experimenter.');
+  return { result: { status: 'aborted', record } };
+}
+
 /** The blocks, then the end of the session (shared by new and resumed sessions). */
-async function runAndFinish({ services, project, store, profile, seed, answers, resume, finish }) {
+async function runAndFinish({ services, project, store, profile, seed, answers, resume, finish, eye }) {
   const { plan } = project;
   const { bus, display, sinkSet } = services;
   const exportFormats = plan.storage?.local?.export_on_finish ?? [];
   services.setSessionContext(answers);
   try {
-    await runBlocks({ services, plan, profile, seed, answers, resume });
+    await runBlocks({ services, plan, profile, seed, answers, resume, beforeBlock: eye.beforeBlock });
   } catch (error) {
-    bus.emit({ source: 'system', type: 'system.error', data: { code: 'exception', message: String(error.message ?? error), fatal: true } });
-    bus.emit({ source: 'system', type: 'session.end', data: { reason: 'error' } });
-    const done = await finish('error');
+    const reason = error.endReason ?? 'error';
+    if (reason === 'error') bus.emit({ source: 'system', type: 'system.error', data: { code: 'exception', message: String(error.message ?? error), fatal: true } });
+    bus.emit({ source: 'system', type: 'session.end', data: { reason } });
+    await eye.stop();
+    const done = await finish(reason);
     await sinkSet.closeAll();
+    if (reason === 'aborted') {
+      showMessage(display, 'The session was stopped because eye tracking could not be validated. Please tell the experimenter.');
+      return { status: 'aborted', record: done, error };
+    }
     showMessage(display, 'Something went wrong and the session had to stop. Please tell the experimenter. The session can be resumed from the local data screen (add ?manage=1 to the address).');
     return { status: 'error', record: done, error };
   }
@@ -233,6 +264,7 @@ async function runAndFinish({ services, project, store, profile, seed, answers, 
     bus.emit({ source: 'system', type: 'system.warning', data: { code: 'export_format_unsupported', message: `export_on_finish ${unsupported.join(', ')} is not available yet and was skipped` } });
   }
   bus.emit({ source: 'system', type: 'session.end', data: { reason: 'complete' } });
+  await eye.stop();
   const done = await finish('complete');
   await sinkSet.closeAll();
   await exportSession(display.ownerDocument, store, exportFormats);
@@ -244,7 +276,7 @@ async function runAndFinish({ services, project, store, profile, seed, answers, 
  * Carry on an interrupted session: same participant, seed and device kind, new page clock.
  * The log continues at last_seq + 1 with a session.clock_anchor and a session.resume event.
  */
-async function resumeSession({ services, project, store: local, item, env, debug, screen, remote }) {
+async function resumeSession({ services, project, store: local, item, env, debug, screen, remote, loadEngine }) {
   const { plan } = project;
   const { bus, clock, display, sinkSet } = services;
   const saved = await local.read(item.key);
@@ -299,9 +331,12 @@ async function resumeSession({ services, project, store: local, item, env, debug
 
   const profile = record.device.profile;
   const answers = { subject: { subject_id: record.subject_id, ...record.subject }, session: { session_id: record.session_id, ...record.session_fields }, device: { profile } };
-  return runAndFinish({
-    services, project, store, profile, seed: record.experiment.seed, answers, resume: verdict.point, finish: closer({ record, store, bus }),
-  });
+  const held = { eye: null };
+  const finish = closer({ record, store, bus, extras: eyeExtras(held) });
+  const seed = record.experiment.seed;
+  const prepared = await prepareEyeTracking({ services, screen, plan, profile, seed, finish, held, loadEngine });
+  if (prepared.result) return prepared.result;
+  return runAndFinish({ services, project, store, profile, seed, answers, resume: verdict.point, finish, eye: prepared.eye });
 }
 
 /**
@@ -310,7 +345,7 @@ async function resumeSession({ services, project, store: local, item, env, debug
  *   `?manage=1` in `search` opens the local data screen instead of starting a session
  * @returns {Promise<{status: string, record?: object}>}
  */
-export async function runSession({ services, project, store, remote = null, search = globalThis.location?.search ?? '' }) {
+export async function runSession({ services, project, store, remote = null, loadGazeEngine, search = globalThis.location?.search ?? '' }) {
   const { plan } = project;
   const { bus, clock, display } = services;
   const screen = { jsPsych: services.jsPsych };
@@ -343,7 +378,7 @@ export async function runSession({ services, project, store, remote = null, sear
   } else {
     chosen = (await recoverSessions({ screen, store, policy: local.recovery ?? 'offer', formats: exportFormats, doc, check })).resume;
   }
-  if (chosen) return resumeSession({ services, project, store, item: chosen, env, debug, screen, remote });
+  if (chosen) return resumeSession({ services, project, store, item: chosen, env, debug, screen, remote, loadEngine: loadGazeEngine });
 
   // 1. consent (nothing is recorded: the bus is not recording yet). In controlled mode the
   //    experimenter signs in first, because the subject ID field is prefilled from Firebase;
@@ -436,7 +471,8 @@ Nothing has been stored.`);
   logStorageStatus({ bus, store: sessionStore }); // after session.start: the log must begin with it
   emitStartNotices({ bus, debug, sinkSet, sinkWarnings });
 
-  const finish = closer({ record, store: sessionStore, bus });
+  const held = { eye: null };
+  const finish = closer({ record, store: sessionStore, bus, extras: eyeExtras(held) });
   const admission = admitDevice(bus, plan.device ?? {}, { env, chosen: resolved.reason === 'prompt' ? profile : undefined, override: debug.simulate_profile });
   if (!admission.admitted) {
     const done = await finish('device_rejected');
@@ -451,5 +487,7 @@ Nothing has been stored.`);
 
   // 6. blocks and finish
   const answers = { subject: { subject_id: subjectId, ...subject }, session: { session_id: sessionId, ...sessionFields }, device: { profile } };
-  return runAndFinish({ services, project, store: sessionStore, profile, seed, answers, resume: null, finish });
+  const prepared = await prepareEyeTracking({ services, screen, plan, profile, seed, finish, held, loadEngine: loadGazeEngine });
+  if (prepared.result) return prepared.result;
+  return runAndFinish({ services, project, store: sessionStore, profile, seed, answers, resume: null, finish, eye: prepared.eye });
 }

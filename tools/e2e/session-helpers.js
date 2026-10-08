@@ -15,10 +15,10 @@ const choose = (page, name, value) => page.locator(`[data-name="${name}"] label:
 
 export const clickContinue = (page) => page.locator('input[type=button][value=Continue]').click();
 
-export async function answerConsent(page, { agree = true } = {}) {
+export async function answerConsent(page, { agree = true, camera = false } = {}) {
   await choose(page, 'decision', agree ? 'agree' : 'decline');
   if (agree) {
-    for (const id of ['read', 'voluntary']) await choose(page, `statement_${id}`, 'yes');
+    for (const id of camera ? ['read', 'voluntary', 'camera'] : ['read', 'voluntary']) await choose(page, `statement_${id}`, 'yes');
   }
   await clickContinue(page);
 }
@@ -55,7 +55,7 @@ export async function continueDeviceScreen(page, action) {
  * screen (needed when the project has a serial or USB sink).
  */
 export async function passEntryScreens(page, answers = {}) {
-  await answerConsent(page);
+  await answerConsent(page, { camera: answers.camera });
   await answerSubject(page, answers.subject);
   await answerSession(page, answers.session);
   if (answers.connect) await continueDeviceScreen(page);

@@ -10,6 +10,7 @@ await build({
   outdir: join(root, 'dist', 'e2e'),
   bundle: true,
   format: 'esm',
+  splitting: true, // WebGazer is a dynamic import: it must stay in its own file, loaded only when eye tracking runs
   platform: 'browser',
   loader: { '.css': 'text' },
   sourcemap: true,
