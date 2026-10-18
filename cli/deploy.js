@@ -3,9 +3,10 @@
 // `firebase.json` and `firebase/firestore.*`; the upload itself is done by firebase-tools,
 // which you must be logged in to (`npx firebase-tools login`).
 //
-//   node cli/deploy.js <project-dir> [--project <firebase-project-id>] [--print]
+//   node cli/deploy.js <project-dir> [--project <firebase-project-id>] [--hosting-only] [--print]
 //
-// --print only shows what would be written and run.
+// --print only shows what would be written and run. --hosting-only leaves the project's Firestore
+// rules and indexes alone (deploying them replaces whatever rules the project has).
 import { spawnSync } from 'node:child_process';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
@@ -18,11 +19,12 @@ const HOSTING_IGNORE = ['firebase.json', '.firebaserc', 'firebase/**', '**/.*', 
 
 /**
  * @param {object} experiment parsed experiment.yaml
+ * @param {{hostingOnly?: boolean}} [options]
  * @returns {{config: object, files: {path: string, data: string}[], services: string[], projectId?: string}}
  */
-export function deployPlan(experiment) {
+export function deployPlan(experiment, { hostingOnly = false } = {}) {
   const firebase = experiment.storage?.firebase;
-  const useFirestore = firebase?.enabled === true;
+  const useFirestore = firebase?.enabled === true && !hostingOnly;
   const services = ['hosting', ...(useFirestore ? ['firestore'] : [])];
   const config = { hosting: { public: '.', ignore: HOSTING_IGNORE, headers: [{ source: '**/*.@(js|yaml|json|md)', headers: [{ key: 'Cache-Control', value: 'no-cache' }] }] } };
   const files = [];
@@ -37,9 +39,9 @@ export function deployPlan(experiment) {
 }
 
 function main() {
-  const { values, positionals } = parseArgs({ allowPositionals: true, options: { project: { type: 'string' }, print: { type: 'boolean', default: false } } });
+  const { values, positionals } = parseArgs({ allowPositionals: true, options: { project: { type: 'string' }, print: { type: 'boolean', default: false }, 'hosting-only': { type: 'boolean', default: false } } });
   const dir = resolve(positionals[0] ?? '.');
-  const plan = deployPlan(load(readFileSync(join(dir, 'experiment.yaml'), 'utf8')));
+  const plan = deployPlan(load(readFileSync(join(dir, 'experiment.yaml'), 'utf8')), { hostingOnly: values['hosting-only'] });
   const projectId = values.project ?? plan.projectId;
   if (!projectId) {
     console.error('no Firebase project: pass --project <id> or set storage.firebase.web_config.projectId');

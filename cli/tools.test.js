@@ -172,6 +172,14 @@ describe('deploy', () => {
     expect(plan.config.firestore.rules).toBe('firebase/firestore.rules');
   });
 
+  it('--hosting-only leaves the Firestore rules and indexes out', () => {
+    const plan = deployPlan({ storage: { firebase: { enabled: true, access: 'controlled', web_config: { projectId: 'my-proj' } } } }, { hostingOnly: true });
+    expect(plan.services).toEqual(['hosting']);
+    expect(plan.files).toEqual([]);
+    expect(plan.config).not.toHaveProperty('firestore');
+    expect(plan.projectId).toBe('my-proj');
+  });
+
   it('--print writes nothing', () => {
     const dir = tempDir();
     writeFileSync(join(dir, 'experiment.yaml'), 'spec_version: 1\n');
