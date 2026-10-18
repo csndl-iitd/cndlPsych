@@ -8,6 +8,38 @@ export const remoteFailedMessage = (reason) => `Could not connect to the data se
 
 Nothing has been stored. Please tell the experimenter.`;
 
+const METHOD = { public: 'Anonymous', controlled: 'Google' };
+
+/**
+ * What a Firebase error means for the person running the experiment, with what to change. The code is
+ * always kept in the text, so an unknown one can still be looked up.
+ * @param {{code?: string, message?: string}} error
+ * @param {{access?: string, experiment_id?: string, web_config?: {projectId?: string}}} config `storage.firebase`
+ * @param {string} [host] the page's host name (an authorised domain is needed for sign-in)
+ */
+export function explainRemoteError(error, config = {}, host = globalThis.location?.hostname ?? 'this website') {
+  const code = error?.code ?? '';
+  const method = METHOD[config.access] ?? 'the sign-in';
+  const project = config.web_config?.projectId ?? 'your project';
+  const where = 'Firebase console > Authentication';
+  const advice = {
+    'auth/operation-not-allowed': `${method} sign-in is not switched on for the project "${project}". Open ${where} > Sign-in method, enable ${method}, save, and try again.`,
+    'auth/configuration-not-found': `Authentication has not been set up for the project "${project}". Open ${where} and press "Get started", then enable ${method} under Sign-in method.`,
+    'auth/unauthorized-domain': `"${host}" is not an authorised domain. Add it in ${where} > Settings > Authorized domains (localhost is there by default; a deployed site needs its own address).`,
+    'auth/invalid-api-key': 'The apiKey in storage.firebase.web_config is not valid. Copy it again from Project settings > Your apps in the Firebase console.',
+    'auth/api-key-not-valid.-please-pass-a-valid-api-key.': 'The apiKey in storage.firebase.web_config is not valid. Copy it again from Project settings > Your apps in the Firebase console.',
+    'auth/popup-blocked': 'The browser blocked the sign-in window. Allow pop-ups for this site and try again.',
+    'auth/popup-closed-by-user': 'The sign-in window was closed before signing in.',
+    'auth/cancelled-popup-request': 'The sign-in window was closed before signing in.',
+    'auth/network-request-failed': 'The connection to Firebase failed. Check the network and try again.',
+    'permission-denied': config.access === 'public'
+      ? `The database refused the request. Publish the rules in spec/firebase/firestore.public.rules (Firebase console > Firestore > Rules) and check that the experiment id is "${config.experiment_id}".`
+      : `The database refused the request. The account you signed in with must have a verified email and be listed as a document in experiments/${config.experiment_id}/admins/<email> (Firebase console > Firestore), and the rules in spec/firebase/firestore.controlled.rules must be published.`,
+  };
+  const text = advice[code];
+  return text ? `${text} (${code})` : String(error?.message ?? error);
+}
+
 /** The subject ID field when Firebase assigns the number: hidden (public) or prefilled (controlled). */
 export async function assignedSubject(remote) {
   if (!remote) return {};
@@ -30,6 +62,7 @@ export function claimNumber(raw) {
 export function createRemote(config, { connect = connectFirebase } = {}) {
   let connection = null;
   return {
+    config,
     access: config.access,
     allowOverride: config.subject_id?.override === true,
 

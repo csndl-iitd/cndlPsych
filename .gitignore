@@ -5,3 +5,4 @@ playwright-report/
 test-results/
 __pycache__/
 .tools/
+firebase-debug.log

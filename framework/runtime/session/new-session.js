@@ -9,7 +9,7 @@ import { showForm } from '../../authoring/modules/survey.js';
 import { isoNow } from '../../foundation/clock.js';
 import { admitDevice, inputProfiles, profileConditions } from '../../foundation/device.js';
 import { createConsentGate, hashText, resolveSeed } from '../../foundation/session.js';
-import { assignedSubject, mirrored, remoteFailedMessage } from '../remote.js';
+import { assignedSubject, explainRemoteError, mirrored, remoteFailedMessage } from '../remote.js';
 import { askConsent } from './consent.js';
 import { conductSession } from './conduct-session.js';
 import { chooseProfile } from './device-check.js';
@@ -53,7 +53,14 @@ async function agree(run, gate) {
 async function askParticipant(run, gate) {
   const { project, remote, screen, services } = run;
   const { forms } = project.plan;
-  const subjectForm = await showForm(screen, { title: forms.subject?.title ?? 'About you', intro: forms.subject?.intro, elements: subjectElements(forms.subject, await assignedSubject(remote)) });
+  let assigned;
+  try {
+    assigned = await assignedSubject(remote);
+  } catch (error) {
+    showMessage(services.display, remoteFailedMessage(explainRemoteError(error, remote.config)));
+    return { ended: { status: 'remote_failed' } };
+  }
+  const subjectForm = await showForm(screen, { title: forms.subject?.title ?? 'About you', intro: forms.subject?.intro, elements: subjectElements(forms.subject, assigned) });
   const answered = subjectAnswers(subjectForm.values);
   if (!gate.checkAge(answered.subject.age).eligible) {
     showMessage(services.display, project.plan.consent.decline_message ?? 'Sorry, you are not eligible to take part in this study. Nothing has been stored. You can close this window.');
@@ -94,7 +101,7 @@ async function claimSubject(run, typedId) {
     return { claim: await remote.claim(typedId) };
   } catch (error) {
     await services.sinkSet.closeAll();
-    showMessage(services.display, `Could not get a subject number: ${String(error.message ?? error)}
+    showMessage(services.display, `Could not get a subject number: ${explainRemoteError(error, remote.config)}
 
 Nothing has been stored.`);
     return { ended: { status: 'remote_failed' } };

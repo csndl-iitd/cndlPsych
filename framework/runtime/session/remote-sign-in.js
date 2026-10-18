@@ -1,5 +1,6 @@
 // Signing in to Firebase at the start of a session. The Firebase work itself is in ../remote.js.
 import { askAction } from '../../authoring/modules/survey.js';
+import { explainRemoteError } from '../remote.js';
 
 /** Sign in to Firebase; controlled mode needs a click for the Google popup. Returns an error message, or null when connected. */
 export async function signInRemote(screen, remote) {
@@ -12,6 +13,6 @@ This experiment stores its data in Firebase. Sign in with your lab account to co
     await remote.signIn();
     return null;
   } catch (error) {
-    return String(error.message ?? error);
+    return explainRemoteError(error, remote.config);
   }
 }
