@@ -16,6 +16,20 @@ const placement = (corner, inset) => ({
   ...(corner[1] === 'l' ? { left: `${inset}px` } : { right: `${inset}px` }),
 });
 
+/**
+ * Where the photodiode patch goes: in the corner's margin, next to the tag and never over it. The tag stays
+ * in the very corner. On a wide screen the patch sits in the side margin, further from the corner than the
+ * tag (above a bottom tag, below a top one); on a tall screen it sits in the top or bottom margin, further
+ * from the corner along the edge (right of a left tag, left of a right tag). Without tags it takes the corner.
+ */
+export function diodePlacement(corner, { tagOuter, gap }, viewport) {
+  const along = tagOuter > 0 ? `${gap + tagOuter}px` : '0px';
+  const wide = viewport.w >= viewport.h;
+  const vertical = corner[0] === 't' ? 'top' : 'bottom';
+  const horizontal = corner[1] === 'l' ? 'left' : 'right';
+  return wide ? { [horizontal]: '0px', [vertical]: along } : { [vertical]: '0px', [horizontal]: along };
+}
+
 /** Sizes in px for an overlay spec: the tag, its quiet zone, the photodiode patch and the gap to the edge. */
 function measures(spec, calibration, viewport) {
   const px = (length) => lengthToPx(length, viewport, calibration);
@@ -24,7 +38,7 @@ function measures(spec, calibration, viewport) {
   const tagPx = tags ? px(tags.size ?? '12mm') : 0;
   const quiet = tags ? (tagPx / TAG_MODULES) * (tags.quiet_zone ?? 1) : 0;
   const gap = tags?.margin ? px(tags.margin) : 0;
-  return { tags, diode, tagPx, quiet, gap, diodePx: diode ? px(diode.size ?? '10mm') : 0 };
+  return { tags, diode, tagPx, quiet, gap, tagOuter: tags ? tagPx + 2 * quiet : 0, diodePx: diode ? px(diode.size ?? '10mm') : 0 };
 }
 
 /**
@@ -71,9 +85,17 @@ export function createOverlay({ root, bus, spec = {}, calibration = {}, viewport
   }
 
   let lit = false;
+  let watcher = null;
   if (m.diode) {
-    const patch = layer({ ...placement(m.diode.corner ?? 'bl', 0), width: `${m.diodePx}px`, height: `${m.diodePx}px`, background: '#000' });
+    const corner = m.diode.corner ?? 'bl';
+    const patch = layer({ width: `${m.diodePx}px`, height: `${m.diodePx}px`, background: '#000' });
     patch.className = 'expfw-photodiode';
+    const place = () => {
+      Object.assign(patch.style, { top: '', bottom: '', left: '', right: '' }, diodePlacement(corner, m, viewport()));
+    };
+    place();
+    watcher = new doc.defaultView.ResizeObserver(place);
+    watcher.observe(root);
     const triggers = (m.diode.on ?? [{ on: 'phase.onset' }]).map(compileStep);
     const show = (on) => { lit = on; patch.style.background = on ? '#fff' : '#000'; };
     bus.on('*', (event) => {
@@ -104,6 +126,6 @@ export function createOverlay({ root, bus, spec = {}, calibration = {}, viewport
       return Object.keys(out).length ? out : undefined;
     },
     get photodiodeLit() { return lit; },
-    dispose() { elements.forEach((el) => el.remove()); },
+    dispose() { watcher?.disconnect(); elements.forEach((el) => el.remove()); },
   };
 }

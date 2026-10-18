@@ -83,3 +83,31 @@ test('the session record has the overlay positions, valid against the session sc
   expect(record.device.refresh_hz_est).toBeGreaterThan(30); // measured at the start of the session
   expect(sessionProblems({ ...record, overlays })).toEqual([]);
 });
+
+for (const corner of ['tl', 'tr', 'br', 'bl']) {
+  test(`the photodiode patch beside the ${corner} tag never overlaps it: side margin on a wide screen, top / bottom margin on a tall one`, async ({ page, isMobile }) => {
+    test.skip(isMobile, 'the viewport is set by the test');
+    await begin(page, { apriltags: { enabled: true, ids: [0, 1, 2, 3], size: '40px', margin: '4px' }, photodiode: { enabled: true, corner, size: '30px' } });
+    const tagIndex = { tl: 0, tr: 1, br: 2, bl: 3 }[corner];
+    for (const [width, height] of [[1000, 600], [500, 900]]) {
+      await page.setViewportSize({ width, height });
+      const settled = width > height ? (d) => (corner[1] === 'l' ? d.x : width - d.right) === 0 : (d) => (corner[0] === 't' ? d.y : height - d.bottom) === 0;
+      await expect.poll(async () => settled(await rectOf(page, '.expfw-photodiode'))).toBe(true); // placed again after the resize
+      const tag = await rectOf(page, `.expfw-apriltag >> nth=${tagIndex}`);
+      const diode = await rectOf(page, '.expfw-photodiode');
+      const tagCorner = { tl: [tag.x, tag.y], tr: [width - tag.right, tag.y], br: [width - tag.right, height - tag.bottom], bl: [tag.x, height - tag.bottom] }[corner];
+      expect(tagCorner, 'the tag keeps its corner').toEqual([4, 4]);
+      const apart = diode.right <= tag.x || diode.x >= tag.right || diode.bottom <= tag.y || diode.y >= tag.bottom;
+      expect(apart, 'no overlap').toBe(true);
+      const left = corner[1] === 'l';
+      const top = corner[0] === 't';
+      if (width > height) {
+        expect(left ? diode.x : width - diode.right, 'in the side margin, flush with the edge').toBe(0);
+        expect(top ? diode.y >= tag.bottom : diode.bottom <= tag.y, 'below a top tag, above a bottom tag').toBe(true);
+      } else {
+        expect(top ? diode.y : height - diode.bottom, 'in the top or bottom margin, flush with the edge').toBe(0);
+        expect(left ? diode.x >= tag.right : diode.right <= tag.x, 'right of a left tag, left of a right tag').toBe(true);
+      }
+    }
+  });
+}

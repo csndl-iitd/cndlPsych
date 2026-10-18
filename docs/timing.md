@@ -40,7 +40,7 @@ by `seq`, not by `t`.
 
 ## Hardware procedure (the one that measures display and trigger latency)
 
-You need: a photodiode (or light sensor) taped to the bottom-left corner of the screen, the
+You need: a photodiode (or light sensor) taped over the photodiode patch (by default beside the bottom-left corner tag, not over it), the
 trigger line you will really use (the EEG amplifier's trigger input, or a TTL strobe from the
 trigger box), and a recorder that samples both on one clock at 1 kHz or faster (the EEG
 amplifier's analog inputs, an oscilloscope, or a DAQ).

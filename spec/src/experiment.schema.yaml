@@ -223,7 +223,12 @@ properties:
         additionalProperties: false
         properties:
           enabled: {type: boolean}
-          corner: {enum: [tl, tr, br, bl], default: bl}
+          corner:
+            description: >
+              Which corner's margin the patch is in. The AprilTag keeps the very corner; the patch sits beside it, never over it:
+              in the side margin above or below the tag on a wide screen, in the top or bottom margin to the left or right of it on a tall one.
+            enum: [tl, tr, br, bl]
+            default: bl
           size: {$ref: "common.schema.json#/definitions/length"}
           mode: {enum: [toggle, pulse], default: toggle}
           pulse_ms: {type: number, minimum: 1}

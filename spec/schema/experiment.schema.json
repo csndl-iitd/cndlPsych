@@ -518,6 +518,7 @@
               "type": "boolean"
             },
             "corner": {
+              "description": "Which corner's margin the patch is in. The AprilTag keeps the very corner; the patch sits beside it, never over it: in the side margin above or below the tag on a wide screen, in the top or bottom margin to the left or right of it on a tall one.\n",
               "enum": [
                 "tl",
                 "tr",

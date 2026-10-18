@@ -188,7 +188,7 @@ Paths are written as in the YAML: `a.b` is key `b` inside `a`; `items[]` is each
 | `overlay.apriltags.quiet_zone` | number |  | `1` | white border, in tag modules. min 1 |
 | `overlay.photodiode` | object |  |  |  |
 | `overlay.photodiode.enabled` | boolean | yes |  |  |
-| `overlay.photodiode.corner` | one of |  | `"bl"` | values: `"tl"`, `"tr"`, `"br"`, `"bl"` |
+| `overlay.photodiode.corner` | one of |  | `"bl"` | Which corner's margin the patch is in. The AprilTag keeps the very corner; the patch sits beside it, never over it: in the side margin above or below the tag on a wide screen, in the top or bottom margin to the left or right of it on a tall one. values: `"tl"`, `"tr"`, `"br"`, `"bl"` |
 | `overlay.photodiode.size` | one of several forms |  |  | Bare number = fraction of the stage's shorter side. Strings carry a unit: mm and deg need calibration, px is CSS pixels, % is of the stage width |
 | `overlay.photodiode.mode` | one of |  | `"toggle"` | values: `"toggle"`, `"pulse"` |
 | `overlay.photodiode.pulse_ms` | number |  |  | min 1 |
