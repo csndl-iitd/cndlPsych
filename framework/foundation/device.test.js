@@ -6,14 +6,14 @@ import {
 import { createBus } from './events.js';
 
 /** A window-like object for the given capabilities. */
-function fakeWindow({ pointer, hover, touchPoints = 0, screen, inner = screen, ua = 'test-agent', anyFine = false, anyHover = false }) {
+function fakeWindow({ pointer, hover, touchPoints = 0, screen, inner = screen, ua = 'test-agent', platform = 'TestOS', anyFine = false, anyHover = false }) {
   const media = {
     '(pointer: fine)': pointer === 'fine', '(pointer: coarse)': pointer === 'coarse', '(hover: hover)': hover === 'hover',
     '(any-pointer: fine)': anyFine, '(any-hover: hover)': anyHover,
   };
   return {
     matchMedia: (query) => ({ matches: media[query] ?? false }),
-    navigator: { maxTouchPoints: touchPoints, userAgent: ua, platform: 'TestOS', language: 'en-GB' },
+    navigator: { maxTouchPoints: touchPoints, userAgent: ua, platform, language: 'en-GB' },
     screen: { width: screen[0], height: screen[1] },
     innerWidth: inner[0],
     innerHeight: inner[1],
@@ -32,6 +32,10 @@ const DEVICES = {
   tabletLandscape: { pointer: 'coarse', hover: 'none', touchPoints: 5, screen: [1280, 800] },
   // a touch tablet with a mouse and a keyboard attached (tablet mode of a convertible): primary input is touch
   surface: { pointer: 'coarse', hover: 'none', touchPoints: 10, screen: [1368, 912], anyFine: true, anyHover: true },
+  // what the Windows tablet in the field reported: touch only as far as the browser can tell, no mouse, but a keyboard cover
+  windowsTablet: { pointer: 'coarse', hover: 'none', touchPoints: 10, screen: [1440, 960], platform: 'Win32', ua: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/155.0.0.0 Safari/537.36' },
+  androidTablet: { pointer: 'coarse', hover: 'none', touchPoints: 5, screen: [800, 1280], platform: 'Linux armv81', ua: 'Mozilla/5.0 (Linux; Android 14; SM-X900) Chrome/155.0.0.0 Safari/537.36' },
+  iPadAsMac: { pointer: 'coarse', hover: 'none', touchPoints: 5, screen: [820, 1180], platform: 'MacIntel', ua: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) Safari/605.1.15' },
   bigPhoneEdge: { pointer: 'coarse', hover: 'none', touchPoints: 5, screen: [600, 1000] },
 };
 const env = (name) => readEnvironment(fakeWindow(DEVICES[name]));
@@ -199,6 +203,20 @@ describe('inputProfiles', () => {
     const surface = env('surface');
     expect(resolveProfile({}, { env: surface }).profile).toBe('tablet'); // its primary input is touch
     expect(inputProfiles(surface, {}, 'tablet')).toEqual(['tablet', 'desktop', 'phone']);
+  });
+
+  it('a Windows tablet with no mouse attached still gets the desktop bindings: a keyboard is assumed on a desktop operating system', () => {
+    const windows = env('windowsTablet');
+    expect(windows.keyboard).toBe(true);
+    expect(resolveProfile({}, { env: windows }).profile).toBe('tablet');
+    expect(inputProfiles(windows, {}, 'tablet')).toEqual(['tablet', 'desktop', 'phone']);
+  });
+
+  it('but not an Android tablet or an iPad, whose keyboard we cannot assume', () => {
+    for (const device of ['androidTablet', 'iPadAsMac']) {
+      expect(env(device).keyboard, device).toBe(false);
+      expect(inputProfiles(env(device), {}, 'tablet'), device).toEqual(['tablet', 'phone']);
+    }
   });
 
   it('a touch laptop (fine primary pointer, touch screen) gets both desktop and touch bindings', () => {

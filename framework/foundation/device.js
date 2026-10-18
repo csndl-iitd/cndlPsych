@@ -12,11 +12,22 @@ export const BUILTIN_PROFILE_CONDITIONS = {
 /**
  * Snapshot of what the browser can do. `short_side_px` is the shorter side of the
  * screen in CSS px, so rotating a phone does not turn it into a tablet.
- * `keyboard` is assumed on devices whose primary pointer is fine (it cannot be detected).
+ * `keyboard` is assumed on devices whose primary pointer is fine and on those that run a desktop operating
+ * system (it cannot be detected, and a Windows tablet usually has its keyboard cover or a Bluetooth one).
  * `any_fine`, `any_coarse` and `any_hover` say what the device can do with ANY of its inputs (a
  * touch laptop has a fine pointer and a touch screen), where `pointer` and `hover` describe only
  * the primary one.
  */
+const MOBILE_AGENT = /Android|iPhone|iPad|iPod|Mobile/i;
+const DESKTOP_PLATFORM = /^(Win|Mac|Linux|CrOS)/i;
+
+/** Windows, macOS, Linux or ChromeOS (an iPad that asks for the desktop site calls itself a Mac but has touch points). */
+function runsDesktopSystem(navigator = {}) {
+  const platform = navigator.platform ?? '';
+  const iPadAsMac = /^Mac/i.test(platform) && (navigator.maxTouchPoints ?? 0) > 1;
+  return DESKTOP_PLATFORM.test(platform) && !MOBILE_AGENT.test(navigator.userAgent ?? '') && !iPadAsMac;
+}
+
 export function readEnvironment(win = globalThis) {
   const query = (text) => win.matchMedia?.(text).matches ?? false;
   const pointer = query('(pointer: fine)') ? 'fine' : query('(pointer: coarse)') ? 'coarse' : 'none';
@@ -30,7 +41,7 @@ export function readEnvironment(win = globalThis) {
     any_fine: query('(any-pointer: fine)') || pointer === 'fine',
     any_coarse: query('(any-pointer: coarse)') || pointer === 'coarse',
     any_hover: query('(any-hover: hover)') || query('(hover: hover)'),
-    keyboard: pointer === 'fine',
+    keyboard: pointer === 'fine' || runsDesktopSystem(win.navigator),
     touch: touchPoints > 0,
     touch_points: touchPoints,
     short_side_px: Math.min(screen.width ?? width, screen.height ?? height),
@@ -73,8 +84,9 @@ function hasInputsOf(when, env) {
   const asked = INPUT_KEYS.filter((key) => key in when);
   return asked.length > 0 && asked.every((key) => {
     switch (key) {
-      case 'pointer': return when.pointer === 'none' || (when.pointer === 'fine' ? env.any_fine : env.any_coarse || env.touch);
-      case 'hover': return when.hover === 'none' || env.any_hover;
+      // A profile that asks for a fine pointer is the one with a keyboard: its key bindings work even when no mouse is plugged in.
+      case 'pointer': return when.pointer === 'none' || (when.pointer === 'fine' ? env.any_fine || env.keyboard : env.any_coarse || env.touch);
+      case 'hover': return when.hover === 'none' || env.any_hover || env.keyboard;
       case 'keyboard': return when.keyboard === false || env.keyboard || env.any_fine;
       default: return when.touch === false || env.touch;
     }

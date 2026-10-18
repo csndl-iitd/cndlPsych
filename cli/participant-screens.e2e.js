@@ -200,6 +200,9 @@ test('SPACE answers during the task itself, on a plain computer and on one that 
     await expect.poll(async () => (await allEvents(page)).filter((e) => e.type === 'phase.onset' && e.data.stimulus === 'circle').length).toBe(round);
     await page.keyboard.press('Space');
     await expect.poll(async () => (await allEvents(page)).filter((e) => e.type === 'response.evaluated').length, { timeout: 5000 }).toBe(round);
+    // jsPsych got the key too: it ended the phase because of the response
+    await expect.poll(async () => { const events = await allEvents(page); const onset = events.filter((e) => e.type === 'phase.onset' && e.data.stimulus === 'circle')[round - 1]; return events.some((e) => e.type === 'bridge.key_injected' && e.seq > onset.seq); }, { timeout: 5000 }).toBe(true);
+    await expect.poll(async () => (await allEvents(page)).filter((e) => e.type === 'phase.offset' && e.data.stimulus === 'circle').map((e) => e.data.reason), { timeout: 5000 }).toEqual(Array(round).fill('response'));
   }
 });
 
@@ -217,6 +220,24 @@ test('SPACE answers during the task on a touch-first device that has a keyboard 
   await expect.poll(async () => (await allEvents(page)).filter((e) => e.type === 'phase.onset' && e.data.stimulus === 'circle').length).toBe(1);
   await page.keyboard.press('Space');
   await expect.poll(async () => (await allEvents(page)).filter((e) => e.type === 'response.evaluated').length, { timeout: 5000 }).toBe(1);
+});
+
+test('a Windows tablet that reports touch only (no mouse attached) still answers with SPACE in the task, as it did in the field', async ({ page, isMobile }) => {
+  test.skip(isMobile, 'this uses the desktop browser as a Windows device');
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'maxTouchPoints', { get: () => 10 });
+    const real = window.matchMedia.bind(window);
+    const answers = { '(pointer: fine)': false, '(pointer: coarse)': true, '(hover: hover)': false, '(any-pointer: fine)': false, '(any-hover: hover)': false, '(any-pointer: coarse)': true };
+    window.matchMedia = (query) => (query in answers ? { ...real(query), matches: answers[query] } : real(query));
+  });
+  await toInstructions(page, await project());
+  const { record } = await page.evaluate(() => window.expfw.store.snapshot());
+  expect(record.device).toMatchObject({ profile: 'tablet', keyboard: true });
+  expect(record.device.input_profiles).toContain('desktop');
+  await page.keyboard.press('Space');
+  await expect.poll(async () => (await allEvents(page)).filter((e) => e.type === 'phase.onset' && e.data.stimulus === 'circle').length).toBe(1);
+  await page.keyboard.press('Space');
+  await expect.poll(async () => (await allEvents(page)).filter((e) => e.type === 'phase.offset' && e.data.stimulus === 'circle').map((e) => e.data.reason), { timeout: 5000 }).toEqual(['response']);
 });
 
 test('a computer with only a mouse and keyboard shows just the keyboard hint, and a phone just the tap hint', async ({ page, isMobile }) => {
