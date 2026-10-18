@@ -370,13 +370,15 @@ events:
       segment: {type: integer, minimum: 1}
       mime: {type: string}
       t_start: {type: number}
+      save: {enum: [file, browser]}
+      file: {type: string}
       audio: {type: boolean}
       width: {type: integer}
       height: {type: integer}
       fps: {type: number}
   webcam.chunk:
     source: system
-    doc: A piece of the video was handed to local storage. t is when it was produced (the end of the piece).
+    doc: A piece of the video was handed to the file (or to the browser's storage). t is when it was produced (the end of the piece).
     required: [segment, index, bytes]
     data:
       segment: {type: integer, minimum: 1}
@@ -395,7 +397,7 @@ events:
     source: system
     required: [code, message]
     data:
-      code: {enum: [denied, no_camera, unsupported, recorder_error, storage_failed]}
+      code: {enum: [denied, no_camera, unsupported, file_declined, recorder_error, storage_failed]}
       message: {type: string}
 
   # ---- gaze (source: gaze) ----------------------------------------------

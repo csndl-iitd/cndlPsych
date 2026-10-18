@@ -115,9 +115,12 @@ input:
 #   audio: false              # also record the microphone
 #   video: { width: 640, height: 480, fps: 30, facing: user }   # facing: user | environment (which camera of a phone)
 #   bitrate_kbps: 1000        # about 7 MB per minute
-#   chunk_s: 10               # saved to the browser in pieces of this length
-#   on_denied: abort          # abort | continue_without: when the camera cannot be used
-#   The video goes into the exported zip (webcam/). It is not uploaded to Firebase.
+#   save: auto                # file: written straight to a file on disk that is chosen at the start (Chrome, Edge on a computer)
+#                             # (the file is complete only after a normal end; a crash leaves it empty)
+#                             # browser: kept in the browser, downloaded as a separate file at the end (survives a crash); auto: file where possible
+#   chunk_s: 10               # how often the recorder hands over what it has (the pieces are appended to the one file)
+#   on_denied: abort          # abort | continue_without: when recording cannot start (camera refused, no file chosen)
+#   The video is never in the exported zip and is not uploaded to Firebase.
 
 # ---- marks for cameras and photodiodes ------------------------------------------------------------
 # overlay:

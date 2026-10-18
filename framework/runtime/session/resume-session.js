@@ -98,7 +98,7 @@ export async function resumeSession(run, item) {
   const held = { eye: null };
   const finish = createFinisher({ record, store, bus, extras: deviceExtras(held) });
   const seed = record.experiment.seed;
-  const recorded = await prepareWebcam({ run, store, profile, finish, held });
+  const recorded = await prepareWebcam({ run, store, profile, record, finish, held });
   if (recorded.result) return recorded.result;
   const prepared = await prepareEyeTracking({ run, profile, seed, finish, held });
   if (prepared.result) {

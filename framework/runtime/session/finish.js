@@ -3,8 +3,8 @@
 // device check (that one is handled where the check happens).
 import { isoNow } from '../../foundation/clock.js';
 import { finishSessionRecord } from '../../foundation/session.js';
-import { sessionArchive, SUPPORTED_FORMATS, webcamFiles } from '../../storage/export.js';
-import { downloadFile } from '../download.js';
+import { sessionArchive, SUPPORTED_FORMATS } from '../../storage/export.js';
+import { downloadFile, downloadWebcamVideo } from '../download.js';
 import { showMessage } from './messages.js';
 
 /**
@@ -35,13 +35,16 @@ function finishScreen(display, plan, record) {
   }
 }
 
-/** Download the finished session as one zip, if export_on_finish asks for a format we can write. */
+/** Download the finished session as one zip, if export_on_finish asks for a format we can write; the webcam video the browser kept comes as its own file(s). */
 async function exportSession(doc, store, formats) {
-  if (!formats.some((format) => SUPPORTED_FORMATS.includes(format))) return;
+  const wantsZip = formats.some((format) => SUPPORTED_FORMATS.includes(format));
+  if (!wantsZip && typeof store.readMedia !== 'function') return;
   const { record, events } = await store.snapshot();
-  const video = await webcamFiles(record, (await store.readMedia?.()) ?? []);
-  const archive = sessionArchive(record, events, formats, video);
-  downloadFile(doc, { name: archive.name, data: archive.data });
+  if (wantsZip) {
+    const archive = sessionArchive(record, events, formats);
+    downloadFile(doc, { name: archive.name, data: archive.data });
+  }
+  await downloadWebcamVideo(doc, store, record);
 }
 
 /**

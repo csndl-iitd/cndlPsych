@@ -183,7 +183,7 @@ export async function runNewSession(run, search) {
     session: { session_id: participant.sessionId, ...participant.sessionFields },
     device: { profile },
   };
-  const recorded = await prepareWebcam({ run, store: sessionStore, profile, finish, held });
+  const recorded = await prepareWebcam({ run, store: sessionStore, profile, record, finish, held });
   if (recorded.result) return recorded.result;
   const prepared = await prepareEyeTracking({ run, profile, seed, finish, held });
   if (prepared.result) {

@@ -45,7 +45,7 @@ function fakeCamera({ error } = {}) {
   };
 }
 
-function setup({ config = {}, camera = fakeCamera(), supported, saveChunk, firstSegment } = {}) {
+function setup({ config = {}, camera = fakeCamera(), supported, saveChunk, firstSegment, destination } = {}) {
   let now = 1000;
   const clock = { now: () => { now += 50; return now; } };
   const bus = createBus({ clock });
@@ -54,9 +54,9 @@ function setup({ config = {}, camera = fakeCamera(), supported, saveChunk, first
   bus.startRecording();
   const saved = [];
   const Recorder = fakeRecorderClass(supported);
-  const webcam = createWebcam({
-    bus, clock, config, firstSegment, mediaDevices: camera, MediaRecorderClass: Recorder, saveChunk: saveChunk ?? (async (chunk) => { saved.push(chunk); }),
-  });
+  const target = { saveChunk: saveChunk ?? (async (chunk) => { saved.push(chunk); }), ...(destination ? { destination } : {}) };
+  const created = createWebcam({ bus, clock, config, firstSegment, mediaDevices: camera, MediaRecorderClass: Recorder });
+  const webcam = { ...created, start: () => created.start(target) };
   const events = () => log.filter((e) => e.type.startsWith('webcam.'));
   return { webcam, camera, saved, events, Recorder };
 }
@@ -108,6 +108,18 @@ describe('recording', () => {
     expect(events()[0].data.segment).toBe(3);
   });
 
+  it('says where the video went, in the log and the record, and can log a failure that is not about the camera', async () => {
+    const { webcam, events } = setup({ destination: { save: 'file', file: 'out.webm' } });
+    await webcam.start();
+    await webcam.stop();
+    expect(events()[0].data).toMatchObject({ save: 'file', file: 'out.webm' });
+    expect(webcam.summary()).toMatchObject({ save: 'file', file: 'out.webm' });
+    const other = setup();
+    expect(other.webcam.fail('file_declined', 'No file was chosen.')).toMatchObject({ ok: false, code: 'file_declined' });
+    expect(other.events().map((e) => e.data.code)).toEqual(['file_declined']);
+    expect(other.webcam.summary()).toMatchObject({ camera_denied: true, errors: 1 });
+  });
+
   it('stop is harmless when nothing is recording', async () => {
     const { webcam, events } = setup();
     await webcam.stop();
@@ -130,8 +142,8 @@ describe('recording', () => {
   it('says so when the browser cannot record video at all', async () => {
     const { webcam } = setup({ supported: [] });
     expect(await webcam.start()).toMatchObject({ ok: false, code: 'unsupported' });
-    const bare = createWebcam({ bus: createBus({ clock: { now: () => 0 } }), clock: { now: () => 0 }, saveChunk: async () => {}, mediaDevices: undefined, MediaRecorderClass: undefined });
-    expect(await bare.start()).toMatchObject({ ok: false, code: 'unsupported' });
+    const bare = createWebcam({ bus: createBus({ clock: { now: () => 0 } }), clock: { now: () => 0 }, mediaDevices: undefined, MediaRecorderClass: undefined });
+    expect(await bare.start({ saveChunk: async () => {} })).toMatchObject({ ok: false, code: 'unsupported' });
   });
 
   it('logs one storage_failed when saving fails, and keeps recording', async () => {

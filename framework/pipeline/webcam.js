@@ -1,7 +1,7 @@
 // Webcam recording: the camera (and optionally the microphone) is recorded with the browser's
-// MediaRecorder for the whole session. The video is cut into pieces of `chunk_s` seconds; each piece
-// is handed to `saveChunk` (the local store) as soon as it exists, so an interrupted session loses at
-// most the last piece. Concatenated in order, the pieces are one playable file.
+// MediaRecorder for the whole session. The recorder hands over what it has every `chunk_s` seconds; each
+// piece goes to `saveChunk` (a file on disk, or the local store) as soon as it exists, so an interrupted
+// session loses at most the last piece. Concatenated in order, the pieces are one playable file.
 //
 // The bus gets webcam.start (with the page clock at the moment the recorder started, time 0 of the
 // video), webcam.chunk, webcam.stop and webcam.error. How closely video time 0 is the first frame is
@@ -40,13 +40,12 @@ function failure(error) {
 /**
  * @param {{
  *   bus: object, clock: {now: () => number}, config?: object,
- *   saveChunk: (chunk: {segment: number, index: number, blob: Blob, t: number}) => Promise<void>,
  *   firstSegment?: number,
  *   mediaDevices?: MediaDevices, MediaRecorderClass?: typeof MediaRecorder,
  * }} options `firstSegment` is the number of the first recording of this page run (a resumed session carries on counting)
  */
 export function createWebcam({
-  bus, clock, config, saveChunk, firstSegment = 1,
+  bus, clock, config, firstSegment = 1,
   mediaDevices = globalThis.navigator?.mediaDevices, MediaRecorderClass = globalThis.MediaRecorder,
 }) {
   const settings = webcamSettings(config);
@@ -54,6 +53,7 @@ export function createWebcam({
   let active = null; // {recorder, stream, segment, startedAt, chunks, bytes, pending, stopping}
   let given = null; // the settings the camera actually gave
   let mime = null;
+  let destination = { save: 'browser' };
   let denied = false;
   let storageFailed = false;
 
@@ -69,7 +69,7 @@ export function createWebcam({
     totals.chunks += 1;
     totals.bytes += blob.size;
     bus.emit({ source: 'system', type: 'webcam.chunk', data: { segment: run.segment, index, bytes: blob.size } });
-    run.pending = run.pending.then(() => saveChunk({ segment: run.segment, index, blob, t: clock.now() })).catch((error) => {
+    run.pending = run.pending.then(() => run.saveChunk({ segment: run.segment, index, blob, t: clock.now() })).catch((error) => {
       if (storageFailed) return;
       storageFailed = true;
       emitError('storage_failed', `The video could not be saved: ${error?.message ?? error}`);
@@ -95,11 +95,20 @@ export function createWebcam({
   return {
     settings,
 
+    /** Recording cannot start for a reason outside the camera (no file chosen): log it like a camera failure. */
+    fail(code, message) {
+      denied = true;
+      emitError(code, message);
+      return { ok: false, code, message };
+    },
+
     /**
      * Ask for the camera and start recording.
+     * @param {{saveChunk: (chunk: {segment: number, index: number, blob: Blob, t: number}) => Promise<void>, destination?: {save: 'file'|'browser', file?: string}}} target
+     *   where the video goes: `saveChunk` takes each piece; `destination` says so in the log and the record
      * @returns {Promise<{ok: true} | {ok: false, code: string, message: string}>}
      */
-    async start() {
+    async start({ saveChunk, destination: where = { save: 'browser' } }) {
       const opened = await open();
       if (!opened.ok) {
         denied = true;
@@ -110,7 +119,8 @@ export function createWebcam({
       const track = stream.getVideoTracks()[0]?.getSettings?.() ?? {};
       given = { width: track.width, height: track.height, fps: track.frameRate };
       totals.segments += 1;
-      const run = { segment: firstSegment + totals.segments - 1, chunks: 0, bytes: 0, pending: Promise.resolve(), startedAt: null, stopping: null };
+      destination = where;
+      const run = { saveChunk, segment: firstSegment + totals.segments - 1, chunks: 0, bytes: 0, pending: Promise.resolve(), startedAt: null, stopping: null };
       const recorder = new MediaRecorderClass(stream, { mimeType: mime, videoBitsPerSecond: settings.bitrate_kbps * 1000 });
       const current = { ...run, recorder, stream };
       active = current;
@@ -123,7 +133,7 @@ export function createWebcam({
       bus.emit({
         source: 'system',
         type: 'webcam.start',
-        data: { segment: current.segment, mime, t_start: current.startedAt, audio: settings.audio, ...Object.fromEntries(Object.entries(given).filter(([, value]) => value !== undefined)) },
+        data: { segment: current.segment, mime, t_start: current.startedAt, save: destination.save, ...(destination.file ? { file: destination.file } : {}), audio: settings.audio, ...Object.fromEntries(Object.entries(given).filter(([, value]) => value !== undefined)) },
       });
       return { ok: true };
     },
@@ -154,7 +164,7 @@ export function createWebcam({
         enabled: true,
         ...(denied ? { camera_denied: true } : {}),
         ...(totals.segments ? {
-          mime, audio: settings.audio, segments: totals.segments, chunks: totals.chunks, bytes: totals.bytes, duration_ms: Math.round(totals.duration_ms),
+          mime, save: destination.save, ...(destination.file ? { file: destination.file } : {}), audio: settings.audio, segments: totals.segments, chunks: totals.chunks, bytes: totals.bytes, duration_ms: Math.round(totals.duration_ms),
           video: Object.fromEntries(Object.entries(given ?? {}).filter(([, value]) => value !== undefined)),
         } : {}),
         errors: totals.errors,

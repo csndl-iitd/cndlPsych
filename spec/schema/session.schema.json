@@ -565,6 +565,17 @@
         "mime": {
           "type": "string"
         },
+        "save": {
+          "enum": [
+            "file",
+            "browser"
+          ],
+          "description": "where the video went"
+        },
+        "file": {
+          "type": "string",
+          "description": "name of the file the video was written to (save: file)"
+        },
         "audio": {
           "type": "boolean"
         },

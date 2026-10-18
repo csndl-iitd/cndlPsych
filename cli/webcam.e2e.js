@@ -1,7 +1,8 @@
-// The webcam recording, in a real browser with Chromium's fake camera (a moving test pattern): the
-// participant is asked, the video is kept in the browser while it is recorded and lands in the
-// exported zip, the log says when it started and stopped, and a refused camera ends the session or not
-// as the experiment says. A real camera, other browsers and phones were not tried.
+// The webcam recording, in a real browser with Chromium's fake camera (a moving test pattern). The
+// video is written to a file through the File System Access API; the save dialog cannot be driven by
+// a test, so the tests answer it with a file in the page's private file system (OPFS), which goes
+// through the same FileSystemFileHandle / createWritable calls. A real camera, the real save dialog,
+// other browsers and phones were not tried.
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -16,7 +17,16 @@ test.use({ launchOptions: { args: ['--use-fake-device-for-media-stream', '--use-
 
 let dir;
 let served;
-test.beforeEach(({ isMobile }) => test.skip(isMobile, 'Chromium fake camera, run once on the desktop browser'));
+test.beforeEach(async ({ page, isMobile }) => {
+  test.skip(isMobile, 'Chromium fake camera, run once on the desktop browser');
+  await page.addInitScript(() => {
+    window.__pickerCalls = [];
+    window.showSaveFilePicker = async (options) => {
+      window.__pickerCalls.push(options);
+      return (await navigator.storage.getDirectory()).getFileHandle(options.suggestedName, { create: true });
+    };
+  });
+});
 test.afterEach(async () => {
   await served?.close();
   if (dir) rmSync(join(dir, '..'), { recursive: true, force: true });
@@ -71,51 +81,117 @@ async function playToTheEnd(page) {
   return page.evaluate(() => window.__result);
 }
 
-test('the participant is asked, the video is recorded in pieces, and the exported zip holds it next to the log', async ({ page }) => {
-  const url = await project();
-  await toCameraScreen(page, url);
+/** Every download the page starts. */
+function collectDownloads(page) {
+  const downloads = [];
+  page.on('download', (download) => downloads.push(download));
+  return downloads;
+}
+
+/** A file in the page's private file system: its size and first bytes. */
+const savedFile = (page, name) => page.evaluate(async (fileName) => {
+  const file = await (await (await navigator.storage.getDirectory()).getFileHandle(fileName)).getFile();
+  return { size: file.size, head: [...new Uint8Array(await file.slice(0, 4).arrayBuffer())] };
+}, name);
+
+test('the video is appended to one file the participant chose; the zip does not hold it, and the browser keeps no copy', async ({ page }) => {
+  const downloads = collectDownloads(page);
+  await toCameraScreen(page, await project());
   await startRecording(page);
   await page.getByText('Reaction time').waitFor();
-  const [download] = await Promise.all([page.waitForEvent('download'), playToTheEnd(page)]);
+  await playToTheEnd(page);
+
+  const picked = await page.evaluate(() => window.__pickerCalls);
+  expect(picked).toHaveLength(1);
+  expect(picked[0]).toMatchObject({ suggestedName: 'sub-001_ses-01_webcam.webm', types: [{ accept: { 'video/webm': ['.webm'] } }] });
 
   const log = await events(page);
   const types = log.map((e) => e.type);
   const start = log.find((e) => e.type === 'webcam.start');
   const stop = log.find((e) => e.type === 'webcam.stop');
-  expect(start.data).toMatchObject({ segment: 1, audio: false });
-  expect(start.data.mime).toMatch(/^video\/webm/);
+  expect(start.data).toMatchObject({ segment: 1, audio: false, save: 'file', file: 'sub-001_ses-01_webcam.webm' });
   expect(types.indexOf('webcam.stop')).toBeLessThan(types.indexOf('session.end'));
   expect(types.indexOf('webcam.start')).toBeLessThan(types.indexOf('block.start'));
   const chunks = ofType(log, 'webcam.chunk');
   expect(chunks.length).toBeGreaterThanOrEqual(3); // pieces of 1 s over a session of several seconds
-  expect(chunks.map((e) => e.data.index)).toEqual(chunks.map((_, i) => i));
-  expect(stop.data).toMatchObject({ segment: 1, reason: 'session_end', chunks: chunks.length });
-  expect(stop.data.bytes).toBe(chunks.reduce((sum, e) => sum + e.data.bytes, 0));
+  expect(stop.data).toMatchObject({ segment: 1, reason: 'session_end', chunks: chunks.length, bytes: chunks.reduce((sum, e) => sum + e.data.bytes, 0) });
   expect(ofType(log, 'webcam.error')).toEqual([]);
 
-  const files = unzipBytes(new Uint8Array(readFileSync(await download.path())));
-  const video = files['webcam/001_ses-01_segment-1.webm'] ?? files[Object.keys(files).find((name) => name.startsWith('webcam/'))];
-  expect(video, Object.keys(files).join(', ')).toBeDefined();
-  expect(video.length).toBe(stop.data.bytes);
-  expect([...video.slice(0, 4)]).toEqual([0x1a, 0x45, 0xdf, 0xa3]); // the start of a WebM file
-  // and the browser can play it: it knows the picture size
-  const size = await page.evaluate((bytes) => new Promise((resolve, reject) => {
+  // the file on disk is complete: as big as the pieces, a WebM, and the browser can play it
+  const file = await savedFile(page, 'sub-001_ses-01_webcam.webm');
+  expect(file.size).toBe(stop.data.bytes);
+  expect(file.head).toEqual([0x1a, 0x45, 0xdf, 0xa3]);
+  const size = await page.evaluate(async () => {
+    const handle = await (await navigator.storage.getDirectory()).getFileHandle('sub-001_ses-01_webcam.webm');
     const element = document.createElement('video');
-    element.onloadedmetadata = () => resolve({ w: element.videoWidth, h: element.videoHeight });
-    element.onerror = () => reject(new Error('the video could not be played'));
-    element.src = URL.createObjectURL(new Blob([new Uint8Array(bytes)], { type: 'video/webm' }));
-  }), [...video]);
+    return new Promise((resolve, reject) => {
+      element.onloadedmetadata = () => resolve({ w: element.videoWidth, h: element.videoHeight });
+      element.onerror = () => reject(new Error('the video could not be played'));
+      handle.getFile().then((blob) => { element.src = URL.createObjectURL(blob); });
+    });
+  });
   expect(size.w).toBeGreaterThan(0);
+  expect(await page.evaluate(async () => (await window.expfw.store.readMedia()).length)).toBe(0); // nothing kept in the browser
 
+  // the zip has the data and no video, and nothing else was downloaded
+  await expect.poll(() => downloads.length).toBe(1);
+  const files = unzipBytes(new Uint8Array(readFileSync(await downloads[0].path())));
+  expect(Object.keys(files).some((name) => name.startsWith('webcam'))).toBe(false);
   const record = JSON.parse(new TextDecoder().decode(files['session.json']));
-  expect(record.webcam).toMatchObject({ enabled: true, segments: 1, chunks: chunks.length, bytes: stop.data.bytes, audio: false, errors: 0 });
+  expect(record.webcam).toMatchObject({ enabled: true, save: 'file', file: 'sub-001_ses-01_webcam.webm', segments: 1, chunks: chunks.length, bytes: stop.data.bytes, errors: 0 });
   expect(record.webcam.video.width).toBeGreaterThan(0);
   expect(record.consent.statements.map((s) => s.id)).toContain('webcam');
 });
 
-test('a resumed session records a second video file after the first, and the zip holds both', async ({ page }) => {
-  const url = await project();
-  await toCameraScreen(page, url);
+test('save: browser keeps the video in the browser and downloads it as its own file, apart from the zip', async ({ page }) => {
+  const downloads = collectDownloads(page);
+  await toCameraScreen(page, await project('  enabled: true\n  chunk_s: 1\n  save: browser\n'));
+  await startRecording(page);
+  await page.getByText('Reaction time').waitFor();
+  await playToTheEnd(page);
+  expect(await page.evaluate(() => window.__pickerCalls)).toEqual([]); // no dialog
+
+  await expect.poll(() => downloads.length).toBe(2);
+  expect(downloads.map((d) => d.suggestedFilename()).sort()).toEqual(['sub-001_ses-01.zip', 'sub-001_ses-01_webcam.webm']);
+  const video = readFileSync(await downloads.find((d) => d.suggestedFilename().endsWith('.webm')).path());
+  const stop = ofType(await events(page), 'webcam.stop')[0];
+  expect(video.length).toBe(stop.data.bytes);
+  expect([...video.subarray(0, 4)]).toEqual([0x1a, 0x45, 0xdf, 0xa3]);
+  const files = unzipBytes(new Uint8Array(readFileSync(await downloads.find((d) => d.suggestedFilename().endsWith('.zip')).path())));
+  expect(Object.keys(files).some((name) => name.startsWith('webcam'))).toBe(false);
+  expect(JSON.parse(new TextDecoder().decode(files['session.json'])).webcam).toMatchObject({ save: 'browser', segments: 1 });
+});
+
+test('on a browser with no save dialog, auto falls back to keeping the video in the browser', async ({ page }) => {
+  await page.addInitScript(() => { window.showSaveFilePicker = undefined; });
+  await toCameraScreen(page, await project());
+  await startRecording(page);
+  await page.getByText('Reaction time').waitFor();
+  expect(ofType(await events(page), 'webcam.start')[0].data.save).toBe('browser');
+});
+
+test('save: file without a save dialog in the browser ends the session as aborted', async ({ page }) => {
+  await page.addInitScript(() => { window.showSaveFilePicker = undefined; });
+  await toCameraScreen(page, await project('  enabled: true\n  save: file\n'));
+  await startRecording(page);
+  await expect(page.getByText('needs to record with your camera')).toBeVisible();
+  const log = await events(page);
+  expect(ofType(log, 'webcam.error').map((e) => e.data.code)).toEqual(['unsupported']);
+  expect(ofType(log, 'session.end')[0].data.reason).toBe('aborted');
+});
+
+test('a cancelled save dialog is a refused recording: the session ends as aborted', async ({ page }) => {
+  await page.addInitScript(() => {
+    window.showSaveFilePicker = async () => { throw Object.assign(new Error('The user aborted a request.'), { name: 'AbortError' }); };
+  });
+  await toCameraScreen(page, await project());
+  await startRecording(page);
+  await expect(page.getByText('needs to record with your camera')).toBeVisible();
+  expect(ofType(await events(page), 'webcam.error').map((e) => e.data.code)).toEqual(['file_declined']);
+});
+
+test('a resumed session records a second video file after the first', async ({ page }) => {
+  await toCameraScreen(page, await project());
   await startRecording(page);
   await page.getByText('Reaction time').waitFor();
   await expect.poll(async () => ofType(await events(page), 'webcam.chunk').length, { timeout: 20_000 }).toBeGreaterThanOrEqual(2);
@@ -126,15 +202,14 @@ test('a resumed session records a second video file after the first, and the zip
   await clickContinue(page);
   await startRecording(page); // the camera screen again
   await page.getByText('Reaction time').waitFor();
-  const [download] = await Promise.all([page.waitForEvent('download'), playToTheEnd(page)]);
+  await playToTheEnd(page);
 
   const log = await events(page);
   expect(ofType(log, 'webcam.start').map((e) => e.data.segment)).toEqual([1, 2]);
   expect(ofType(log, 'webcam.stop').map((e) => e.data.segment)).toEqual([2]); // the first recording ended with the page
-  const files = unzipBytes(new Uint8Array(readFileSync(await download.path())));
-  const names = Object.keys(files).filter((name) => name.startsWith('webcam/'));
-  expect(names.map((name) => name.replace(/^.*_(segment-\d)\..*$/, '$1'))).toEqual(['segment-1', 'segment-2']);
-  expect(names.every((name) => files[name].length > 1000 && files[name][0] === 0x1a)).toBe(true);
+  // the second file is named so that it does not replace the first
+  expect(await page.evaluate(() => window.__pickerCalls.map((call) => call.suggestedName))).toEqual(['sub-001_ses-01_webcam-2.webm']);
+  expect((await savedFile(page, 'sub-001_ses-01_webcam-2.webm')).head).toEqual([0x1a, 0x45, 0xdf, 0xa3]);
 });
 
 test('a refused camera ends the session as aborted, and says so', async ({ page }) => {

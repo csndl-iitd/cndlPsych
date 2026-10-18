@@ -15,7 +15,6 @@ export function createMemoryStore() {
     /** Webcam video pieces, kept in memory like the events. */
     async addMedia(piece) { store.media.push({ segment: piece.segment, index: piece.index, blob: piece.blob }); },
     async readMedia() { return [...store.media].sort((a, b) => a.segment - b.segment || a.index - b.index); },
-    async nextSegment() { return store.media.reduce((highest, piece) => Math.max(highest, piece.segment), 0) + 1; },
     finish(record) {
       store.record = record;
       store.finished = true;

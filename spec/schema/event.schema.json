@@ -2038,6 +2038,15 @@
               "t_start": {
                 "type": "number"
               },
+              "save": {
+                "enum": [
+                  "file",
+                  "browser"
+                ]
+              },
+              "file": {
+                "type": "string"
+              },
               "audio": {
                 "type": "boolean"
               },
@@ -2178,6 +2187,7 @@
                   "denied",
                   "no_camera",
                   "unsupported",
+                  "file_declined",
                   "recorder_error",
                   "storage_failed"
                 ]

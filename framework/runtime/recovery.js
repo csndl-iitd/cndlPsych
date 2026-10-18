@@ -3,8 +3,8 @@
 // interrupted session can be resumed (same participant, same seed, carrying on where it
 // stopped), downloaded as it is, or deleted.
 import { askAction } from '../authoring/modules/survey.js';
-import { sessionArchive, webcamFiles } from '../storage/export.js';
-import { downloadFile } from './download.js';
+import { sessionArchive } from '../storage/export.js';
+import { downloadFile, downloadWebcamVideo } from './download.js';
 
 /**
  * @param {{
@@ -24,8 +24,8 @@ export async function recoverSessions({ screen, store, policy, formats, doc, che
   async function download(item) {
     const record = await store.abandon(item.key);
     const { events } = await store.read(item.key);
-    const video = await webcamFiles(record, (await store.readMedia?.(item.key)) ?? []);
-    const archive = sessionArchive(record, events, formats.length ? formats : ['jsonl'], video);
+    const archive = sessionArchive(record, events, formats.length ? formats : ['jsonl']);
+    await downloadWebcamVideo(doc, store, record, item.key);
     downloadFile(doc, { name: `recovered_${archive.name}`, data: archive.data });
     result.downloaded += 1;
   }

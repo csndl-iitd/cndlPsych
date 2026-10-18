@@ -68,28 +68,25 @@ describe('sessionArchive', () => {
   });
 });
 
-describe('webcam video in the archive', () => {
+describe('webcam video the browser kept', () => {
   const piece = (segment, index, bytes, type = 'video/webm;codecs=vp9') => ({ segment, index, blob: new Blob([new Uint8Array(bytes)], { type }) });
   const record = { subject_id: 'sub-007', session_id: 'ses-01' };
+  const bytesOf = async (file) => [...new Uint8Array(await file.blob.arrayBuffer())];
 
   it('joins the pieces of each recording in order, one file per recording', async () => {
-    const files = await webcamFiles(record, [piece(1, 0, [1, 2]), piece(1, 1, [3]), piece(2, 0, [9, 9])]);
-    expect(files.map((f) => [f.name, [...f.data]])).toEqual([
-      ['webcam/sub-007_ses-01_segment-1.webm', [1, 2, 3]],
-      ['webcam/sub-007_ses-01_segment-2.webm', [9, 9]],
-    ]);
+    const files = webcamFiles(record, [piece(1, 0, [1, 2]), piece(1, 1, [3]), piece(2, 0, [9, 9])]);
+    expect(files.map((f) => f.name)).toEqual(['sub-007_ses-01_webcam.webm', 'sub-007_ses-01_webcam-2.webm']);
+    expect(await Promise.all(files.map(bytesOf))).toEqual([[1, 2, 3], [9, 9]]);
+    expect(files[0].blob.type).toBe('video/webm;codecs=vp9');
   });
 
-  it('names an mp4 recording as mp4, and has no files when nothing was recorded', async () => {
-    expect((await webcamFiles(record, [piece(1, 0, [1], 'video/mp4')]))[0].name).toBe('webcam/sub-007_ses-01_segment-1.mp4');
-    expect(await webcamFiles(record, [])).toEqual([]);
+  it('names an mp4 recording as mp4, and has no files when nothing was recorded', () => {
+    expect(webcamFiles(record, [piece(1, 0, [1], 'video/mp4')])[0].name).toBe('sub-007_ses-01_webcam.mp4');
+    expect(webcamFiles(record, [])).toEqual([]);
   });
 
-  it('puts the video into the zip byte for byte', async () => {
-    const video = await webcamFiles(record, [piece(1, 0, [0, 255, 128, 10, 13])]);
-    const archive = sessionArchive(record, [], ['jsonl'], video);
-    const stored = unzipBytes(archive.data);
-    expect([...stored['webcam/sub-007_ses-01_segment-1.webm']]).toEqual([0, 255, 128, 10, 13]);
-    expect(Object.keys(stored)).toEqual(['session.json', 'events.jsonl', 'webcam/sub-007_ses-01_segment-1.webm']);
+  it('is not in the zip', () => {
+    const stored = unzipBytes(sessionArchive(record, [], ['jsonl']).data);
+    expect(Object.keys(stored)).toEqual(['session.json', 'events.jsonl']);
   });
 });

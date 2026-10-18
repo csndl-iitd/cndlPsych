@@ -452,7 +452,7 @@
       }
     },
     "webcam": {
-      "description": "Record video (and optionally sound) of the participant with the device's camera, for the whole session. The video is kept in the browser's local storage while it is recorded and is part of the exported zip (webcam/<subject>_<session>_webcam.webm); it is not uploaded to Firebase. The consent text must say that video is recorded. Eye tracking, if on, uses the camera separately.\n",
+      "description": "Record video (and optionally sound) of the participant with the device's camera, for the whole session. The video is written straight to one file on the computer's disk (the participant or experimenter chooses it at the start; Chrome and Edge on a computer), or, where the browser cannot do that, kept in the browser and downloaded as a separate file at the end. It is never in the exported zip and is not uploaded to Firebase. The consent text must say that video is recorded. Eye tracking, if on, uses the camera separately.\n",
       "type": "object",
       "required": [
         "enabled"
@@ -516,15 +516,24 @@
           "default": 1000,
           "description": "video bitrate; 1000 is about 7 MB per minute"
         },
+        "save": {
+          "description": "file = write to a file on disk that is chosen at the start (needs Chrome or Edge on a computer; otherwise recording cannot start, see on_denied); browser = keep the video in the browser and download it as a separate file when the session ends; auto = file where possible, otherwise browser. With file, the video is only complete on disk once the session has ended normally: if the page is closed or crashes before that, the file stays empty. With browser, an interrupted session's video is kept and can be downloaded from the data screen (?manage=1).\n",
+          "enum": [
+            "auto",
+            "file",
+            "browser"
+          ],
+          "default": "auto"
+        },
         "chunk_s": {
-          "description": "The video is saved to local storage in pieces of this many seconds, so an interrupted session loses at most one piece.",
+          "description": "How often the recorder hands over what it has recorded, in seconds. The pieces are appended to the one file (or, with save browser, kept as pieces and joined at the end), so an interrupted session loses at most this much that was not yet handed over.",
           "type": "number",
           "minimum": 1,
           "maximum": 60,
           "default": 10
         },
         "on_denied": {
-          "description": "What to do when the camera cannot be used (permission refused, no camera). abort ends the session, continue_without goes on and says so in the record.",
+          "description": "What to do when recording cannot start (camera refused or missing, no file chosen). abort ends the session, continue_without goes on and says so in the record.",
           "enum": [
             "abort",
             "continue_without"

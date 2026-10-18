@@ -201,12 +201,6 @@ export function createLocalStore({
       return [...stored.map(({ segment, index, blob }) => ({ segment, index, blob })), ...kept].sort((a, b) => a.segment - b.segment || a.index - b.index);
     },
 
-    /** The number the next recording of this session should have (1 for a new session). */
-    async nextSegment() {
-      const pieces = await store.readMedia();
-      return pieces.reduce((highest, piece) => Math.max(highest, piece.segment), 0) + 1;
-    },
-
     /** The record and every event so far, from disk (or memory when degraded). */
     async snapshot() {
       await flush();

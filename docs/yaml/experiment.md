@@ -178,7 +178,7 @@ Paths are written as in the YAML: `a.b` is key `b` inside `a`; `items[]` is each
 | `eyetracking.camera` | object |  |  |  |
 | `eyetracking.camera.preview` | one of |  | `"setup_only"` | values: `"setup_only"`, `"always"`, `"never"` |
 | `eyetracking.camera.on_denied` | one of |  | `"abort"` | values: `"abort"`, `"continue_without"` |
-| `webcam` | object |  |  | Record video (and optionally sound) of the participant with the device's camera, for the whole session. The video is kept in the browser's local storage while it is recorded and is part of the exported zip (webcam/<subject>_<session>_webcam.webm); it is not uploaded to Firebase. The consent text must say that video is recorded. Eye tracking, if on, uses the camera separately |
+| `webcam` | object |  |  | Record video (and optionally sound) of the participant with the device's camera, for the whole session. The video is written straight to one file on the computer's disk (the participant or experimenter chooses it at the start; Chrome and Edge on a computer), or, where the browser cannot do that, kept in the browser and downloaded as a separate file at the end. It is never in the exported zip and is not uploaded to Firebase. The consent text must say that video is recorded. Eye tracking, if on, uses the camera separately |
 | `webcam.enabled` | boolean | yes |  |  |
 | `webcam.profiles` | list of string |  |  | Device profiles that record; other devices take part without it. Leave it out to record on every device. min items 1 |
 | `webcam.audio` | boolean |  | `false` | also record the microphone |
@@ -188,8 +188,9 @@ Paths are written as in the YAML: `a.b` is key `b` inside `a`; `items[]` is each
 | `webcam.video.fps` | number |  | `30` | min 1. max 120 |
 | `webcam.video.facing` | one of |  | `"user"` | which camera of a phone or tablet. values: `"user"`, `"environment"` |
 | `webcam.bitrate_kbps` | number |  | `1000` | video bitrate; 1000 is about 7 MB per minute. min 100. max 20000 |
-| `webcam.chunk_s` | number |  | `10` | The video is saved to local storage in pieces of this many seconds, so an interrupted session loses at most one piece. min 1. max 60 |
-| `webcam.on_denied` | one of |  | `"abort"` | What to do when the camera cannot be used (permission refused, no camera). abort ends the session, continue_without goes on and says so in the record. values: `"abort"`, `"continue_without"` |
+| `webcam.save` | one of |  | `"auto"` | file = write to a file on disk that is chosen at the start (needs Chrome or Edge on a computer; otherwise recording cannot start, see on_denied); browser = keep the video in the browser and download it as a separate file when the session ends; auto = file where possible, otherwise browser. With file, the video is only complete on disk once the session has ended normally: if the page is closed or crashes before that, the file stays empty. With browser, an interrupted session's video is kept and can be downloaded from the data screen (?manage=1). values: `"auto"`, `"file"`, `"browser"` |
+| `webcam.chunk_s` | number |  | `10` | How often the recorder hands over what it has recorded, in seconds. The pieces are appended to the one file (or, with save browser, kept as pieces and joined at the end), so an interrupted session loses at most this much that was not yet handed over. min 1. max 60 |
+| `webcam.on_denied` | one of |  | `"abort"` | What to do when recording cannot start (camera refused or missing, no file chosen). abort ends the session, continue_without goes on and says so in the record. values: `"abort"`, `"continue_without"` |
 | `overlay` | object |  |  |  |
 | `overlay.apriltags` | object |  |  |  |
 | `overlay.apriltags.enabled` | boolean | yes |  |  |
