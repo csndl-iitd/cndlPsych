@@ -108,6 +108,17 @@ input:
 #   learn_from_clicks: false
 #   camera: { preview: setup_only, on_denied: abort }   # preview: setup_only | always | never; on_denied: abort | continue_without
 
+# ---- record video of the participant (consent text must say so; a consent statement is added for you) ---
+# webcam:
+#   enabled: true
+#   profiles: [desktop, phone, tablet]   # leave out to record on every device
+#   audio: false              # also record the microphone
+#   video: { width: 640, height: 480, fps: 30, facing: user }   # facing: user | environment (which camera of a phone)
+#   bitrate_kbps: 1000        # about 7 MB per minute
+#   chunk_s: 10               # saved to the browser in pieces of this length
+#   on_denied: abort          # abort | continue_without: when the camera cannot be used
+#   The video goes into the exported zip (webcam/). It is not uploaded to Firebase.
+
 # ---- marks for cameras and photodiodes ------------------------------------------------------------
 # overlay:
 #   apriltags:

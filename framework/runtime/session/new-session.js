@@ -14,7 +14,8 @@ import { askConsent } from './consent.js';
 import { conductSession } from './conduct-session.js';
 import { chooseProfile } from './device-check.js';
 import { prepareEyeTracking } from './eye-tracking-step.js';
-import { createFinisher, eyeExtras } from './finish.js';
+import { alongsideWebcam, prepareWebcam } from './webcam-step.js';
+import { createFinisher, deviceExtras } from './finish.js';
 import { showMessage } from './messages.js';
 import { connectStore, emitStartNotices, logStorageStatus } from './recording.js';
 import { signInRemote } from './remote-sign-in.js';
@@ -164,7 +165,7 @@ export async function runNewSession(run, search) {
   beginRecording({ run, record, sessionStore, seed, profile, sinkWarnings: device.sinkWarnings });
 
   const held = { eye: null };
-  const finish = createFinisher({ record, store: sessionStore, bus, extras: eyeExtras(held) });
+  const finish = createFinisher({ record, store: sessionStore, bus, extras: deviceExtras(held) });
   const admission = admitDevice(bus, plan.device ?? {}, { env, chosen: resolved.reason === 'prompt' ? profile : undefined, override: debug.simulate_profile });
   if (!admission.admitted) {
     const done = await finish('device_rejected');
@@ -182,7 +183,12 @@ export async function runNewSession(run, search) {
     session: { session_id: participant.sessionId, ...participant.sessionFields },
     device: { profile },
   };
+  const recorded = await prepareWebcam({ run, store: sessionStore, profile, finish, held });
+  if (recorded.result) return recorded.result;
   const prepared = await prepareEyeTracking({ run, profile, seed, finish, held });
-  if (prepared.result) return prepared.result;
-  return conductSession({ run, store: sessionStore, profile, inputProfiles: device.sources, seed, answers, resume: null, finish, eye: prepared.eye });
+  if (prepared.result) {
+    await recorded.webcam?.stop('error');
+    return prepared.result;
+  }
+  return conductSession({ run, store: sessionStore, profile, inputProfiles: device.sources, seed, answers, resume: null, finish, eye: alongsideWebcam(prepared.eye, recorded.webcam) });
 }

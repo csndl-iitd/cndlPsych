@@ -3,7 +3,7 @@
 // device check (that one is handled where the check happens).
 import { isoNow } from '../../foundation/clock.js';
 import { finishSessionRecord } from '../../foundation/session.js';
-import { sessionArchive, SUPPORTED_FORMATS } from '../../storage/export.js';
+import { sessionArchive, SUPPORTED_FORMATS, webcamFiles } from '../../storage/export.js';
 import { downloadFile } from '../download.js';
 import { showMessage } from './messages.js';
 
@@ -19,8 +19,11 @@ export const createFinisher = ({ record, store, bus, extras = () => ({}) }) => a
   return done;
 };
 
-/** What eye tracking adds to the session record when it ends; `held.eye` is set by prepareEyeTracking. */
-export const eyeExtras = (held) => () => (held.eye?.summary() ? { eyetracking: held.eye.summary() } : {});
+/** What eye tracking and the webcam recording add to the session record when it ends; `held.eye` and `held.webcam` are set by their steps. */
+export const deviceExtras = (held) => () => ({
+  ...(held.eye?.summary() ? { eyetracking: held.eye.summary() } : {}),
+  ...(held.webcam ? { webcam: held.webcam.summary() } : {}),
+});
 
 function finishScreen(display, plan, record) {
   const { finish = {} } = plan;
@@ -36,7 +39,8 @@ function finishScreen(display, plan, record) {
 async function exportSession(doc, store, formats) {
   if (!formats.some((format) => SUPPORTED_FORMATS.includes(format))) return;
   const { record, events } = await store.snapshot();
-  const archive = sessionArchive(record, events, formats);
+  const video = await webcamFiles(record, (await store.readMedia?.()) ?? []);
+  const archive = sessionArchive(record, events, formats, video);
   downloadFile(doc, { name: archive.name, data: archive.data });
 }
 
@@ -49,6 +53,7 @@ export async function completeSession({ services, project, store, finish, eye })
   const { bus, display, sinkSet } = services;
   const exportFormats = plan.storage?.local?.export_on_finish ?? [];
   await sinkSet.drain(); // triggers still queued are sent (and logged) before the session ends
+  await eye.settle?.(); // so is the webcam recording: its last events come before session.end
   const unsupported = exportFormats.filter((format) => !SUPPORTED_FORMATS.includes(format));
   if (unsupported.length) {
     bus.emit({ source: 'system', type: 'system.warning', data: { code: 'export_format_unsupported', message: `export_on_finish ${unsupported.join(', ')} is not available yet and was skipped` } });
@@ -70,6 +75,7 @@ export async function completeSession({ services, project, store, finish, eye })
 export async function stopSession({ services, finish, eye, error }) {
   const { bus, display, sinkSet } = services;
   const reason = error.endReason ?? 'error';
+  await eye.settle?.();
   if (reason === 'error') bus.emit({ source: 'system', type: 'system.error', data: { code: 'exception', message: String(error.message ?? error), fatal: true } });
   bus.emit({ source: 'system', type: 'session.end', data: { reason } });
   await eye.stop();

@@ -2,8 +2,8 @@
 // writer is verified by code that shares nothing with it.
 import { crc32 as nodeCrc32 } from 'node:zlib';
 
-/** An independent zip reader: walks the central directory and checks every CRC. */
-export function unzip(bytes) {
+/** An independent zip reader: walks the central directory and checks every CRC. Returns the bytes of each file by name. */
+export function unzipBytes(bytes) {
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   const end = bytes.length - 22;
   if (view.getUint32(end, true) !== 0x06054b50) throw new Error('not a zip: no end-of-central-directory');
@@ -22,8 +22,13 @@ export function unzip(bytes) {
     const data = bytes.subarray(dataStart, dataStart + size);
     if (method !== 0) throw new Error('only stored entries are supported');
     if (nodeCrc32(data) !== crc) throw new Error(`CRC mismatch in ${name}`);
-    files[name] = new TextDecoder().decode(data);
+    files[name] = data;
     cursor += 46 + nameLength + extraLength + commentLength;
   }
   return files;
+}
+
+/** The same, with every file read as UTF-8 text (for archives of text files). */
+export function unzip(bytes) {
+  return Object.fromEntries(Object.entries(unzipBytes(bytes)).map(([name, data]) => [name, new TextDecoder().decode(data)]));
 }

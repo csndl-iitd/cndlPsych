@@ -192,6 +192,46 @@ properties:
           preview: {enum: [setup_only, always, never], default: setup_only}
           on_denied: {enum: [abort, continue_without], default: abort}
 
+  # ---- webcam recording --------------------------------------------------------
+  webcam:
+    description: >
+      Record video (and optionally sound) of the participant with the device's camera, for the whole
+      session. The video is kept in the browser's local storage while it is recorded and is part of the
+      exported zip (webcam/<subject>_<session>_webcam.webm); it is not uploaded to Firebase. The consent
+      text must say that video is recorded. Eye tracking, if on, uses the camera separately.
+    type: object
+    required: [enabled]
+    additionalProperties: false
+    properties:
+      enabled: {type: boolean}
+      profiles:
+        description: Device profiles that record; other devices take part without it. Leave it out to record on every device.
+        type: array
+        minItems: 1
+        uniqueItems: true
+        items: {$ref: "common.schema.json#/definitions/profile_id"}
+      audio: {type: boolean, default: false, description: "also record the microphone"}
+      video:
+        description: What to ask the camera for; the browser gives the closest it has, and the record says what it gave.
+        type: object
+        additionalProperties: false
+        properties:
+          width: {type: integer, minimum: 160, maximum: 3840, default: 640}
+          height: {type: integer, minimum: 120, maximum: 2160, default: 480}
+          fps: {type: number, minimum: 1, maximum: 120, default: 30}
+          facing: {enum: [user, environment], default: user, description: "which camera of a phone or tablet"}
+      bitrate_kbps: {type: number, minimum: 100, maximum: 20000, default: 1000, description: "video bitrate; 1000 is about 7 MB per minute"}
+      chunk_s:
+        description: The video is saved to local storage in pieces of this many seconds, so an interrupted session loses at most one piece.
+        type: number
+        minimum: 1
+        maximum: 60
+        default: 10
+      on_denied:
+        description: What to do when the camera cannot be used (permission refused, no camera). abort ends the session, continue_without goes on and says so in the record.
+        enum: [abort, continue_without]
+        default: abort
+
   # ---- overlays ---------------------------------------------------------------
   overlay:
     type: object

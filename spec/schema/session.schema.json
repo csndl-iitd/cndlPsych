@@ -548,6 +548,60 @@
         }
       }
     },
+    "webcam": {
+      "description": "What the webcam recording did. The video is in the export, stamped on the session clock by the webcam.* events.",
+      "type": "object",
+      "required": [
+        "enabled"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "camera_denied": {
+          "type": "boolean"
+        },
+        "mime": {
+          "type": "string"
+        },
+        "audio": {
+          "type": "boolean"
+        },
+        "video": {
+          "type": "object",
+          "description": "Settings the camera actually gave.",
+          "additionalProperties": false,
+          "properties": {
+            "width": {
+              "type": "integer"
+            },
+            "height": {
+              "type": "integer"
+            },
+            "fps": {
+              "type": "number"
+            }
+          }
+        },
+        "segments": {
+          "type": "integer",
+          "description": "recordings in this session (a resumed session starts another)"
+        },
+        "chunks": {
+          "type": "integer"
+        },
+        "bytes": {
+          "type": "integer"
+        },
+        "duration_ms": {
+          "type": "number"
+        },
+        "errors": {
+          "type": "integer"
+        }
+      }
+    },
     "overlays": {
       "type": "object",
       "additionalProperties": false,

@@ -9,12 +9,13 @@
 import { checkIntents } from './checks/intents.js';
 import { checkNames } from './checks/names.js';
 import { checkOverlay } from './checks/overlay.js';
+import { checkWebcam } from './checks/webcam.js';
 import { checkParams } from './checks/params.js';
 import { checkReferences } from './checks/references.js';
 import { checkTriggers } from './checks/triggers.js';
 import { checkUnits } from './checks/units.js';
 import { createContext, FILES } from './context.js';
-import { CAMERA_CONSENT } from './defaults.js';
+import { CAMERA_CONSENT, webcamConsent } from './defaults.js';
 import { createReporter } from './diagnostics.js';
 import { resolveBlocks } from './resolve.js';
 import { loadDocument } from './spec.js';
@@ -52,11 +53,16 @@ function withExperimentId(storage, name) {
 function assemblePlan(ctx, blocks) {
   const { input, triggers, consent, ...experiment } = ctx.experiment;
   const statements = consent.statements ?? [];
-  const needsCamera = experiment.eyetracking?.enabled && !statements.some(({ id }) => id === CAMERA_CONSENT.id);
+  const has = (id) => statements.some((statement) => statement.id === id);
+  // Recording video asks for its own consent, which also covers the camera being used for eye tracking.
+  const added = [
+    ...(experiment.webcam?.enabled && !has('webcam') ? [webcamConsent(experiment.webcam.audio === true)] : []),
+    ...(experiment.eyetracking?.enabled && !experiment.webcam?.enabled && !has(CAMERA_CONSENT.id) ? [CAMERA_CONSENT] : []),
+  ];
   return {
     ...experiment,
     ...(experiment.storage ? { storage: withExperimentId(experiment.storage, experiment.name) } : {}),
-    consent: { ...consent, statements: needsCamera ? [...statements, CAMERA_CONSENT] : statements },
+    consent: { ...consent, statements: [...statements, ...added] },
     triggers: { sinks: ctx.sinks, ...(triggers?.defaults ? { defaults: triggers.defaults } : {}) },
     styles: ctx.stimuliDoc.styles ?? {},
     stimuli: Object.fromEntries([...ctx.store].map(([name, { stimulus }]) => [name, stimulus])),
@@ -75,6 +81,7 @@ export function compile(project) {
   const ctx = createContext({ docs, schemas: project.schemas, custom: project.custom, assets: project.assets, report });
   checkNames(ctx);
   checkOverlay(ctx);
+  checkWebcam(ctx);
   checkReferences(ctx);
   checkParams(ctx);
   const { blocks, scopes } = resolveBlocks(ctx);

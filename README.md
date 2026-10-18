@@ -17,6 +17,8 @@ Edit `experiment.yaml`, `stimuli.yaml`, `timeline.yaml`, `forms.yaml`, `consent.
 
 Other commands: `expfw migrate <dir>` (spec_version), `expfw export-firestore ...` (BIDS from Firestore), `expfw relay ...` (WebSocket to serial; see `docs/triggers.md`).
 
+Webcam recording is a setting (`webcam:` in experiment.yaml, commented out in the template): the video goes into the exported zip, not to Firebase.
+
 Eye tracking is an add-on: `node cli/expfw.js init my-study --eyetracking` also copies `expfw-eyetracking/` (WebGazer, GPL-3.0-or-later; see `LICENSE-eyetracking.md`). Without eye tracking nothing GPL is involved.
 
 ## Developing the framework

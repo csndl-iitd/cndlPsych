@@ -5,7 +5,8 @@ import { mirrored, remoteFailedMessage } from '../remote.js';
 import { checkResumable, resumedRecord } from '../resume.js';
 import { conductSession } from './conduct-session.js';
 import { prepareEyeTracking } from './eye-tracking-step.js';
-import { createFinisher, eyeExtras } from './finish.js';
+import { alongsideWebcam, prepareWebcam } from './webcam-step.js';
+import { createFinisher, deviceExtras } from './finish.js';
 import { showMessage } from './messages.js';
 import { connectStore, emitStartNotices, logStorageStatus } from './recording.js';
 import { signInRemote } from './remote-sign-in.js';
@@ -95,9 +96,14 @@ export async function resumeSession(run, item) {
     device: { profile },
   };
   const held = { eye: null };
-  const finish = createFinisher({ record, store, bus, extras: eyeExtras(held) });
+  const finish = createFinisher({ record, store, bus, extras: deviceExtras(held) });
   const seed = record.experiment.seed;
+  const recorded = await prepareWebcam({ run, store, profile, finish, held });
+  if (recorded.result) return recorded.result;
   const prepared = await prepareEyeTracking({ run, profile, seed, finish, held });
-  if (prepared.result) return prepared.result;
-  return conductSession({ run, store, profile, inputProfiles: record.device.input_profiles ?? [profile], seed, answers, resume: verdict.point, finish, eye: prepared.eye });
+  if (prepared.result) {
+    await recorded.webcam?.stop('error');
+    return prepared.result;
+  }
+  return conductSession({ run, store, profile, inputProfiles: record.device.input_profiles ?? [profile], seed, answers, resume: verdict.point, finish, eye: alongsideWebcam(prepared.eye, recorded.webcam) });
 }

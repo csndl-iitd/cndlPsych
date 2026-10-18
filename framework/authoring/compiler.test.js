@@ -234,6 +234,37 @@ describe('invalid projects', () => {
   });
 });
 
+describe('webcam recording', () => {
+  it('adds a consent statement that names the video (and the sound), and the camera statement of eye tracking is not added as well', async () => {
+    const { plan } = await compileVariant((s) => { s.experiment.webcam = { enabled: true, audio: true }; s.experiment.eyetracking = { enabled: true }; });
+    const ids = plan.consent.statements.map((st) => st.id);
+    expect(ids).toEqual(['read', 'voluntary', 'webcam']);
+    expect(plan.consent.statements.at(-1)).toMatchObject({ required: true, text: expect.stringContaining('video and sound of me being recorded') });
+    expect(plan.webcam).toMatchObject({ enabled: true, audio: true });
+  });
+
+  it('keeps the own webcam statement of the experimenter', async () => {
+    const own = { id: 'webcam', text: 'My own wording.', required: true };
+    const { plan } = await compileVariant((s) => { s.experiment.webcam = { enabled: true }; s.experiment.consent.statements.push(own); });
+    expect(plan.consent.statements.filter((st) => st.id === 'webcam')).toEqual([own]);
+  });
+
+  it('rejects a profile that does not exist', async () => {
+    const { errors } = await compileVariant((s) => { s.experiment.webcam = { enabled: true, profiles: ['desktop', 'watch'] }; });
+    expect(errors).toContainEqual(expect.objectContaining({ code: 'webcam-profile', path: 'webcam.profiles[1]' }));
+  });
+
+  it('warns that the video does not go to Firebase', async () => {
+    const { warnings } = await compileVariant((s) => {
+      s.experiment.webcam = { enabled: true };
+      s.experiment.storage.firebase = { enabled: true, access: 'controlled', web_config: { apiKey: 'a', projectId: 'p', appId: 'x' } };
+    });
+    expect(warnings.map((w) => w.code)).toContain('webcam-not-uploaded');
+    const quiet = await compileVariant((s) => { s.experiment.webcam = { enabled: true }; s.experiment.storage.firebase = { enabled: false }; });
+    expect(quiet.warnings.map((w) => w.code)).not.toContain('webcam-not-uploaded');
+  });
+});
+
 describe('warnings', () => {
   it('warns when two rules can fire on the same event, unless allow_multiple is set', async () => {
     const dup = { id: 'dup', on: 'response.evaluated', where: { correct: true }, value: 40 };

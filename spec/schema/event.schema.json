@@ -212,6 +212,10 @@
             "input.drag.start",
             "input.drag.end",
             "input.drag.cancel",
+            "webcam.start",
+            "webcam.chunk",
+            "webcam.stop",
+            "webcam.error",
             "gaze.samples",
             "gaze.lost",
             "gaze.regained",
@@ -2000,6 +2004,192 @@
             "required": [
               "gesture_id",
               "reason"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "webcam.start"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "source": {
+            "const": "system"
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "segment": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "mime": {
+                "type": "string"
+              },
+              "t_start": {
+                "type": "number"
+              },
+              "audio": {
+                "type": "boolean"
+              },
+              "width": {
+                "type": "integer"
+              },
+              "height": {
+                "type": "integer"
+              },
+              "fps": {
+                "type": "number"
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "segment",
+              "mime",
+              "t_start"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "webcam.chunk"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "source": {
+            "const": "system"
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "segment": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "index": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "bytes": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "segment",
+              "index",
+              "bytes"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "webcam.stop"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "source": {
+            "const": "system"
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "segment": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "reason": {
+                "enum": [
+                  "session_end",
+                  "error"
+                ]
+              },
+              "chunks": {
+                "type": "integer"
+              },
+              "bytes": {
+                "type": "integer"
+              },
+              "duration_ms": {
+                "type": "number"
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "segment",
+              "reason",
+              "chunks",
+              "bytes",
+              "duration_ms"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "webcam.error"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "source": {
+            "const": "system"
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "enum": [
+                  "denied",
+                  "no_camera",
+                  "unsupported",
+                  "recorder_error",
+                  "storage_failed"
+                ]
+              },
+              "message": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "code",
+              "message"
             ]
           }
         }

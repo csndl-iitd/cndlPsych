@@ -6,7 +6,7 @@
 // It opens your project in headless Chromium (Playwright; `npx playwright install chromium`
 // once), answers the consent and forms, responds to what is on screen through the keys and taps
 // your input settings define, and prints blocks, trials, triggers and problems. Sinks are
-// replaced by recording fakes so triggers can be seen without hardware. Firebase and eye
+// replaced by recording fakes so triggers can be seen without hardware. Firebase, the webcam and eye
 // tracking are switched off, the session is kept in memory, and durations are shortened by
 // `--scale` (default 0.1). This checks the logic of your experiment, not its timing.
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -151,6 +151,7 @@ export async function dryRun({ dir, profile = 'desktop', scale = 0.1, timeoutS =
     doc.storage = { ...doc.storage, local: { ...doc.storage?.local, enabled: false, export_on_finish: [] } };
     if (doc.storage.firebase) doc.storage.firebase.enabled = false;
     if (doc.eyetracking) doc.eyetracking.enabled = false;
+    if (doc.webcam) doc.webcam.enabled = false;
     return dump(doc);
   };
   const server = await serveDirectory({ dir, rewrite });

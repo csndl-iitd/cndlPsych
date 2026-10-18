@@ -82,15 +82,34 @@ const EXPORTERS = {
 /** Formats this module can write. */
 export const SUPPORTED_FORMATS = Object.keys(EXPORTERS);
 
+/** File extension for a recorded video mime type. */
+export const extensionOf = (mime) => (String(mime).startsWith('video/mp4') ? 'mp4' : 'webm');
+
+/**
+ * The webcam video of a session as files, one per recording (a resumed session has several).
+ * The pieces of one recording, joined in order, are one playable file.
+ * @param {object} record session record
+ * @param {{segment: number, index: number, blob: Blob}[]} pieces from the store's readMedia(), in order
+ * @returns {Promise<{name: string, data: Uint8Array}[]>}
+ */
+export async function webcamFiles(record, pieces) {
+  const bySegment = Map.groupBy(pieces, (piece) => piece.segment);
+  return Promise.all([...bySegment].map(async ([segment, parts]) => ({
+    name: `webcam/${record.subject_id}_${record.session_id}_segment-${segment}.${extensionOf(parts[0].blob.type)}`,
+    data: new Uint8Array(await new Blob(parts.map((part) => part.blob)).arrayBuffer()),
+  })));
+}
+
 /**
  * The files for one session, packed in a single zip named after the subject and session.
  * @param {object} record session record
  * @param {object[]} events
  * @param {string[]} formats entries of storage.local.export_on_finish; unsupported ones are skipped
+ * @param {{name: string, data: string|Uint8Array}[]} [extraFiles] more files for the zip (the webcam video)
  * @returns {{name: string, data: Uint8Array, skipped: string[]}}
  */
-export function sessionArchive(record, events, formats = ['jsonl']) {
+export function sessionArchive(record, events, formats = ['jsonl'], extraFiles = []) {
   const wanted = formats.filter((format) => format in EXPORTERS);
-  const files = [{ name: 'session.json', data: `${JSON.stringify(record, null, 2)}\n` }, ...wanted.flatMap((format) => EXPORTERS[format](record, events))];
+  const files = [{ name: 'session.json', data: `${JSON.stringify(record, null, 2)}\n` }, ...wanted.flatMap((format) => EXPORTERS[format](record, events)), ...extraFiles];
   return { name: `${record.subject_id}_${record.session_id}.zip`, data: zip(files), skipped: formats.filter((format) => !(format in EXPORTERS)) };
 }

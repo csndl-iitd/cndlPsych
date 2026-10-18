@@ -10,10 +10,11 @@
 // memory: the session carries on, exports still work, and `storage.status` says so.
 import { schedule as defaultSchedule } from '../foundation/clock.js';
 
-const VERSION = 1;
+const VERSION = 2;
 const MAX_BUFFER = 200;
 const SESSIONS = 'sessions';
 const EVENTS = 'events';
+const MEDIA = 'media'; // webcam video, in pieces: {session, segment, index, blob}
 
 const request = (req) => new Promise((resolve, reject) => {
   req.onsuccess = () => resolve(req.result);
@@ -31,6 +32,7 @@ export function createLocalStore({
   let session = null; // {key, record}
   let buffer = [];
   let memory = [];
+  let memoryMedia = [];
   let lastSeq = -1;
   let degraded = false;
   let cancelFlush = null;
@@ -59,8 +61,10 @@ export function createLocalStore({
       }
       const req = indexedDB.open(dbName, VERSION);
       req.onupgradeneeded = () => {
-        req.result.createObjectStore(SESSIONS, { keyPath: 'key' });
-        req.result.createObjectStore(EVENTS, { keyPath: ['session', 'seq'] });
+        const names = req.result.objectStoreNames;
+        if (!names.contains(SESSIONS)) req.result.createObjectStore(SESSIONS, { keyPath: 'key' });
+        if (!names.contains(EVENTS)) req.result.createObjectStore(EVENTS, { keyPath: ['session', 'seq'] });
+        if (!names.contains(MEDIA)) req.result.createObjectStore(MEDIA, { keyPath: ['session', 'segment', 'index'] });
       };
       req.onsuccess = () => resolve(req.result);
       req.onerror = () => reject(req.error);
@@ -93,6 +97,7 @@ export function createLocalStore({
   }
 
   const range = (key) => IDBKeyRange.bound([key, 0], [key, Number.MAX_SAFE_INTEGER]);
+  const mediaRange = (key) => IDBKeyRange.bound([key, 0, 0], [key, Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER]);
 
   async function writeBatch(batch) {
     if (degraded || !db) return;
@@ -172,6 +177,36 @@ export function createLocalStore({
       setStatus('closed');
     },
 
+    // ---- webcam video -------------------------------------------------------------------------
+    /** One piece of the webcam recording ({segment, index, blob, t}). Rejects when it could not be kept, so the recorder can say so. */
+    async addMedia(piece) {
+      await chain;
+      if (degraded || !db) {
+        memoryMedia.push({ segment: piece.segment, index: piece.index, blob: piece.blob });
+        return;
+      }
+      try {
+        await work([MEDIA], 'readwrite', (media) => { media.put({ session: session.key, segment: piece.segment, index: piece.index, blob: piece.blob, t: piece.t }); });
+      } catch (error) {
+        memoryMedia.push({ segment: piece.segment, index: piece.index, blob: piece.blob });
+        throw error;
+      }
+    },
+
+    /** The video pieces of a session (the current one by default), in order: [{segment, index, blob}]. */
+    async readMedia(key = session?.key) {
+      await ready();
+      const kept = key === session?.key ? memoryMedia : [];
+      const stored = db && key ? await work([MEDIA], 'readonly', (media) => request(media.getAll(mediaRange(key)))) : [];
+      return [...stored.map(({ segment, index, blob }) => ({ segment, index, blob })), ...kept].sort((a, b) => a.segment - b.segment || a.index - b.index);
+    },
+
+    /** The number the next recording of this session should have (1 for a new session). */
+    async nextSegment() {
+      const pieces = await store.readMedia();
+      return pieces.reduce((highest, piece) => Math.max(highest, piece.segment), 0) + 1;
+    },
+
     /** The record and every event so far, from disk (or memory when degraded). */
     async snapshot() {
       await flush();
@@ -216,6 +251,7 @@ export function createLocalStore({
       lastSeq = row.last_seq;
       buffer = [];
       memory = [];
+      memoryMedia = [];
       await putSession({ record, status: 'in_progress' });
       setStatus('ready');
       return { lastSeq: row.last_seq };
@@ -251,9 +287,10 @@ export function createLocalStore({
 
     async remove(key) {
       await ready();
-      await work([SESSIONS, EVENTS], 'readwrite', async (sessions, events) => {
+      await work([SESSIONS, EVENTS, MEDIA], 'readwrite', async (sessions, events, media) => {
         sessions.delete(key);
         events.delete(range(key));
+        media.delete(mediaRange(key));
       });
     },
 

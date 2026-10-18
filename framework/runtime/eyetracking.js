@@ -33,9 +33,9 @@ function createDots(stage, ownerDocument) {
   };
 }
 
-const INTRO = `## Eye tracking
+const intro = (recording) => `## Eye tracking
 
-This experiment uses your camera to estimate where you are looking. **No video is recorded or stored.**
+This experiment uses your camera to estimate where you are looking.${recording ? '' : ' **No video is recorded or stored.**'}
 
 Sit centred in front of the screen with your face well lit, and keep your head as still as you can. Choose *Start*, then allow the camera when your browser asks.`;
 const CALIBRATE = `## Calibration
@@ -102,7 +102,7 @@ export async function setupEyeTracking({ services, screen, plan, profile, rng, l
     return ok;
   }
 
-  await askAction(screen, { message: INTRO, choices: [{ value: 'start', text: 'Start' }], submitLabel: 'Continue' });
+  await askAction(screen, { message: intro(plan.webcam?.enabled === true), choices: [{ value: 'start', text: 'Start' }], submitLabel: 'Continue' });
   const started = await gaze.start();
   if (!started.ok) {
     if (started.reason === 'no_addon') {

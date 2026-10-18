@@ -361,6 +361,43 @@ events:
       gesture_id: {type: integer}
       reason: {enum: [pointer_cancel, phase_end, blur, other]}
 
+  # ---- webcam recording (source: system) -------------------------------
+  webcam.start:
+    source: system
+    doc: The recorder started. t_start is the page clock at that moment, which is time 0 of the video segment.
+    required: [segment, mime, t_start]
+    data:
+      segment: {type: integer, minimum: 1}
+      mime: {type: string}
+      t_start: {type: number}
+      audio: {type: boolean}
+      width: {type: integer}
+      height: {type: integer}
+      fps: {type: number}
+  webcam.chunk:
+    source: system
+    doc: A piece of the video was handed to local storage. t is when it was produced (the end of the piece).
+    required: [segment, index, bytes]
+    data:
+      segment: {type: integer, minimum: 1}
+      index: {type: integer, minimum: 0}
+      bytes: {type: integer, minimum: 0}
+  webcam.stop:
+    source: system
+    required: [segment, reason, chunks, bytes, duration_ms]
+    data:
+      segment: {type: integer, minimum: 1}
+      reason: {enum: [session_end, error]}
+      chunks: {type: integer}
+      bytes: {type: integer}
+      duration_ms: {type: number}
+  webcam.error:
+    source: system
+    required: [code, message]
+    data:
+      code: {enum: [denied, no_camera, unsupported, recorder_error, storage_failed]}
+      message: {type: string}
+
   # ---- gaze (source: gaze) ----------------------------------------------
   gaze.samples:
     source: gaze

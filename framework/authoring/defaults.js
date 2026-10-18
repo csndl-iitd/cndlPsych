@@ -17,6 +17,13 @@ export const CAMERA_CONSENT = {
   required: true,
 };
 
+/** The consent statement added when the webcam is recorded (the experiment's own statement with the same id replaces it). */
+export const webcamConsent = (audio) => ({
+  id: 'webcam',
+  text: `I agree to video${audio ? ' and sound' : ''} of me being recorded with my camera during the session, and to this recording being given to the researchers.`,
+  required: true,
+});
+
 /** Level 0 of the input cascade (an ordinary scope, so it merges like any other). */
 export const INPUT_DEFAULTS = {
   profiles: {

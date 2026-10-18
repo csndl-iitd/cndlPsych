@@ -178,6 +178,18 @@ Paths are written as in the YAML: `a.b` is key `b` inside `a`; `items[]` is each
 | `eyetracking.camera` | object |  |  |  |
 | `eyetracking.camera.preview` | one of |  | `"setup_only"` | values: `"setup_only"`, `"always"`, `"never"` |
 | `eyetracking.camera.on_denied` | one of |  | `"abort"` | values: `"abort"`, `"continue_without"` |
+| `webcam` | object |  |  | Record video (and optionally sound) of the participant with the device's camera, for the whole session. The video is kept in the browser's local storage while it is recorded and is part of the exported zip (webcam/<subject>_<session>_webcam.webm); it is not uploaded to Firebase. The consent text must say that video is recorded. Eye tracking, if on, uses the camera separately |
+| `webcam.enabled` | boolean | yes |  |  |
+| `webcam.profiles` | list of string |  |  | Device profiles that record; other devices take part without it. Leave it out to record on every device. min items 1 |
+| `webcam.audio` | boolean |  | `false` | also record the microphone |
+| `webcam.video` | object |  |  | What to ask the camera for; the browser gives the closest it has, and the record says what it gave |
+| `webcam.video.width` | integer |  | `640` | min 160. max 3840 |
+| `webcam.video.height` | integer |  | `480` | min 120. max 2160 |
+| `webcam.video.fps` | number |  | `30` | min 1. max 120 |
+| `webcam.video.facing` | one of |  | `"user"` | which camera of a phone or tablet. values: `"user"`, `"environment"` |
+| `webcam.bitrate_kbps` | number |  | `1000` | video bitrate; 1000 is about 7 MB per minute. min 100. max 20000 |
+| `webcam.chunk_s` | number |  | `10` | The video is saved to local storage in pieces of this many seconds, so an interrupted session loses at most one piece. min 1. max 60 |
+| `webcam.on_denied` | one of |  | `"abort"` | What to do when the camera cannot be used (permission refused, no camera). abort ends the session, continue_without goes on and says so in the record. values: `"abort"`, `"continue_without"` |
 | `overlay` | object |  |  |  |
 | `overlay.apriltags` | object |  |  |  |
 | `overlay.apriltags.enabled` | boolean | yes |  |  |

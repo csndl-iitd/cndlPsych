@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { completeSession, createFinisher, eyeExtras, stopSession } from './finish.js';
+import { completeSession, createFinisher, deviceExtras, stopSession } from './finish.js';
 
 const record = { schema_version: 1, subject_id: 'sub-001', session_id: 'ses-01', status: 'in_progress', started_at: '2026-10-08T10:00:00Z', ended_at: null };
 
@@ -76,10 +76,11 @@ describe('stopSession', () => {
   });
 });
 
-describe('eyeExtras', () => {
+describe('deviceExtras', () => {
   it('adds the eye tracking summary when there is one, and nothing otherwise', () => {
-    expect(eyeExtras({ eye: null })()).toEqual({});
-    expect(eyeExtras({ eye: { summary: () => undefined } })()).toEqual({});
-    expect(eyeExtras({ eye: { summary: () => ({ enabled: false }) } })()).toEqual({ eyetracking: { enabled: false } });
+    expect(deviceExtras({ eye: null })()).toEqual({});
+    expect(deviceExtras({ eye: { summary: () => undefined } })()).toEqual({});
+    expect(deviceExtras({ eye: { summary: () => ({ enabled: false }) } })()).toEqual({ eyetracking: { enabled: false } });
+    expect(deviceExtras({ webcam: { summary: () => ({ enabled: true, errors: 0 }) } })()).toEqual({ webcam: { enabled: true, errors: 0 } });
   });
 });
