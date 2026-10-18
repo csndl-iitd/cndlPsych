@@ -122,7 +122,7 @@ test('a finished session is downloaded as one zip (jsonl + csv + bids + session.
   expect(files['bids/sourcedata/sub-007/ses-01/events.jsonl']).toBe(files['events.jsonl']);
   const rows = files['bids/sub-007/ses-01/beh/sub-007_ses-01_task-Oddballflashesandvisualsearch_events.tsv'].trim().split(/\n/);
   expect(rows.length).toBeGreaterThan(30);
-  expect(rows.filter((row) => row.split(/\t/)[2] === 'trial').length).toBe(ofType(events, 'trial.end').length);
+  expect(rows.filter((row) => row.split(/\t/)[3] === 'trial_start').length).toBe(ofType(events, 'trial.end').length);
   const dataset = mkdtempSync(join(tmpdir(), 'expfw-bids-'));
   try {
     writeFiles(dataset, bidsNames.map((name) => ({ name: name.slice('bids/'.length), data: files[name] })));

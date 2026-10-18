@@ -30,6 +30,64 @@ describe('template', () => {
   });
 });
 
+// The words of the rule language (matching events, producing responses and triggers) are documented in docs/yaml/; the template names the settings.
+const RULE_LANGUAGE = new Set([
+  'match', 'where', 'all', 'any', 'not', 'eq', 'ne', 'in', 'not_in', 'gt', 'gte', 'lt', 'lte', 'glob', 'regex', 'exists', 'sequence', 'distinct_by', 'within', 'frames',
+  'unordered', 'emit', 'intent', 'event', 'end_trial', 'effect', 'target', 'add_class', 'style', 'revert_after', 'data', 'consume', 'priority', 'from', 'map', 'by', 'table',
+  'default', 'once', 'allow_multiple',
+]);
+
+/** Every setting name of a schema, following references into the other schema files. */
+function settingNames() {
+  const files = {};
+  const load = (name) => (files[name] ??= JSON.parse(readFileSync(join(ROOT, 'spec', 'schema', name), 'utf8')));
+  const names = new Set();
+  const seen = new Set();
+  const walk = (node, file) => {
+    if (!node || typeof node !== 'object') return;
+    if (node.$ref) {
+      const [target, pointer] = node.$ref.split('#');
+      const name = target || file;
+      if (seen.has(`${name}#${pointer}`)) return;
+      seen.add(`${name}#${pointer}`);
+      walk(pointer.split('/').filter(Boolean).reduce((found, part) => found[part], load(name)), name);
+      return;
+    }
+    for (const [name, child] of Object.entries(node.properties ?? {})) { names.add(name); walk(child, file); }
+    for (const list of [node.anyOf, node.oneOf, node.allOf]) list?.forEach((child) => walk(child, file));
+    walk(node.items, file);
+    walk(node.then, file);
+    if (typeof node.additionalProperties === 'object') walk(node.additionalProperties, file);
+  };
+  walk(load('experiment.schema.json'), 'experiment.schema.json');
+  return [...names].filter((name) => !RULE_LANGUAGE.has(name));
+}
+
+const NL = '\n';
+
+describe('template experiment.yaml', () => {
+  const text = readFileSync(join(TEMPLATE, 'experiment.yaml'), 'utf8');
+
+  it('shows every setting of experiment.yaml, switched off, so a new one cannot be forgotten', () => {
+    const missing = settingNames().filter((name) => !new RegExp(`(^|[^A-Za-z_])${name}:`).test(text));
+    expect(missing).toEqual([]);
+  });
+
+  it('is valid with all the switched-off settings switched on (the alternatives left out)', async () => {
+    const stubs = text.split(/\r?\n/).flatMap((line) => {
+      const comment = /^(\s*)#\s?(.*)$/.exec(line);
+      if (!comment) return [line];
+      const body = comment[2];
+      return /^(-\s|[A-Za-z_]+:)/.test(body.trimStart()) && !/^\s*(Everything|Lines|Every|Settings every|More for|"go"|A device|text:)/.test(body) ? [`${comment[1]}${body}`] : [];
+    }).filter((line) => !/^ {2}local:.*enabled: true, recovery/.test(line) && !/^ {2}select: auto/.test(line)).join(NL);
+    const dir = join(tempDir(), 'all-settings');
+    initProject(dir);
+    writeFileSync(join(dir, 'experiment.yaml'), stubs.replace(`device:${NL}`, `device:${NL}  select: fixed${NL}`));
+    const { diagnostics } = await validateProject(dir);
+    expect(diagnostics.filter((d) => d.severity === 'error')).toEqual([]);
+  });
+});
+
 describe('init', () => {
   it('creates the template and the bundled framework, and refuses a folder that is not empty', () => {
     const dir = join(tempDir(), 'my-study');

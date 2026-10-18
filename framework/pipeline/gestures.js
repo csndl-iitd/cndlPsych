@@ -28,6 +28,12 @@ function directionOf(dx, dy) {
   return dy >= 0 ? 'down' : 'up';
 }
 
+/** Ids 1, 2, 3, ... */
+export function createCounter() {
+  let last = 0;
+  return () => { last += 1; return last; };
+}
+
 /**
  * @param {{
  *   emit: (type: string, data: object, t: number) => void,
@@ -36,11 +42,11 @@ function directionOf(dx, dy) {
  *   toPx: (length: number|string) => number,
  *   shorterSide: () => number,
  *   schedule?: Function,
- * }} deps
+ *   nextId?: () => number,
+ * }} deps `nextId` hands out gesture ids; recognizers that share one keep their ids distinct
  */
-export function createRecognizer({ emit, now, hit, toPx, shorterSide, schedule = defaultSchedule }) {
+export function createRecognizer({ emit, now, hit, toPx, shorterSide, schedule = defaultSchedule, nextId = createCounter() }) {
   let config = { gestures: new Set(), thresholds: DEFAULT_THRESHOLDS, fireOn: 'up', path: false, padding: 0 };
-  let nextGestureId = 1;
   let active = null;
   let lastTap = null;
 
@@ -160,7 +166,7 @@ export function createRecognizer({ emit, now, hit, toPx, shorterSide, schedule =
   function down(sample) {
     if (active || config.gestures.size === 0) return;
     const g = {
-      id: nextGestureId,
+      id: nextId(),
       pointerId: sample.id,
       down: sample,
       target: hitAt(sample),
@@ -175,7 +181,6 @@ export function createRecognizer({ emit, now, hit, toPx, shorterSide, schedule =
       tapFiredAtDown: false,
       cancelTimer: null,
     };
-    nextGestureId += 1;
     active = g;
     recordSample(g, sample);
 

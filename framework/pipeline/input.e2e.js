@@ -112,14 +112,37 @@ test('pointer paths are recorded only when the scope opts in', async ({ page, is
   }
 });
 
-test('mouse movement without a button logs nothing; with no gesture enabled no pointer events are logged', async ({ page, isMobile }) => {
+test('mouse movement without a button logs nothing; a press is logged even when the scope listens for no gesture', async ({ page, isMobile }) => {
   test.skip(isMobile, 'mouse movement is a desktop concept');
   await openApp(page, { scope: scope([]) });
   await page.mouse.move(100, 100);
   await page.mouse.move(300, 200, { steps: 5 });
+  expect(await eventsOf(page, 'input.')).toEqual([]);
   await page.mouse.down();
   await page.mouse.up();
-  expect(await eventsOf(page, 'input.')).toEqual([]);
+  expect(await typesOf(page, 'input.')).toEqual(['input.pointer.down', 'input.pointer.up', 'input.tap']);
+});
+
+test('every gesture is logged, also the ones the scope does not listen for, with the id of its press', async ({ page, isMobile }) => {
+  await openApp(page, { scope: scope([]) });
+  const driver = await pointerDriver(page, isMobile);
+  const from = await atStage(page, 0.3, 0.3);
+  await gesture(driver, page, from, [from[0] + 250, from[1] + 120], { ms: 400, steps: 10 });
+  await gesture(driver, page, from, [from[0] + 260, from[1]], { ms: 150, steps: 5 });
+  expect(await typesOf(page, 'input.')).toEqual([
+    'input.pointer.down', 'input.drag.start', 'input.pointer.up', 'input.drag.end',
+    'input.pointer.down', 'input.drag.start', 'input.pointer.up', 'input.drag.end',
+  ]);
+  const ids = (await eventsOf(page, 'input.drag')).map((e) => e.data.gesture_id);
+  expect(ids).toEqual([1, 1, 2, 2]);
+});
+
+test('a gesture the scope listens for is reported once, not twice', async ({ page, isMobile }) => {
+  await openApp(page, { scope: scope(['swipe']) });
+  const driver = await pointerDriver(page, isMobile);
+  const from = await atStage(page, 0.7, 0.5);
+  await gesture(driver, page, from, [from[0] - 220, from[1]], { ms: 180 });
+  expect(await typesOf(page, 'input.swipe')).toEqual(['input.swipe']);
 });
 
 test('key presses log input.key.* with the documented fields and produce no pointer events', async ({ page }) => {

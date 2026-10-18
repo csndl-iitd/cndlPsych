@@ -31,12 +31,15 @@ describe('eventRows', () => {
       ev('block.end', 1500, { reason: 'complete' }),
     ];
     const rows = eventRows(events);
-    expect(rows.map((row) => [row.trial_type, row.onset, row.duration])).toEqual([
-      ['block', 0.09, 1.4], ['trial', 0.19, 1.2], ['stimulus', 0.29, 1], ['response', 1.19, 0],
+    expect(rows.map((row) => [row.event_name, row.onset, row.duration])).toEqual([
+      ['session_start', 0, 0], ['block_start', 0.09, 1.4], ['trial_start', 0.19, 1.2], ['stimulus_onset', 0.29, 1], ['tap', 1.19, 0], ['response', 1.19, 0],
+      ['trial_end', 1.39, 0], ['block_end', 1.49, 0],
     ]);
-    expect(rows[1]).toMatchObject({ outcome: 'correct', trial: 1 });
-    expect(rows[2]).toMatchObject({ stimulus: 's', trigger_value: 7 });
-    expect(rows[3]).toMatchObject({ intent: 'go', correct: true, response_time: 0.9 });
+    const byName = (name) => rows.find((row) => row.event_name === name);
+    expect(byName('trial_start')).toMatchObject({ trial_type: 'trial', outcome: 'correct', trial: 1 });
+    expect(byName('stimulus_onset')).toMatchObject({ trial_type: 'stimulus', stimulus: 's', trigger_value: 7 });
+    expect(byName('response')).toMatchObject({ trial_type: 'response', intent: 'go', correct: true, response_time: 0.9 });
+    expect(byName('trial_end')).toMatchObject({ outcome: 'correct' });
   });
 
   it('puts the trigger value on the stimulus it was sent for, and the response at the input that caused it', () => {
@@ -48,10 +51,36 @@ describe('eventRows', () => {
       ev('input.tap', 1200, {}, { source: 'input', trial: 1 }),
       ev('response.evaluated', 1310, { intent: 'go', correct: false, rt_ms: null }, { trial: 1, caused_by: 4 }),
     ];
-    const [stimulus, response] = eventRows(events);
+    const rows = eventRows(events);
+    const stimulus = rows.find((row) => row.event_name === 'stimulus_onset');
+    const response = rows.find((row) => row.event_name === 'response');
     expect(stimulus).toMatchObject({ trial_type: 'stimulus', stimulus: 's', trigger_value: 7 });
     expect(stimulus.duration).toBeUndefined();
     expect(response).toMatchObject({ trial_type: 'response', onset: 1.19, correct: false, response_time: null });
+  });
+
+  it('has a row for every key press, pointer press and gesture, named, with the key or the place, and a gesture starting where it began', () => {
+    fresh();
+    const input = (type, t, data) => ev(type, t, data, { source: 'input', trial: 1, phase: 'p' });
+    const down = { x: 0.25, y: 0.5, cx: 10, cy: 20 };
+    const rows = eventRows([
+      ...start(),
+      input('input.key.down', 1000, { key: ' ', code: 'Space', repeat: false, trusted: true, consumed: true }),
+      input('input.key.up', 1100, { key: 'a', code: 'KeyA', repeat: false, trusted: true }),
+      input('input.pointer.down', 2000, { pointer_id: 1, pointer_type: 'touch', button: 0, ...down, trusted: true }),
+      input('input.drag.start', 2100, { gesture_id: 4, down }),
+      input('input.pointer.up', 2600, { pointer_id: 1, pointer_type: 'touch', button: 0, x: 0.75, y: 0.5, trusted: true }),
+      input('input.drag.end', 2600, { gesture_id: 4, duration_ms: 600, down, up: { x: 0.75, y: 0.5 } }),
+      ev('page.visibility', 3000, { state: 'hidden' }, { source: 'system' }),
+      ev('page.focus', 3100, { focused: false }, { source: 'system' }),
+    ]).filter((row) => row.trial_type !== 'session');
+    expect(rows.map((row) => [row.event_name, row.onset, row.duration])).toEqual([
+      ['key_down', 0.99, 0], ['key_up', 1.09, 0], ['pointer_down', 1.99, 0], ['drag', 1.99, 0.6], ['pointer_up', 2.59, 0], ['page_hidden', 2.99, 0], ['window_blur', 3.09, 0],
+    ]);
+    expect(rows[0]).toMatchObject({ trial_type: 'input', key: 'Space', consumed: true, trial: 1 });
+    expect(rows[1].key).toBe('a');
+    expect(rows[2]).toMatchObject({ pointer_type: 'touch', x: 0.25, y: 0.5 });
+    expect(rows[3]).toMatchObject({ x: 0.25, y: 0.5, gesture_id: 4 });
   });
 
   it('aligns events after a resume through the new clock anchor, and marks the abandoned attempt', () => {
@@ -64,7 +93,7 @@ describe('eventRows', () => {
       ev('trial.start', 100, { trial: 3 }, { trial: 3 }),
       ev('trial.end', 900, { trial: 3, outcome: 'correct' }, { trial: 3 }),
     ];
-    const rows = eventRows(events).filter((row) => row.trial_type === 'trial');
+    const rows = eventRows(events).filter((row) => row.event_name === 'trial_start');
     expect(rows.map((row) => [row.onset, row.duration, row.outcome])).toEqual([[4.99, undefined, 'interrupted'], [60.09, 0.8, 'correct']]);
   });
 

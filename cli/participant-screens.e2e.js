@@ -189,6 +189,36 @@ test('SPACE still answers on that same computer', async ({ page, isMobile }) => 
   await expect.poll(async () => (await eventTypes(page)).includes('semantic.go')).toBe(true);
 });
 
+const allEvents = (page) => page.evaluate(async () => (await window.expfw.store.snapshot()).events);
+
+test('SPACE answers during the task itself, on a plain computer and on one that also has touch', async ({ page, isMobile }) => {
+  test.skip(isMobile, 'this is about a computer');
+  await touchAndMouse(page);
+  await toInstructions(page, await project());
+  await page.keyboard.press('Space');
+  for (const round of [1, 2]) {
+    await expect.poll(async () => (await allEvents(page)).filter((e) => e.type === 'phase.onset' && e.data.stimulus === 'circle').length).toBe(round);
+    await page.keyboard.press('Space');
+    await expect.poll(async () => (await allEvents(page)).filter((e) => e.type === 'response.evaluated').length, { timeout: 5000 }).toBe(round);
+  }
+});
+
+test('SPACE answers during the task on a touch-first device that has a keyboard attached', async ({ page, isMobile }) => {
+  test.skip(!isMobile, 'this is about a tablet');
+  await page.addInitScript(() => {
+    const real = window.matchMedia.bind(window);
+    const fine = ['any-pointer: fine', 'any-hover: hover'];
+    window.matchMedia = (query) => (fine.some((q) => query.includes(q)) ? { ...real(query), matches: true } : real(query));
+  });
+  await toInstructions(page, await project());
+  const { record } = await page.evaluate(() => window.expfw.store.snapshot());
+  expect(record.device.input_profiles).toContain('desktop');
+  await page.keyboard.press('Space');
+  await expect.poll(async () => (await allEvents(page)).filter((e) => e.type === 'phase.onset' && e.data.stimulus === 'circle').length).toBe(1);
+  await page.keyboard.press('Space');
+  await expect.poll(async () => (await allEvents(page)).filter((e) => e.type === 'response.evaluated').length, { timeout: 5000 }).toBe(1);
+});
+
 test('a computer with only a mouse and keyboard shows just the keyboard hint, and a phone just the tap hint', async ({ page, isMobile }) => {
   if (!isMobile) await mouseOnly(page);
   await toInstructions(page, await project());

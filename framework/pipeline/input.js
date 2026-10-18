@@ -8,13 +8,16 @@
 // What is recorded (and what is not):
 //  - key events: every key except while an editable field has focus (typed answers in
 //    forms are never logged); consumed keys carry `consumed: true`.
-//  - pointer events and gestures: only while the scope enables a gesture; mouse movement
-//    without a button is never logged (it only reports activity for the cursor).
-import { createRecognizer } from './gestures.js';
+//  - pointer presses (down, up, cancel) and every gesture the participant makes (tap, long press,
+//    swipe, drag), whatever the scope: the log is a record of what the participant did, not only
+//    of what the task listens for. Mouse movement without a button is never logged (it only
+//    reports activity for the cursor).
+import { createCounter, createRecognizer } from './gestures.js';
 import { schedule as defaultSchedule } from '../foundation/clock.js';
 
 const EDITABLE = 'input, textarea, select, [contenteditable=""], [contenteditable="true"]';
 const POINTER_TYPES = new Set(['mouse', 'touch', 'pen']);
+const ALL_GESTURES = ['tap', 'longpress', 'swipe', 'drag'];
 
 /**
  * @param {{bus: object, stage: object, doc?: Document, schedule?: Function}} options
@@ -29,14 +32,24 @@ export function createInput({ bus, stage, doc = stage.root.ownerDocument, schedu
   let scope = { gestures: [], paddingPx: 0 };
 
   const emit = (type, data, t) => bus.emit({ source: 'input', type, data, t });
-  const recognizer = createRecognizer({
-    emit,
+  // Two recognizers see every press: the scope's one reports the gestures the task listens for (with the
+  // scope's thresholds and path recording), the observer reports every other gesture so that the log is
+  // complete. They share the id of the press, so the events of one gesture can be put together.
+  const nextGesture = createCounter();
+  let gestureId = 0;
+  const shared = {
     now: () => win.performance.now(),
     hit: (cx, cy, padding) => stage.hit(cx, cy, padding),
     toPx: (length) => stage.lengthToPx(length),
     shorterSide: () => stage.shorterSide,
     schedule,
-  });
+    nextId: () => gestureId,
+  };
+  const recognizer = createRecognizer({ ...shared, emit });
+  const listensFor = (type) => scope.gestures.some((name) => type === `input.${name}` || type.startsWith(`input.${name}.`));
+  const observer = createRecognizer({ ...shared, emit: (type, data, t) => { if (!listensFor(type)) emit(type, data, t); } });
+
+  observer.configure({ gestures: ALL_GESTURES });
 
   function listen(target, type, handler, options) {
     target.addEventListener(type, handler, options);
@@ -73,28 +86,36 @@ export function createInput({ bus, stage, doc = stage.root.ownerDocument, schedu
   function pointerEvent(phase, event) {
     const sample = sampleOf(phase, event);
     if (sample.pointerType === 'mouse' && phase === 'down' && event.button !== 0) return;
-    const recording = scope.gestures.length > 0;
     if (phase === 'move') {
       activityHandlers.forEach((handler) => handler({ cx: sample.cx, cy: sample.cy, pointer_type: sample.pointerType, t: sample.t }));
-      if (recording) recognizer.pointer(sample);
+      feed(sample);
       return;
     }
-    if (recording) {
-      const found = stage.hit(sample.cx, sample.cy, scope.paddingPx);
-      bus.emit({
-        source: 'input',
-        type: `input.pointer.${phase}`,
-        t: sample.t,
-        data: {
-          pointer_id: sample.id, pointer_type: sample.pointerType, button: event.button, x: sample.x, y: sample.y,
-          cx: sample.cx, cy: sample.cy, inside_stage: sample.x >= 0 && sample.x <= 1 && sample.y >= 0 && sample.y <= 1,
-          target: found ? found.ref : null,
-          ...(sample.pressure === undefined ? {} : { pressure: sample.pressure }),
-          trusted: sample.trusted,
-        },
-      });
-    }
-    if (recording) recognizer.pointer(sample);
+    const found = stage.hit(sample.cx, sample.cy, scope.paddingPx);
+    bus.emit({
+      source: 'input',
+      type: `input.pointer.${phase}`,
+      t: sample.t,
+      data: {
+        pointer_id: sample.id, pointer_type: sample.pointerType, button: event.button, x: sample.x, y: sample.y,
+        cx: sample.cx, cy: sample.cy, inside_stage: sample.x >= 0 && sample.x <= 1 && sample.y >= 0 && sample.y <= 1,
+        target: found ? found.ref : null,
+        ...(sample.pressure === undefined ? {} : { pressure: sample.pressure }),
+        trusted: sample.trusted,
+      },
+    });
+    if (phase === 'down') gestureId = nextGesture();
+    feed(sample);
+  }
+
+  function feed(sample) {
+    recognizer.pointer(sample);
+    observer.pointer(sample);
+  }
+
+  function cancelAll(reason) {
+    recognizer.cancel(reason);
+    observer.cancel(reason);
   }
 
   const { root } = stage;
@@ -103,7 +124,7 @@ export function createInput({ bus, stage, doc = stage.root.ownerDocument, schedu
   for (const phase of ['down', 'move', 'up', 'cancel']) listen(root, `pointer${phase}`, (event) => pointerEvent(phase, event));
   listen(root, 'contextmenu', (event) => event.preventDefault());
   listen(win, 'blur', () => {
-    recognizer.cancel('blur');
+    cancelAll('blur');
     bus.emit({ source: 'system', type: 'page.focus', data: { focused: false } });
   });
   listen(win, 'focus', () => bus.emit({ source: 'system', type: 'page.focus', data: { focused: true } }));
@@ -126,6 +147,7 @@ export function createInput({ bus, stage, doc = stage.root.ownerDocument, schedu
       const paddingPx = resolved.hit_padding === undefined ? 0 : stage.lengthToPx(resolved.hit_padding);
       scope = { gestures: resolved.gestures ?? [], paddingPx };
       recognizer.configure({ ...resolved, hitPaddingPx: paddingPx });
+      observer.configure({ gesture_thresholds: resolved.gesture_thresholds, gestures: ALL_GESTURES, hitPaddingPx: paddingPx });
     },
     /** The mapping decides which key presses it swallows; it is asked before the event is emitted. */
     setConsumer(fn) { consumer = fn; },
@@ -140,9 +162,9 @@ export function createInput({ bus, stage, doc = stage.root.ownerDocument, schedu
       return () => leaveHandlers.splice(leaveHandlers.indexOf(handler), 1);
     },
     /** Abandon any gesture in progress (e.g. at a phase change). */
-    cancelGesture(reason = 'phase_end') { recognizer.cancel(reason); },
+    cancelGesture(reason = 'phase_end') { cancelAll(reason); },
     dispose() {
-      recognizer.cancel('other');
+      cancelAll('other');
       removers.splice(0).forEach((remove) => remove());
     },
   };
