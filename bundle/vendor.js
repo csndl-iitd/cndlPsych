@@ -40,6 +40,3 @@ export const VENDOR = [
 
 /** The stylesheet of the survey plugin, shipped next to the vendor modules. */
 export const SURVEY_CSS = { from: '@jspsych/plugin-survey/css/survey.css', file: 'jspsych-plugin-survey.css' };
-
-/** Where the eye tracking add-on's module is, relative to the folder that holds expfw/. */
-export const ADDON_MODULE = 'expfw-eyetracking/webgazer.js';
