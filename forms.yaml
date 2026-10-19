@@ -10,7 +10,7 @@ forms:
       - prompt: "Age:"
         name: "age"
         type: "text"
-        required: true
+        required: false
       - prompt: "Gender:"
         name: "gender"
         type: "multi-choice"
@@ -18,22 +18,6 @@ forms:
           - "Male"
           - "Female"
         required: false
-      - prompt: "Preferred Devices:"
-        name: "devices"
-        type: "multi-select"
-        options:
-          - "Keyboard"
-          - "Mouse"
-          - "Gamepad"
-        required: false
-      - prompt: "Language:"
-        name: "language"
-        type: "dropdown"
-        options:
-          - "English"
-          - "Hindi"
-          - "Spanish"
-        required: true
 
   - id: "session"
     type: "survey-text"
@@ -49,40 +33,4 @@ forms:
         options:
           - "Control"
           - "Experimental"
-        required: true
-
-  - id: "psychometric"
-    type: "survey-multi-choice"
-    data:
-      phase: "psychometric"
-    questions:
-      - prompt: "How are you feeling today?"
-        name: "feeling"
-        type: "likert"
-        options:
-          - "Very Bad"
-          - "Bad"
-          - "Neutral"
-          - "Good"
-          - "Very Good"
-        required: true
-      - prompt: "How are you thinking today?"
-        name: "thinking"
-        type: "likert"
-        options:
-          - "Very Bad"
-          - "Bad"
-          - "Neutral"
-          - "Good"
-          - "Very Good"
-        required: true
-      - prompt: "How are you willing today?"
-        name: "willing"
-        type: "likert"
-        options:
-          - "Very Bad"
-          - "Bad"
-          - "Neutral"
-          - "Good"
-          - "Very Good"
         required: false

@@ -1,31 +1,93 @@
 stimuli:
+
+  - name: "oddball_instructions"
+    stimulus: |
+      <div class="glass-panel" style="max-width: 600px; margin: 0 auto; padding: 35px; text-align: center; background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 16px; color: #f8fafc; font-family: 'Inter', sans-serif; line-height: 1.6; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4); backdrop-filter: blur(10px);">
+          <h2 style="font-size: 1.8rem; font-weight: 700; margin-bottom: 1.5rem; background: linear-gradient(to right, #3b82f6, #8b5cf6); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Oddball Task</h2>
+          <p style="margin-bottom: 1.5rem; font-size: 1rem; color: #cbd5e1;">
+              In this block, you will see a series of letters flashing at the center of the screen.
+          </p>
+          <p style="margin-bottom: 2rem; font-size: 1rem; color: #cbd5e1;">
+              Press the space bar when you see the letter <span style="font-weight: 700;">Ǝ</span> for the <span style="font-weight: 700;">second</span> time. Try to respond as quickly as possible.
+          </p>
+          <div style="font-size: 0.95rem; color: #94a3b8; animation: pulse 2s infinite;">
+              Press any key to begin.
+          </div>
+      </div>
+    duration: null
+    trigger: 9
+    
   - name: "fixation_plus"
-    stimulus: '<div style="font-size:48px;">+</div>'
-    duration: 500
+    stimulus: '<div style="font-size:72px;">+</div>'
+    duration: 1500
     trigger: 1
-    post: [100, 600] # Random delay between 100ms and 600ms after fixation cross
-
-  - name: "stimulus_F"
-    stimulus: '<div style="font-size:48px;">F</div>'
+    post: [200, 500]
+    
+  - name: "end_marker"
+    stimulus: '<div style="font-size:72px;">XXX</div>'
     duration: 500
-    trigger: 2
-    post: 0
+    trigger: 9
+    post: [200, 500]
 
-  - name: "stimulus_J"
-    stimulus: '<div style="font-size:48px;">J</div>'
-    duration: 500
-    trigger: 3
-    post: 0
+  - name: "oddball_A"
+    stimulus: '<div style="font-size:72px; color:#ffffff; font-family: Inter, sans-serif; font-weight:bold;">A</div>'
+    duration: 200
+    trigger: 100
+    post: 300
 
-  - name: "feedback_correct"
-    stimulus: '<div style="font-size:36px; color:#10b981; font-weight:bold; font-family:''Inter'',sans-serif;">Correct!</div>'
-    duration: 1000
-    trigger: 4
+  - name: "oddball_B"
+    stimulus: '<div style="font-size:72px; color:#ffffff; font-family: Inter, sans-serif; font-weight:bold;">B</div>'
+    duration: 200
+    trigger: 101
+    post: 300
 
-  - name: "feedback_incorrect"
-    stimulus: '<div style="font-size:36px; color:#ef4444; font-weight:bold; font-family:''Inter'',sans-serif;">Incorrect!</div>'
-    duration: 1000
-    trigger: 5
+  - name: "oddball_C"
+    stimulus: '<div style="font-size:72px; color:#ffffff; font-family: Inter, sans-serif; font-weight:bold;">C</div>'
+    duration: 200
+    trigger: 102
+    post: 300
+
+  - name: "oddball_D"
+    stimulus: '<div style="font-size:72px; color:#ffffff; font-family: Inter, sans-serif; font-weight:bold;">D</div>'
+    duration: 200
+    trigger: 103
+    post: 300
+
+  - name: "oddball_E"
+    stimulus: '<div style="font-size:72px; color:#ffffff; font-family: Inter, sans-serif; font-weight:bold;">E</div>'
+    duration: 200
+    trigger: 104
+    post: 300
+
+  - name: "oddball_F"
+    stimulus: '<div style="font-size:72px; color:#ffffff; font-family: Inter, sans-serif; font-weight:bold;">F</div>'
+    duration: 200
+    trigger: 105
+    post: 300
+
+  - name: "oddball_H"
+    stimulus: '<div style="font-size:72px; color:#ffffff; font-family: Inter, sans-serif; font-weight:bold;">H</div>'
+    duration: 200
+    trigger: 106
+    post: 300
+
+  - name: "oddball_I"
+    stimulus: '<div style="font-size:72px; color:#ffffff; font-family: Inter, sans-serif; font-weight:bold;">I</div>'
+    duration: 200
+    trigger: 107
+    post: 300
+
+  - name: "oddball_L"
+    stimulus: '<div style="font-size:72px; color:#ffffff; font-family: Inter, sans-serif; font-weight:bold;">L</div>'
+    duration: 200
+    trigger: 108
+    post: 300
+
+  - name: "oddball_Ǝ"
+    stimulus: '<div style="font-size:72px; color:#ffffff; font-family: Inter, sans-serif; font-weight:bold;">Ǝ</div>'
+    duration: 200
+    trigger: 109
+    post: 300
 
   - name: "flash_instructions"
     stimulus: |
@@ -53,4 +115,3 @@ stimuli:
     stimulus: '<div style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: #ffffff; margin: 0; padding: 0; z-index: 9999;"></div>'
     duration: 250
     trigger: 10
-

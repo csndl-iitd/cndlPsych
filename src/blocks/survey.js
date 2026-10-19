@@ -104,7 +104,7 @@ export async function createTimeline(blockConfig) {
     let formsList = [];
 
     try {
-        const response = await fetch(formsFile);
+        const response = await fetch(formsFile + '?t=' + Date.now());
         if (!response.ok) {
             throw new Error(`Failed to fetch ${formsFile}: ${response.statusText}`);
         }

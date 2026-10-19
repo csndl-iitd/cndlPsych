@@ -119,7 +119,7 @@ export async function runExperiment() {
                     response.participant_id = formattedId;
                     participantId = formattedId;
                 }
-                
+
                 response.status = "in_progress";
                 await logOrUpdateParticipant(participantId, response);
                 logger.participantId = participantId;
@@ -172,7 +172,7 @@ export async function runExperiment() {
 
             const idDisplay = document.getElementById('official-id-display');
             const idText = document.getElementById('official-id-text');
-            
+
             if (idDisplay && idText) {
                 if (participantId) {
                     idText.textContent = participantId;
@@ -289,19 +289,15 @@ export async function runExperiment() {
         });
     }
 
-    // Preload trial
-    const preload = {
-        type: jsPsychPreload,
-        auto_preload: true,
-        images: [],
-        audio: []
-    };
-    timeline.push(preload);
+    // Removed jsPsychPreload as we do not have external images/audio, and it can cause hangs if network requests stall on mobile.
+
+    const loader = document.getElementById('loading-indicator');
+    if (loader) loader.innerText = 'Loading: Fetching timeline.yaml...';
 
     // Load blocks dynamically from timeline.yaml
     let blocksConfig = null;
     try {
-        const response = await fetch('timeline.yaml');
+        const response = await fetch('timeline.yaml?t=' + Date.now());
         if (response.ok) {
             const yamlText = await response.text();
             if (typeof jsyaml !== 'undefined') {
@@ -316,24 +312,27 @@ export async function runExperiment() {
     if (!blocksConfig || !Array.isArray(blocksConfig)) {
         console.log("Using built-in fallback timeline configuration.");
         blocksConfig = [
-            {
-                id: "setup_surveys",
-                module: "survey",
-                config: { forms_file: "forms.yaml" }
-            },
-            {
-                id: "main_task",
-                module: "keyboard_task",
-                trials: null
-            }
+            { id: "setup_surveys", module: "survey", config: { forms_file: "forms.yaml" } },
+            { id: "main_task", module: "keyboard_task", trials: null }
         ];
     }
 
     // Dynamic import and build of each block
+    const loadedModules = {};
     for (const block of blocksConfig) {
         try {
+            if (loader) loader.innerText = `Loading block: ${block.id}...`;
             console.log(`[Block] Loading block "${block.id}" using module "${block.module}"...`);
-            const blockModule = await import(`./blocks/${block.module}.js`);
+            
+            let blockModule = loadedModules[block.module];
+            if (!blockModule) {
+                if (loader) loader.innerText = `[${block.id}] Importing module: ${block.module}.js...`;
+                blockModule = await import(`./blocks/${block.module}.js?t=${Date.now()}`);
+                loadedModules[block.module] = blockModule;
+            } else {
+                if (loader) loader.innerText = `[${block.id}] Using cached module: ${block.module}.js...`;
+            }
+            
             const blockTimeline = await blockModule.createTimeline(block);
             timeline.push(...blockTimeline);
         } catch (error) {
@@ -341,5 +340,7 @@ export async function runExperiment() {
         }
     }
 
+    if (loader) loader.innerText = 'Starting jsPsych...';
+    document.getElementById('jspsych-container').innerHTML = '';
     jsPsych.run(timeline);
 }

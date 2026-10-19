@@ -13,6 +13,15 @@
 </head>
 
 <body>
+    <div id="error-log" style="position: fixed; top: 10px; left: 10px; z-index: 100000; color: red; background: rgba(0,0,0,0.8); padding: 10px; pointer-events: none; font-size: 14px; max-height: 50vh; overflow-y: auto;"></div>
+    <script>
+        window.addEventListener('error', function(e) {
+            document.getElementById('error-log').innerHTML += '<br>' + e.message + ' at ' + e.filename + ':' + e.lineno;
+        });
+        window.addEventListener('unhandledrejection', function(e) {
+            document.getElementById('error-log').innerHTML += '<br>Unhandled Promise: ' + (e.reason && e.reason.message ? e.reason.message : e.reason);
+        });
+    </script>
     <div id="app-background"></div>
 
     <!-- AprilTag Overlay for Eye Tracking -->
@@ -269,7 +278,9 @@
 
 
     <!-- jsPsych container -->
-    <div id="jspsych-container" class="hidden"></div>
+    <div id="jspsych-container" class="hidden">
+        <div id="loading-indicator" style="color: white; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 1.5rem;">Loading experiment sequence...</div>
+    </div>
 
     <!-- jsPsych Library (latest v8) -->
     <script src="https://unpkg.com/jspsych@8.0.0"></script>

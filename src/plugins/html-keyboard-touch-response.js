@@ -41,7 +41,8 @@ export class HtmlKeyboardTouchResponsePlugin {
             response_x: { type: jsPsychModule.ParameterType.FLOAT },
             response_y: { type: jsPsychModule.ParameterType.FLOAT },
             rt: { type: jsPsychModule.ParameterType.INT },
-            stimulus: { type: jsPsychModule.ParameterType.STRING }
+            stimulus: { type: jsPsychModule.ParameterType.STRING },
+            touch_data: { type: jsPsychModule.ParameterType.COMPLEX }
         }
     };
 
@@ -63,7 +64,7 @@ export class HtmlKeyboardTouchResponsePlugin {
         var keyboardListener;
         var touchListener;
 
-        const end_trial = () => {
+        let end_trial = () => {
             if (typeof keyboardListener !== "undefined") {
                 this.jsPsych.pluginAPI.cancelKeyboardResponse(keyboardListener);
             }
@@ -78,7 +79,8 @@ export class HtmlKeyboardTouchResponsePlugin {
                 response: response.key,
                 response_type: response.type,
                 response_x: response.x,
-                response_y: response.y
+                response_y: response.y,
+                touch_data: response.touch_data
             };
             this.jsPsych.finishTrial(trial_data);
         };
@@ -117,61 +119,184 @@ export class HtmlKeyboardTouchResponsePlugin {
         // --- Touch Logic ---
         if (!hasNoKeys) {
             var start_time = performance.now();
-            touchListener = (e) => {
-                if (response.key == null) {
-                    const rt = Math.round(performance.now() - start_time);
-                    let mappedKey = "unmapped";
+            
+            var touch_data = {
+                events: [],
+                paths: []
+            };
 
-                    // Handle touchstart fallback for coordinates
-                    let clientX = e.clientX;
-                    let clientY = e.clientY;
-                    if (e.type === 'touchstart' && e.touches && e.touches.length > 0) {
-                        clientX = e.touches[0].clientX;
-                        clientY = e.touches[0].clientY;
-                        if (e.cancelable) e.preventDefault(); // Prevent ghost clicks
-                    } else if (e.type === 'pointerdown') {
-                        // Pointer events can also trigger default behaviors
-                        if (e.cancelable) e.preventDefault();
+            var mappingState = {};
+            if (trial.touch_mapping) {
+                trial.touch_mapping.forEach(m => {
+                    mappingState[m.key] = { count: 0, targets: new Set(), config: m };
+                });
+            }
+
+            var activePointers = new Map();
+
+            const checkMappingGoal = (mappedKey) => {
+                const state = mappingState[mappedKey];
+                if (!state) return false;
+                const required = state.config.require || 1;
+                return state.count >= required;
+            };
+
+            const registerMappingHit = (mappingConfig, targetElement) => {
+                const state = mappingState[mappingConfig.key];
+                if (mappingConfig.type === 'selector' && targetElement) {
+                    if (!state.targets.has(targetElement)) {
+                        state.targets.add(targetElement);
+                        state.count++;
                     }
+                } else {
+                    state.count++;
+                }
+                return checkMappingGoal(mappingConfig.key);
+            };
 
-                    // Evaluate touch mapping if provided
-                    if (trial.touch_mapping && Array.isArray(trial.touch_mapping)) {
-                        const normX = clientX / window.innerWidth;
-                        const normY = clientY / window.innerHeight;
+            const triggerEndTrial = (mappedKey, x, y, rt) => {
+                if (response.key != null) return;
+                response = { rt: rt, key: mappedKey, type: 'touch', x: x, y: y, touch_data: touch_data };
+                const stimEl = display_element.querySelector("#jspsych-html-keyboard-response-stimulus");
+                if (stimEl) stimEl.classList.add("responded");
+                if (trial.response_ends_trial) end_trial();
+            };
 
-                        for (const zone of trial.touch_mapping) {
-                            const xMin = zone.x[0];
-                            const xMax = zone.x[1];
-                            const yMin = zone.y[0];
-                            const yMax = zone.y[1];
+            const handlePointerDown = (e) => {
+                if (response.key != null) return;
+                if (e.pointerType === "mouse" && e.button !== 0) return; // Ignore right-clicks
 
-                            if (normX >= xMin && normX <= xMax && normY >= yMin && normY <= yMax) {
-                                mappedKey = zone.key;
+                // For touch interfaces to prevent scrolling during interaction
+                if (e.cancelable && trial.touch_mapping && trial.touch_mapping.some(m => m.type === "drag" || m.type === "swipe")) {
+                    e.preventDefault();
+                }
+
+                activePointers.set(e.pointerId, {
+                    dragPath: [{ x: e.clientX, y: e.clientY, t: performance.now() }],
+                    lastSampleTime: performance.now(),
+                    dragStartEvent: e
+                });
+
+                let hitKey = null;
+                let hitElement = null;
+
+                if (trial.touch_mapping) {
+                    const targetEl = e.target.nodeType === Node.TEXT_NODE ? e.target.parentElement : e.target;
+                    for (const m of trial.touch_mapping) {
+                        if (m.type === 'selector') {
+                            if (targetEl && targetEl.closest && targetEl.closest(m.selector)) {
+                                hitKey = m.key;
+                                hitElement = targetEl.closest(m.selector);
+                                break;
+                            }
+                        } else if (m.type === 'area' || m.type === undefined) {
+                            const normX = e.clientX / window.innerWidth;
+                            const normY = e.clientY / window.innerHeight;
+                            if (m.x && m.y && normX >= m.x[0] && normX <= m.x[1] && normY >= m.y[0] && normY <= m.y[1]) {
+                                hitKey = m.key;
                                 break;
                             }
                         }
                     }
+                }
 
-                    response = {
-                        rt: rt,
-                        key: mappedKey,
-                        type: 'touch',
-                        x: clientX,
-                        y: clientY
-                    };
+                const rt = Math.round(performance.now() - start_time);
+                touch_data.events.push({
+                    type: 'tap',
+                    x: e.clientX,
+                    y: e.clientY,
+                    rt: rt,
+                    target_key: hitKey || 'unmapped'
+                });
 
-                    const stimEl = display_element.querySelector("#jspsych-html-keyboard-response-stimulus");
-                    if (stimEl) stimEl.classList.add("responded");
-
-                    if (trial.response_ends_trial) {
-                        end_trial();
+                if (hitKey) {
+                    if (registerMappingHit(mappingState[hitKey].config, hitElement)) {
+                        triggerEndTrial(hitKey, e.clientX, e.clientY, rt);
                     }
                 }
             };
 
-            // Listen for taps anywhere on the window
-            window.addEventListener('pointerdown', touchListener);
-            window.addEventListener('touchstart', touchListener, { passive: false });
+            const handlePointerMove = (e) => {
+                const ptr = activePointers.get(e.pointerId);
+                if (!ptr) return;
+                
+                if (e.cancelable && trial.touch_mapping && trial.touch_mapping.some(m => m.type === "drag" || m.type === "swipe")) {
+                    e.preventDefault();
+                }
+                const now = performance.now();
+                if (now - ptr.lastSampleTime >= 10) {
+                    ptr.dragPath.push({ x: e.clientX, y: e.clientY, t: now });
+                    ptr.lastSampleTime = now;
+                }
+            };
+
+            const handlePointerUp = (e) => {
+                const ptr = activePointers.get(e.pointerId);
+                if (!ptr) return;
+                
+                ptr.dragPath.push({ x: e.clientX, y: e.clientY, t: performance.now() });
+                
+                const dx = e.clientX - ptr.dragStartEvent.clientX;
+                const dy = e.clientY - ptr.dragStartEvent.clientY;
+                const distance = Math.sqrt(dx*dx + dy*dy);
+                
+                if (distance > 10) {
+                    let dragDirection = 'any';
+                    if (Math.abs(dx) > Math.abs(dy)) {
+                        dragDirection = dx > 0 ? 'right' : 'left';
+                    } else {
+                        dragDirection = dy > 0 ? 'down' : 'up';
+                    }
+
+                    touch_data.paths.push({
+                        start_x: ptr.dragStartEvent.clientX,
+                        start_y: ptr.dragStartEvent.clientY,
+                        end_x: e.clientX,
+                        end_y: e.clientY,
+                        distance: distance,
+                        direction: dragDirection,
+                        path: ptr.dragPath
+                    });
+
+                    let hitKey = null;
+                    if (trial.touch_mapping) {
+                        for (const m of trial.touch_mapping) {
+                            if (m.type === 'drag' || m.type === 'swipe') {
+                                const min_dist = m.min_distance || 50;
+                                if (distance >= min_dist && (m.direction === 'any' || m.direction === dragDirection)) {
+                                    hitKey = m.key;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+
+                    if (hitKey) {
+                        if (registerMappingHit(mappingState[hitKey].config, null)) {
+                            const rt = Math.round(performance.now() - start_time);
+                            triggerEndTrial(hitKey, e.clientX, e.clientY, rt);
+                        }
+                    }
+                }
+
+                activePointers.delete(e.pointerId);
+            };
+
+            let touchListener = handlePointerDown; // keeping for backward-compat end_trial cleanup if needed
+            window.addEventListener('pointerdown', handlePointerDown, { passive: false });
+            window.addEventListener('pointermove', handlePointerMove, { passive: false });
+            window.addEventListener('pointerup', handlePointerUp);
+            window.addEventListener('pointercancel', handlePointerUp);
+            
+            // Override end_trial to clean up all listeners
+            const original_end_trial = end_trial;
+            end_trial = () => {
+                window.removeEventListener('pointerdown', handlePointerDown);
+                window.removeEventListener('pointermove', handlePointerMove);
+                window.removeEventListener('pointerup', handlePointerUp);
+                window.removeEventListener('pointercancel', handlePointerUp);
+                original_end_trial();
+            };
         }
 
         // --- Timers ---

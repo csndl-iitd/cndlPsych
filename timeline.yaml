@@ -9,8 +9,6 @@ blocks:
     config:
       form_id: "session"
 
-
-
   - id: "flash_task"
     module: "keyboard_task"
     config:
@@ -28,11 +26,57 @@ blocks:
           shuffle: false
           choices: "NO_KEYS"
           post: 0
-          repetitions: 15
+          repetitions: 10
       shuffle_trials: false
 
-  - id: "psychometric_survey"
-    module: "survey"
+  - id: "oddball_task"
+    module: "keyboard_task"
     config:
-      form_id: "psychometric"
+      touch_mapping:
+        - key: "f"
+          x: [0.0, 0.5]
+          y: [0.0, 1.0]
+        - key: "j"
+          x: [0.5, 1.0]
+          y: [0.0, 1.0]
+      trials:
+        - name: "oddball_instructions_trial"
+          sequence:
+            - "oddball_instructions"
+          choices: "ALL_KEYS"
+          post: 0
+          repetitions: 1
+        - name: "oddball_flashes"
+          start: "fixation_plus"
+          sequence:
+            - "oddball_A"
+            - "oddball_B"
+            - "oddball_C"
+            - "oddball_D"
+            - "oddball_E"
+            - "oddball_F"
+            - "oddball_H"
+            - "oddball_I"
+            - "oddball_L"
+            - "oddball_Ǝ"
+            - "oddball_A"
+            - "oddball_B"
+            - "oddball_C"
+            - "oddball_D"
+            - "oddball_E"
+            - "oddball_F"
+            - "oddball_H"
+            - "oddball_I"
+            - "oddball_L"
+            - "oddball_Ǝ"
+          # end: "end_marker"
+          shuffle: true
+          choices: "ALL_KEYS"
+          post: 1500
+          repetitions: 5
+      shuffle_trials: false
 
+  - id: "visual_search_task"
+    module: "visual_search"
+    config:
+      n_trials: 10

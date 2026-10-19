@@ -27,30 +27,44 @@ function resolvePost(postVal) {
     return 0;
 }
 
+let globalTemplatesCache = null;
+
 export async function createTimeline(blockConfig) {
     const timeline = [];
     const config = blockConfig.config || {};
     const trialsConfig = config.trials || [];
     const shuffleTrials = config.shuffle_trials !== false; // Shuffling of trials in a block
 
-    let templates = {};
-    try {
-        const response = await fetch('stimuli.yaml');
-        if (response.ok) {
-            const yamlText = await response.text();
-            if (typeof jsyaml !== 'undefined') {
-                const parsed = jsyaml.load(yamlText);
-                const stimuliList = parsed.stimuli || parsed.trials || [];
-                stimuliList.forEach(s => {
-                    if (s.name) {
-                        templates[s.name] = s;
-                    }
-                });
+    const loader = document.getElementById('loading-indicator');
+    
+    if (globalTemplatesCache === null) {
+        if (loader) loader.innerText = `[${blockConfig.id}] Fetching stimuli.yaml...`;
+        globalTemplatesCache = {};
+        try {
+            const response = await fetch('stimuli.yaml?t=' + Date.now());
+            if (loader) loader.innerText = `[${blockConfig.id}] Parsing stimuli.yaml...`;
+            if (response.ok) {
+                const yamlText = await response.text();
+                if (typeof jsyaml !== 'undefined') {
+                    const parsed = jsyaml.load(yamlText);
+                    const stimuliList = parsed.stimuli || parsed.trials || [];
+                    stimuliList.forEach(s => {
+                        if (s.name) {
+                            globalTemplatesCache[s.name] = s;
+                        }
+                    });
+                }
             }
+        } catch (e) {
+            console.error("Failed to load stimuli.yaml templates, using defaults:", e);
         }
-    } catch (e) {
-        console.error("Failed to load stimuli.yaml templates inside keyboard_task block, using defaults:", e);
+    } else {
+        if (loader) loader.innerText = `[${blockConfig.id}] Using cached stimuli...`;
     }
+
+    let templates = globalTemplatesCache;
+    
+    if (loader) loader.innerText = `[${blockConfig.id}] Assembling trials...`;
 
     // Fallback templates if empty
     if (Object.keys(templates).length === 0) {
