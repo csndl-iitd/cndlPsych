@@ -1,0 +1,23 @@
+# What the participant sees. Documented in docs/yaml/stimuli.md.
+styles:
+  panel:
+    max-width: 600px
+    margin: 0 auto
+    padding: 30px
+    text-align: center
+    color: "#f8fafc"
+    line-height: 1.6
+
+stimuli:
+  - name: instructions
+    type: html
+    style: panel
+    html: |
+      <h2>Reaction time</h2>
+      <p>A white circle will appear after a short pause.</p>
+      <p>{{go.hint}} as soon as you see it.</p>
+      <p>{{go.hint}} to begin.</p>
+    duration: null
+
+  - { name: fixation, type: text, text: "+", size: 72px, duration: [2500, 3500] }
+  - { name: circle, type: shape, shape: circle, size: 120px, color: "#ffffff", duration: 2000 }

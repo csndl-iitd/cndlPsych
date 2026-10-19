@@ -1,0 +1,459 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://example.org/expfw/1/input.schema.json",
+  "title": "Input scope",
+  "description": "How physical input becomes semantic responses. This one shape is used at every cascade level: framework defaults < task module defaults < experiment.yaml < block < trial (timeline.yaml). Merge rules are resolved at compile time: maps deep-merge by key, rules merge by id (same id = field-wise override), 'disable' removes inherited rule ids, 'reset: true' discards everything inherited. Rules and settings live inside profiles; a \"*\" profile applies to all profiles.\n",
+  "$ref": "#/definitions/scope",
+  "definitions": {
+    "key_binding": {
+      "description": "Physical keyboard key (KeyboardEvent.key value, e.g. \"f\", \" \", \"Enter\").",
+      "type": "object",
+      "required": [
+        "key"
+      ],
+      "properties": {
+        "key": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          ]
+        },
+        "on": {
+          "enum": [
+            "down",
+            "up"
+          ],
+          "default": "down"
+        }
+      },
+      "additionalProperties": false
+    },
+    "tap_binding": {
+      "description": "A tap (a mouse click is a tap), optionally restricted to a stage region or a target.",
+      "type": "object",
+      "required": [
+        "tap"
+      ],
+      "properties": {
+        "tap": {
+          "anyOf": [
+            {
+              "const": true
+            },
+            {
+              "type": "object",
+              "properties": {
+                "x": {
+                  "$ref": "common.schema.json#/definitions/range"
+                },
+                "y": {
+                  "$ref": "common.schema.json#/definitions/range"
+                },
+                "target": {
+                  "$ref": "common.schema.json#/definitions/target_selector"
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "on": {
+          "enum": [
+            "down",
+            "up"
+          ],
+          "description": "overrides fire_on for this binding"
+        }
+      },
+      "additionalProperties": false
+    },
+    "swipe_binding": {
+      "type": "object",
+      "required": [
+        "swipe"
+      ],
+      "properties": {
+        "swipe": {
+          "type": "object",
+          "properties": {
+            "direction": {
+              "enum": [
+                "left",
+                "right",
+                "up",
+                "down",
+                "any"
+              ],
+              "default": "any"
+            },
+            "min_distance": {
+              "$ref": "common.schema.json#/definitions/length"
+            },
+            "x": {
+              "$ref": "common.schema.json#/definitions/range"
+            },
+            "y": {
+              "$ref": "common.schema.json#/definitions/range"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "longpress_binding": {
+      "type": "object",
+      "required": [
+        "longpress"
+      ],
+      "properties": {
+        "longpress": {
+          "type": "object",
+          "properties": {
+            "min_ms": {
+              "type": "number",
+              "minimum": 0
+            },
+            "x": {
+              "$ref": "common.schema.json#/definitions/range"
+            },
+            "y": {
+              "$ref": "common.schema.json#/definitions/range"
+            },
+            "target": {
+              "$ref": "common.schema.json#/definitions/target_selector"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "binding": {
+      "oneOf": [
+        {
+          "$ref": "#/definitions/key_binding"
+        },
+        {
+          "$ref": "#/definitions/tap_binding"
+        },
+        {
+          "$ref": "#/definitions/swipe_binding"
+        },
+        {
+          "$ref": "#/definitions/longpress_binding"
+        }
+      ]
+    },
+    "bindings": {
+      "description": "One binding, or a list (any of them triggers the intent).",
+      "anyOf": [
+        {
+          "$ref": "#/definitions/binding"
+        },
+        {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/definitions/binding"
+          }
+        }
+      ]
+    },
+    "intent_def": {
+      "description": "Declares a semantic response. Per-profile bindings sit alongside 'hint' (text shown to participants via {{intent.hint}}). Reserved keys: hint, plugin_key, doc - so no profile may use those names.\n",
+      "type": "object",
+      "properties": {
+        "hint": {
+          "description": "Participant-facing text, per profile or one string for all.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "patternProperties": {
+                "^([a-z][a-z0-9_]*|\\*)$": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "plugin_key": {
+          "description": "Key jsPsych sees. Auto-assigned unless a custom plugin needs a specific one.",
+          "type": "string",
+          "minLength": 1
+        },
+        "doc": {
+          "type": "string"
+        }
+      },
+      "patternProperties": {
+        "^(?!(hint|plugin_key|doc)$)([a-z][a-z0-9_]*|\\*)$": {
+          "$ref": "#/definitions/bindings"
+        }
+      },
+      "additionalProperties": false
+    },
+    "rule": {
+      "description": "Match a pattern of bus events, emit semantic events / intents / keys. When overriding an inherited rule by id, only the changed fields are needed; the compiler checks that the resolved rule has match and emit.\n",
+      "type": "object",
+      "required": [
+        "id"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "common.schema.json#/definitions/id"
+        },
+        "match": {
+          "$ref": "common.schema.json#/definitions/pattern"
+        },
+        "emit": {
+          "$ref": "common.schema.json#/definitions/emit"
+        },
+        "reset": {
+          "description": "When sequence state clears.",
+          "enum": [
+            "trial",
+            "block",
+            "session",
+            "never"
+          ],
+          "default": "trial"
+        },
+        "consume": {
+          "description": "Swallow the source event so it never reaches jsPsych or default handling.",
+          "type": "boolean",
+          "default": true
+        },
+        "priority": {
+          "type": "integer",
+          "default": 0
+        }
+      },
+      "additionalProperties": false
+    },
+    "gestures": {
+      "description": "Gestures the recognizer runs. Enabling only what a trial needs avoids ambiguity and latency.",
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "common.schema.json#/definitions/gesture"
+      }
+    },
+    "gesture_thresholds": {
+      "type": "object",
+      "properties": {
+        "tap": {
+          "type": "object",
+          "properties": {
+            "max_duration": {
+              "$ref": "common.schema.json#/definitions/duration_scalar"
+            },
+            "slop": {
+              "$ref": "common.schema.json#/definitions/length"
+            }
+          },
+          "additionalProperties": false
+        },
+        "longpress": {
+          "type": "object",
+          "properties": {
+            "min_duration": {
+              "$ref": "common.schema.json#/definitions/duration_scalar"
+            },
+            "slop": {
+              "$ref": "common.schema.json#/definitions/length"
+            }
+          },
+          "additionalProperties": false
+        },
+        "swipe": {
+          "type": "object",
+          "properties": {
+            "min_distance": {
+              "$ref": "common.schema.json#/definitions/length"
+            },
+            "min_velocity": {
+              "type": "number",
+              "minimum": 0,
+              "description": "stage lengths per second"
+            },
+            "max_duration": {
+              "$ref": "common.schema.json#/definitions/duration_scalar"
+            }
+          },
+          "additionalProperties": false
+        },
+        "drag": {
+          "type": "object",
+          "properties": {
+            "slop": {
+              "$ref": "common.schema.json#/definitions/length"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "pointer_path": {
+      "description": "Record pointer trajectories (input.pointer.path). Off by default; keyboard-only trials record none.",
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "hz": {
+              "type": "number",
+              "minimum": 1
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "cursor": {
+      "description": "Mouse cursor behaviour (no effect on touch).",
+      "type": "object",
+      "properties": {
+        "autohide_ms": {
+          "type": "number",
+          "minimum": 0,
+          "default": 1000,
+          "description": "0 disables autohide"
+        },
+        "show_on_move_px": {
+          "type": "number",
+          "minimum": 0,
+          "default": 3
+        }
+      },
+      "additionalProperties": false
+    },
+    "profile_scope": {
+      "type": "object",
+      "properties": {
+        "rules": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/rule"
+          }
+        },
+        "disable": {
+          "description": "Inherited rule ids to remove.",
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "common.schema.json#/definitions/id"
+          }
+        },
+        "gestures": {
+          "$ref": "#/definitions/gestures"
+        },
+        "gesture_thresholds": {
+          "$ref": "#/definitions/gesture_thresholds"
+        },
+        "fire_on": {
+          "enum": [
+            "down",
+            "up"
+          ],
+          "default": "up",
+          "description": "when taps fire; affects RT by the press duration"
+        },
+        "pointer_path": {
+          "$ref": "#/definitions/pointer_path"
+        },
+        "hit_padding": {
+          "description": "Extra tolerance around registered targets (larger on touch).",
+          "$ref": "common.schema.json#/definitions/length"
+        },
+        "show_zones": {
+          "type": "boolean",
+          "default": false,
+          "description": "outline mapped touch regions"
+        },
+        "cursor": {
+          "$ref": "#/definitions/cursor"
+        }
+      },
+      "additionalProperties": false
+    },
+    "scope": {
+      "type": "object",
+      "properties": {
+        "reset": {
+          "description": "Discard everything inherited from higher levels before applying this scope.",
+          "type": "boolean",
+          "default": false
+        },
+        "intents": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "common.schema.json#/definitions/intent_name"
+          },
+          "additionalProperties": {
+            "$ref": "#/definitions/intent_def"
+          }
+        },
+        "profiles": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "common.schema.json#/definitions/profile_key"
+          },
+          "additionalProperties": {
+            "$ref": "#/definitions/profile_scope"
+          }
+        },
+        "disable": {
+          "description": "Inherited intent ids to remove.",
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "common.schema.json#/definitions/intent_name"
+          }
+        },
+        "gestures": {
+          "$ref": "#/definitions/gestures"
+        },
+        "gesture_thresholds": {
+          "$ref": "#/definitions/gesture_thresholds"
+        },
+        "fire_on": {
+          "enum": [
+            "down",
+            "up"
+          ]
+        },
+        "pointer_path": {
+          "$ref": "#/definitions/pointer_path"
+        },
+        "hit_padding": {
+          "$ref": "common.schema.json#/definitions/length"
+        },
+        "show_zones": {
+          "type": "boolean"
+        },
+        "cursor": {
+          "$ref": "#/definitions/cursor"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}
