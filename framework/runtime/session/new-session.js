@@ -4,7 +4,7 @@
 // events until recording starts, and the first recorded event is session.start. A declined consent
 // or a failed min_age therefore leaves no trace at all. Each step below returns either its result
 // or `{ended}` with the final result of the session, when the participant cannot go on.
-import { sessionAnswers, sessionElements, subjectAnswers, subjectElements } from '../../authoring/modules/forms.js';
+import { sessionAnswers, sessionElements, subjectAnswers } from '../../authoring/modules/forms.js';
 import { showForm } from '../../authoring/modules/survey.js';
 import { isoNow } from '../../foundation/clock.js';
 import { admitDevice, inputProfiles, profileConditions } from '../../foundation/device.js';
@@ -20,6 +20,7 @@ import { showMessage } from './messages.js';
 import { connectStore, emitStartNotices, logStorageStatus } from './recording.js';
 import { signInRemote } from './remote-sign-in.js';
 import { buildSessionRecord } from './session-record.js';
+import { askSubjectForm } from './subject-id.js';
 import { connectSinks } from './trigger-devices.js';
 import { FRAMEWORK_VERSION } from './version.js';
 
@@ -61,14 +62,14 @@ async function askParticipant(run, gate) {
     showMessage(services.display, remoteFailedMessage(explainRemoteError(error, remote.config)));
     return { ended: { status: 'remote_failed' } };
   }
-  const subjectForm = await showForm(screen, { title: forms.subject?.title ?? 'About you', intro: forms.subject?.intro, elements: subjectElements(forms.subject, assigned) });
+  const { subjectForm, overridden } = await askSubjectForm({ forms, screen, remote, assigned });
   const answered = subjectAnswers(subjectForm.values);
   if (!gate.checkAge(answered.subject.age).eligible) {
     showMessage(services.display, project.plan.consent.decline_message ?? 'Sorry, you are not eligible to take part in this study. Nothing has been stored. You can close this window.');
     return { ended: { status: 'ineligible' } };
   }
   const sessionForm = await showForm(screen, { title: forms.session?.title ?? 'Session', intro: forms.session?.intro, elements: sessionElements(forms.session) });
-  return { subjectForm, sessionForm, answered, ...sessionAnswers(sessionForm.values) };
+  return { subjectForm, sessionForm, answered, overridden, ...sessionAnswers(sessionForm.values) };
 }
 
 /** The device profile, and the trigger sinks for a device that will be admitted. */
@@ -163,6 +164,10 @@ export async function runNewSession(run, search) {
     ? mirrored(store, remote.store({ claim, onProgress: (progress) => store.setRemote?.({ claim_n: claim.n, ...progress }) }))
     : store;
   beginRecording({ run, record, sessionStore, seed, profile, sinkWarnings: device.sinkWarnings });
+  if (participant.overridden) {
+    const { suggested, used } = participant.overridden;
+    bus.emit({ source: 'system', type: 'system.warning', data: { code: 'subject_id_overridden', message: `The experimenter used the participant ID ${used} instead of the suggested ${suggested}.`, detail: { suggested, used } } });
+  }
 
   const held = { eye: null };
   const finish = createFinisher({ record, store: sessionStore, bus, extras: deviceExtras(held) });

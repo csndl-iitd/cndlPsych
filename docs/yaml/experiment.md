@@ -242,7 +242,7 @@ Paths are written as in the YAML: `a.b` is key `b` inside `a`; `items[]` is each
 | `storage.firebase.web_config.<name>` | string |  |  |  |
 | `storage.firebase.subject_id` | object |  |  |  |
 | `storage.firebase.subject_id.width` | integer |  | `3` | zero-padded digits after sub-. min 1. max 8 |
-| `storage.firebase.subject_id.override` | boolean |  | `false` |  |
+| `storage.firebase.subject_id.override` | boolean |  |  | Controlled mode: the experimenter may type another number than the suggested one (a warning asks to confirm it, and a number already in use is refused); true unless set to false, which locks the field. Public mode never allows it |
 | `storage.firebase.subject_id.claim_timeout_min` | number |  | `60` | unfinished claims older than this may be released. min 1 |
 | `storage.firebase.chunk` | object |  |  |  |
 | `storage.firebase.chunk.max_events` | integer |  | `400` | min 10. max 5000 |

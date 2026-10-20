@@ -337,7 +337,9 @@ properties:
             additionalProperties: false
             properties:
               width: {type: integer, minimum: 1, maximum: 8, default: 3, description: "zero-padded digits after sub-"}
-              override: {type: boolean, default: false}
+              override:
+                description: "Controlled mode: the experimenter may type another number than the suggested one (a warning asks to confirm it, and a number already in use is refused); true unless set to false, which locks the field. Public mode never allows it."
+                type: boolean
               claim_timeout_min: {type: number, minimum: 1, default: 60, description: "unfinished claims older than this may be released"}
           chunk:
             type: object

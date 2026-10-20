@@ -1,7 +1,7 @@
 // The Firebase side of a session, as the lifecycle sees it (ARCHITECTURE.md section 8):
 // sign in, get a subject number, then mirror the local log to Firestore. Everything that
 // touches the SDK lives in storage/firebase.js; this wires it to the session.
-import { allocateSubject, connectFirebase, createFirebaseStore, suggestSubject } from '../storage/firebase.js';
+import { allocateSubject, connectFirebase, createFirebaseStore, suggestSubject, subjectNumberTaken } from '../storage/firebase.js';
 
 /** The message when the data server cannot be reached. */
 export const remoteFailedMessage = (reason) => `Could not connect to the data server: ${reason}
@@ -40,11 +40,15 @@ export function explainRemoteError(error, config = {}, host = globalThis.locatio
   return text ? `${text} (${code})` : String(error?.message ?? error);
 }
 
-/** The subject ID field when Firebase assigns the number: hidden (public) or prefilled (controlled). */
+/**
+ * The subject ID field when Firebase assigns the number: hidden (public) or prefilled (controlled; the experimenter
+ * may type another number unless the experiment locks it).
+ */
 export async function assignedSubject(remote) {
   if (!remote) return {};
   if (remote.access === 'public') return { hidden: true };
-  return { value: (await remote.suggest()).label, locked: !remote.allowOverride };
+  const { n, label } = await remote.suggest();
+  return { value: label, n, locked: !remote.allowOverride, ...(remote.allowOverride ? { overridable: true } : {}) };
 }
 
 const DIGITS = /^(?:sub-)?(\d+)$/;
@@ -64,7 +68,7 @@ export function createRemote(config, { connect = connectFirebase } = {}) {
   return {
     config,
     access: config.access,
-    allowOverride: config.subject_id?.override === true,
+    allowOverride: config.access === 'controlled' && config.subject_id?.override !== false,
 
     /** Sign in. Controlled mode opens a popup, so call this from a click. */
     async signIn() {
@@ -74,6 +78,15 @@ export function createRemote(config, { connect = connectFirebase } = {}) {
 
     /** Controlled mode: the number to prefill. */
     suggest: () => suggestSubject(connection),
+
+    /** The number in a subject ID as typed ("007", "sub-7"), or null when it is not one. */
+    numberOf: claimNumber,
+
+    /** Controlled mode: has the number in this subject ID already been used? */
+    async isTaken(typed) {
+      const n = claimNumber(typed);
+      return n !== null && subjectNumberTaken(connection, n);
+    },
 
     /**
      * Claim a subject number: public mode takes the next free one; controlled mode takes the

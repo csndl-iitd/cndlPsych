@@ -108,6 +108,9 @@ export async function allocateSubject(connection, { override = null } = {}) {
 /** Controlled mode: the number to prefill in the subject form. */
 export const suggestSubject = (connection) => suggestControlled(connection.ops, { width: connection.width });
 
+/** Has this subject number been claimed already (whatever its state)? */
+export const subjectNumberTaken = async (connection, n) => (await connection.ops.listClaimNumbers()).includes(n);
+
 /**
  * @param {{connection: object, claim: {n: number}, config: object, onProgress?: (remote: object) => Promise<void>|void, retryDelayMs?: number, schedule?: Function}} options
  *   `claim` is the number from allocateSubject; `config` is `storage.firebase`;

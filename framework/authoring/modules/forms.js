@@ -120,9 +120,14 @@ export function subjectElements(form = {}, assigned = {}) {
   }, overrides.age);
   const bounds = [overrides.age?.min !== undefined ? `{age} >= ${overrides.age.min}` : null, overrides.age?.max !== undefined ? `{age} <= ${overrides.age.max}` : null].filter(Boolean);
   if (bounds.length) age.validators.push({ type: 'expression', expression: `{age} empty or (${bounds.join(' and ')})`, text: 'Please check your age' });
+  // With a number from Firebase the ID must be a number; the experimenter may change the suggestion, and is told it is one.
+  const numbered = assigned.value !== undefined;
   const subjectId = withOverride({
     type: 'text', name: 'subject_id', title: 'Participant ID', isRequired: true,
-    validators: [{ type: 'regex', regex: '^(sub-)?[A-Za-z0-9]+$', text: 'Use letters and digits only (for example 007)' }],
+    ...(assigned.overridable ? { description: `Suggested: ${assigned.value}. You can type another number if you need to; you will be asked to confirm it.` } : {}),
+    validators: [numbered
+      ? { type: 'regex', regex: '^(sub-)?[0-9]+$', text: 'Use a number (for example 007)' }
+      : { type: 'regex', regex: '^(sub-)?[A-Za-z0-9]+$', text: 'Use letters and digits only (for example 007)' }],
   }, overrides.subject_id);
   if (assigned.value !== undefined) Object.assign(subjectId, { defaultValue: assigned.value, readOnly: assigned.locked === true });
   return [

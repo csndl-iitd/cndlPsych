@@ -6,7 +6,7 @@ import { expect, test } from '@playwright/test';
 import { killProfile, launchProfile, newProfileDir, removeProfileDir } from '../../tools/e2e/hard-kill.js';
 import { createFakeFirestore } from '../../tools/e2e/fake-firestore.js';
 import {
-  answerConsent, answerPostTask, answerSession, answerSubject, captureLog, continueDeviceScreen, finished, installAutopilot,
+  clickContinue, answerConsent, answerPostTask, answerSession, answerSubject, captureLog, continueDeviceScreen, finished, installAutopilot,
   passEntryScreens, recorded, startSession,
 } from '../../tools/e2e/session-helpers.js';
 import { integrityReport } from '../storage/integrity.js';
@@ -14,6 +14,7 @@ import { integrityReport } from '../storage/integrity.js';
 test.setTimeout(180_000);
 
 const BASE = 'http://localhost:4173';
+const choose = (page, name, value) => page.locator(`[data-name="${name}"] label:has(input[value="${value}"])`).click();
 const KEY = 'sub-001_ses-01';
 const merge = (access, extra = {}) => ({
   debug: { enabled: true, time_scale: 0.2 },
@@ -75,7 +76,7 @@ test('public: if sign-in fails nothing starts and nothing is claimed', async ({ 
   expect(await page.evaluate(() => window.sessionStore.record)).toBeNull();
 });
 
-test('controlled: the experimenter signs in first, and the ID is prefilled and locked', async ({ context, page }) => {
+test('controlled: the experimenter signs in first, and the ID is prefilled and locked when the experiment locks it', async ({ context, page }) => {
   const fake = createFakeFirestore({ uid: 'admin-1', access: 'controlled' });
   fake.state.claims.set(1, { n: 1, label: 'sub-001', status: 'complete' });
   fake.state.claims.set(2, { n: 2, label: 'sub-002', status: 'complete' });
@@ -90,19 +91,61 @@ test('controlled: the experimenter signs in first, and the ID is prefilled and l
   await expect(field).toHaveAttribute('readonly', '');
 });
 
-test('controlled: with override a taken number is refused and nothing is stored', async ({ context, page }) => {
+test('controlled: the experimenter may override the ID; a number in use is refused at once, and a different free one needs a confirmed warning', async ({ context, page }) => {
   const fake = createFakeFirestore({ uid: 'admin-1', access: 'controlled' });
   fake.state.claims.set(5, { n: 5, label: 'sub-005', status: 'complete' });
   await context.exposeBinding('fakeFirestore', fake.handle);
   await startSession(page, { merge: merge('controlled', { subject_id: { override: true } }), firebase: { uid: 'admin-1', access: 'controlled' } });
+  await captureLog(page);
   await continueDeviceScreen(page);
   await answerConsent(page);
-  await expect(page.locator('[data-name="subject_id"] input')).toHaveValue('sub-001');
+  const field = page.locator('[data-name="subject_id"] input');
+  await expect(field).toHaveValue('sub-001');
+  await expect(field).not.toHaveAttribute('readonly', '');
+  await expect(page.getByText('Suggested: sub-001')).toBeVisible();
+
+  // a number already in use: refused before anything else is asked
   await answerSubject(page, { id: '5' });
+  await page.getByText('has already been used').waitFor();
+  await choose(page, 'action', 'back');
+  await clickContinue(page);
+  await expect(field).toHaveValue('5'); // back at the form, answers kept
+  await expect(page.locator('[data-name="age"] input')).toHaveValue('24');
+
+  // a free number that is not the suggestion: a warning, and going back changes nothing
+  await field.fill('12');
+  await clickContinue(page);
+  await page.getByText('Use a different participant ID?').waitFor();
+  await expect(page.getByText('The next free participant ID is sub-001, but you entered 12.')).toBeVisible();
+  await choose(page, 'action', 'back');
+  await clickContinue(page);
+  await expect(field).toHaveValue('12');
+
+  // confirm it: the session goes on with that number, and the log says it was overridden
+  await clickContinue(page);
+  await choose(page, 'action', 'use');
+  await clickContinue(page);
   await answerSession(page);
-  await page.getByText('subject number 5 is already taken').waitFor();
-  expect(fake.state.sessions.size).toBe(0);
-  expect([...fake.state.claims.keys()]).toEqual([5]);
+  await expect.poll(() => fake.state.claims.has(12)).toBe(true);
+  expect([...fake.state.claims.keys()].sort((a, b) => a - b)).toEqual([5, 12]);
+  const log = await page.evaluate(() => window.__log);
+  const warning = log.find((e) => e.type === 'system.warning' && e.data.code === 'subject_id_overridden');
+  expect(warning.data.detail).toEqual({ suggested: 'sub-001', used: '12' });
+});
+
+test('controlled: the suggested number is used without a warning', async ({ context, page }) => {
+  const fake = createFakeFirestore({ uid: 'admin-1', access: 'controlled' });
+  fake.state.claims.set(1, { n: 1, label: 'sub-001', status: 'complete' });
+  await context.exposeBinding('fakeFirestore', fake.handle);
+  await startSession(page, { merge: merge('controlled', { subject_id: { override: true } }), firebase: { uid: 'admin-1', access: 'controlled' } });
+  await captureLog(page);
+  await continueDeviceScreen(page);
+  await answerConsent(page);
+  await expect(page.locator('[data-name="subject_id"] input')).toHaveValue('sub-002');
+  await answerSubject(page, { id: 'sub-002' });
+  await answerSession(page);
+  await expect.poll(() => fake.state.claims.has(2)).toBe(true);
+  expect((await page.evaluate(() => window.__log)).some((e) => e.type === 'system.warning' && e.data.code === 'subject_id_overridden')).toBe(false);
 });
 
 test('a killed session resumes into the same Firestore session and ends complete, with no chunk missing or doubled', async ({ isMobile }) => {

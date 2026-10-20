@@ -163,7 +163,7 @@ storage:
   #   experiment_id: my-experiment
   #   access: controlled      # controlled: the experimenter starts sessions | public: an open link
   #   web_config: { apiKey: "", projectId: "", appId: "", authDomain: "", storageBucket: "", messagingSenderId: "" }
-  #   subject_id: { width: 3, override: false, claim_timeout_min: 60 }
+  #   subject_id: { width: 3, override: true, claim_timeout_min: 60 }
   #   chunk: { max_events: 400, max_bytes: 600000, flush_ms: 10000 }
   #   app_check: { provider: recaptcha_v3, site_key: "" }
 

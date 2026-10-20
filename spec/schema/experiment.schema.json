@@ -734,8 +734,8 @@
                   "description": "zero-padded digits after sub-"
                 },
                 "override": {
-                  "type": "boolean",
-                  "default": false
+                  "description": "Controlled mode: the experimenter may type another number than the suggested one (a warning asks to confirm it, and a number already in use is refused); true unless set to false, which locks the field. Public mode never allows it.",
+                  "type": "boolean"
                 },
                 "claim_timeout_min": {
                   "type": "number",
