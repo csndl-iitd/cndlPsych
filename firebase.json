@@ -1,21 +1,30 @@
 {
   "hosting": {
+    "site": "cndlsearch",
     "public": ".",
     "ignore": [
       "firebase.json",
+      ".firebaserc",
+      "firebase/**",
+      "package.json",
+      "package-lock.json",
+      "cndlpsych/cli/**",
+      "cndlpsych/firebase/**",
+      "cndlpsych/package.json",
       "**/.*",
       "**/node_modules/**",
-      "examples/**",
-      ".venv/**"
+      "**/*.LEGAL.txt"
     ],
-    "rewrites": [
+    "headers": [
       {
-        "source": "**",
-        "destination": "/index.html"
+        "source": "**/*.@(js|yaml|json|md)",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache"
+          }
+        ]
       }
     ]
-  },
-  "firestore": {
-    "rules": "firestore.rules"
   }
 }

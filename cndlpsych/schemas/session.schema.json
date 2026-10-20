@@ -1,0 +1,693 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://example.org/cndlpsych/1/session.schema.json",
+  "title": "Session record",
+  "description": "Written once at recording start and updated at the end (session.json in every export; the session document in Firestore). Everything needed to interpret the event stream lives here. Built-in subject/session answers are stored here, not in the event stream.\n",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "subject_id",
+    "session_id",
+    "status",
+    "started_at",
+    "experiment",
+    "consent",
+    "device",
+    "clock",
+    "stage"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "subject_id": {
+      "type": "string",
+      "pattern": "^sub-[A-Za-z0-9]+$"
+    },
+    "session_id": {
+      "type": "string",
+      "pattern": "^ses-[A-Za-z0-9]+$"
+    },
+    "status": {
+      "enum": [
+        "in_progress",
+        "complete",
+        "aborted",
+        "error",
+        "device_rejected"
+      ]
+    },
+    "started_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "ended_at": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "end_reason": {
+      "enum": [
+        "complete",
+        "aborted",
+        "error",
+        "device_rejected"
+      ]
+    },
+    "resumes": {
+      "description": "One entry each time the session was continued after an interruption. The page clock restarts at every resume: for events after at_seq, wall time = time_origin_ms + t of that entry.\n",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "at_seq",
+          "resumed_at",
+          "time_origin_ms",
+          "wall_iso"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "at_seq": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "last event saved before the interruption"
+          },
+          "resumed_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "time_origin_ms": {
+            "type": "number"
+          },
+          "wall_iso": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "block_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "trial": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "framework_version": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "experiment_id": {
+      "type": "string",
+      "description": "storage.firebase.experiment_id"
+    },
+    "uid": {
+      "type": "string",
+      "description": "Firebase auth uid that owns this record"
+    },
+    "n_chunks": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "written at session end so export can detect missing chunks"
+    },
+    "last_seq": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "highest event seq written; written at session end"
+    },
+    "subject": {
+      "description": "Built-in fields plus experimenter-defined extras (BIDS participants.tsv columns).",
+      "type": "object",
+      "required": [
+        "sex",
+        "age"
+      ],
+      "properties": {
+        "sex": {
+          "enum": [
+            "male",
+            "female",
+            "other",
+            "n/a"
+          ]
+        },
+        "age": {
+          "anyOf": [
+            {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 120
+            },
+            {
+              "const": "n/a"
+            }
+          ]
+        }
+      },
+      "additionalProperties": true
+    },
+    "session_fields": {
+      "description": "Experimenter-defined session extras (BIDS sessions.tsv columns).",
+      "type": "object",
+      "additionalProperties": true
+    },
+    "url_params": {
+      "description": "Recruitment-platform parameters captured from the URL (experiment.yaml capture_url_params).",
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "consent": {
+      "type": "object",
+      "required": [
+        "mode",
+        "text_hash",
+        "accepted_at"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "mode": {
+          "enum": [
+            "on_screen",
+            "attested"
+          ]
+        },
+        "text_hash": {
+          "type": "string"
+        },
+        "accepted_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "statements": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "accepted"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "accepted": {
+                "type": "boolean"
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    "experiment": {
+      "type": "object",
+      "required": [
+        "name",
+        "spec_version",
+        "spec_hash",
+        "framework_version",
+        "seed"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "spec_version": {
+          "type": "integer"
+        },
+        "spec_hash": {
+          "type": "string",
+          "description": "hash of the resolved spec incl. custom code"
+        },
+        "framework_version": {
+          "type": "string"
+        },
+        "seed": {
+          "type": "integer"
+        },
+        "custom_modules": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "kind",
+              "name",
+              "hash"
+            ],
+            "properties": {
+              "kind": {
+                "enum": [
+                  "task",
+                  "stimulus",
+                  "plugin"
+                ]
+              },
+              "name": {
+                "type": "string"
+              },
+              "hash": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    "device": {
+      "type": "object",
+      "required": [
+        "profile",
+        "profile_reason",
+        "user_agent",
+        "screen",
+        "viewport"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "profile": {
+          "type": "string"
+        },
+        "profile_reason": {
+          "enum": [
+            "auto",
+            "prompt",
+            "fixed",
+            "override"
+          ]
+        },
+        "input_profiles": {
+          "description": "When the device has several input sources (a touch laptop), the profiles whose input bindings were all active; the first is the profile.",
+          "type": "array",
+          "minItems": 2,
+          "items": {
+            "type": "string"
+          }
+        },
+        "user_agent": {
+          "type": "string"
+        },
+        "platform": {
+          "type": "string"
+        },
+        "language": {
+          "type": "string"
+        },
+        "screen": {
+          "type": "object",
+          "required": [
+            "w",
+            "h",
+            "dpr"
+          ],
+          "properties": {
+            "w": {
+              "type": "number"
+            },
+            "h": {
+              "type": "number"
+            },
+            "dpr": {
+              "type": "number"
+            }
+          },
+          "additionalProperties": false
+        },
+        "viewport": {
+          "type": "object",
+          "required": [
+            "w",
+            "h"
+          ],
+          "properties": {
+            "w": {
+              "type": "number"
+            },
+            "h": {
+              "type": "number"
+            }
+          },
+          "additionalProperties": false
+        },
+        "pointer": {
+          "enum": [
+            "fine",
+            "coarse",
+            "none"
+          ]
+        },
+        "hover": {
+          "enum": [
+            "hover",
+            "none"
+          ]
+        },
+        "touch_points": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "keyboard": {
+          "type": "boolean"
+        },
+        "refresh_hz_est": {
+          "type": "number"
+        },
+        "calibration": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "px_per_mm": {
+              "type": "number"
+            },
+            "viewing_distance_mm": {
+              "type": "number"
+            },
+            "method": {
+              "enum": [
+                "card",
+                "manual",
+                "none"
+              ]
+            }
+          }
+        }
+      }
+    },
+    "clock": {
+      "type": "object",
+      "required": [
+        "time_origin_ms",
+        "wall_iso",
+        "timezone"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "time_origin_ms": {
+          "type": "number"
+        },
+        "wall_iso": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "timezone": {
+          "type": "string"
+        },
+        "utc_offset_min": {
+          "type": "integer"
+        }
+      }
+    },
+    "stage": {
+      "type": "object",
+      "required": [
+        "rect",
+        "aspect"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "rect": {
+          "type": "object",
+          "required": [
+            "x",
+            "y",
+            "w",
+            "h"
+          ],
+          "properties": {
+            "x": {
+              "type": "number"
+            },
+            "y": {
+              "type": "number"
+            },
+            "w": {
+              "type": "number"
+            },
+            "h": {
+              "type": "number"
+            }
+          },
+          "additionalProperties": false
+        },
+        "aspect": {
+          "type": "number"
+        },
+        "letterboxed": {
+          "type": "boolean"
+        }
+      }
+    },
+    "sinks": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "trigger": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "type",
+              "format",
+              "required",
+              "connected"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "type": {
+                "enum": [
+                  "serial",
+                  "websocket",
+                  "usb"
+                ]
+              },
+              "format": {
+                "enum": [
+                  "raw",
+                  "ndjson",
+                  "template"
+                ]
+              },
+              "required": {
+                "type": "boolean"
+              },
+              "connected": {
+                "type": "boolean"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "storage": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "local",
+              "firebase"
+            ]
+          }
+        }
+      }
+    },
+    "eyetracking": {
+      "type": "object",
+      "required": [
+        "enabled"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "engine": {
+          "type": "string"
+        },
+        "engine_version": {
+          "type": "string"
+        },
+        "camera_denied": {
+          "type": "boolean"
+        },
+        "validations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "attempt",
+              "mean_error_px",
+              "passed"
+            ],
+            "properties": {
+              "attempt": {
+                "type": "integer"
+              },
+              "mean_error_px": {
+                "type": "number"
+              },
+              "passed": {
+                "type": "boolean"
+              },
+              "at_trial": {
+                "type": "integer"
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    "webcam": {
+      "description": "What the webcam recording did. The video is in the export, stamped on the session clock by the webcam.* events.",
+      "type": "object",
+      "required": [
+        "enabled"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "camera_denied": {
+          "type": "boolean"
+        },
+        "mime": {
+          "type": "string"
+        },
+        "save": {
+          "enum": [
+            "file",
+            "browser"
+          ],
+          "description": "where the video went"
+        },
+        "file": {
+          "type": "string",
+          "description": "name of the file the video was written to (save: file)"
+        },
+        "audio": {
+          "type": "boolean"
+        },
+        "video": {
+          "type": "object",
+          "description": "Settings the camera actually gave.",
+          "additionalProperties": false,
+          "properties": {
+            "width": {
+              "type": "integer"
+            },
+            "height": {
+              "type": "integer"
+            },
+            "fps": {
+              "type": "number"
+            }
+          }
+        },
+        "segments": {
+          "type": "integer",
+          "description": "recordings in this session (a resumed session starts another)"
+        },
+        "chunks": {
+          "type": "integer"
+        },
+        "bytes": {
+          "type": "integer"
+        },
+        "duration_ms": {
+          "type": "number"
+        },
+        "errors": {
+          "type": "integer"
+        }
+      }
+    },
+    "overlays": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "apriltags": {
+          "type": "object",
+          "required": [
+            "family",
+            "tags"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "family": {
+              "type": "string"
+            },
+            "tags": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "id",
+                  "corner",
+                  "cx",
+                  "cy",
+                  "size_px"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "integer"
+                  },
+                  "corner": {
+                    "enum": [
+                      "tl",
+                      "tr",
+                      "br",
+                      "bl"
+                    ]
+                  },
+                  "cx": {
+                    "type": "number"
+                  },
+                  "cy": {
+                    "type": "number"
+                  },
+                  "size_px": {
+                    "type": "number"
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "photodiode": {
+          "type": "object",
+          "required": [
+            "corner",
+            "size_px"
+          ],
+          "properties": {
+            "corner": {
+              "enum": [
+                "tl",
+                "tr",
+                "br",
+                "bl"
+              ]
+            },
+            "size_px": {
+              "type": "number"
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    }
+  }
+}

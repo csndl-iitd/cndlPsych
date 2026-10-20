@@ -1,36 +1,26 @@
-forms:
-  - id: "participant"
-    type: "survey-text"
-    data:
-      phase: "setup"
-    questions:
-      - prompt: "Participant ID:"
-        name: "participant_id"
-        required: true
-      - prompt: "Age:"
-        name: "age"
-        type: "text"
-        required: false
-      - prompt: "Gender:"
-        name: "gender"
-        type: "multi-choice"
-        options:
-          - "Male"
-          - "Female"
-        required: false
+# subject_id, sex, age and session_id are built in; only extras go here.
+# subject:
+#   questions:
+#     - { name: handedness, prompt: "Handedness:", type: multi-choice, options: [right, left, ambidextrous] }
 
-  - id: "session"
-    type: "survey-text"
-    data:
-      phase: "setup"
+# session:
+#   questions:
+#     - { name: session_type, prompt: "Session Type:", type: dropdown, options: [Control, Experimental], required: true }
+
+forms:
+  - id: post_task
+    title: About the task
     questions:
-      - prompt: "Session Number:"
-        name: "session_number"
+      - name: difficulty
+        prompt: "How difficult was the task?"
+        type: likert
+        scale: { min: 1, max: 7, labels: { min: "Very easy", max: "Very hard" } }
         required: true
-      - prompt: "Session Type:"
-        name: "session_type"
-        type: "dropdown"
-        options:
-          - "Control"
-          - "Experimental"
-        required: false
+      - name: strategy
+        prompt: "Did you use a particular strategy?"
+        type: multi-choice
+        options: ["Yes", "No"]
+      - name: strategy_text
+        prompt: "Please describe it:"
+        type: textarea
+        show_if: { strategy: "Yes" }

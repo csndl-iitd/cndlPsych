@@ -1,117 +1,59 @@
+# What is shown. Documented in docs/yaml/stimuli.md.
+styles:
+  panel:
+    max-width: 600px
+    margin: 0 auto
+    padding: 30px
+    text-align: center
+    color: "#f8fafc"
+    line-height: 1.6
+
 stimuli:
 
-  - name: "oddball_instructions"
-    stimulus: |
-      <div class="glass-panel" style="max-width: 600px; margin: 0 auto; padding: 35px; text-align: center; background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 16px; color: #f8fafc; font-family: 'Inter', sans-serif; line-height: 1.6; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4); backdrop-filter: blur(10px);">
-          <h2 style="font-size: 1.8rem; font-weight: 700; margin-bottom: 1.5rem; background: linear-gradient(to right, #3b82f6, #8b5cf6); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Oddball Task</h2>
-          <p style="margin-bottom: 1.5rem; font-size: 1rem; color: #cbd5e1;">
-              In this block, you will see a series of letters flashing at the center of the screen.
-          </p>
-          <p style="margin-bottom: 2rem; font-size: 1rem; color: #cbd5e1;">
-              Press the space bar when you see the letter <span style="font-weight: 700;">Ǝ</span> for the <span style="font-weight: 700;">second</span> time. Try to respond as quickly as possible.
-          </p>
-          <div style="font-size: 0.95rem; color: #94a3b8; animation: pulse 2s infinite;">
-              Press any key to begin.
-          </div>
-      </div>
+  # ---- oddball ------------------------------------------------------------------------------------
+  - name: oddball_instructions
+    type: html
+    style: panel
+    html: |
+      <h2>Oddball task</h2>
+      <p>You will see a series of letters flashing one at a time at the centre of the screen.</p>
+      <p>{{go.hint}} when you see the letter <b>Ǝ</b> for the <b>second</b> time. Respond as quickly as you can.</p>
     duration: null
-    trigger: 9
-    
-  - name: "fixation_plus"
-    stimulus: '<div style="font-size:72px;">+</div>'
-    duration: 1500
-    trigger: 1
-    post: [200, 500]
-    
-  - name: "end_marker"
-    stimulus: '<div style="font-size:72px;">XXX</div>'
-    duration: 500
-    trigger: 9
-    post: [200, 500]
+    trigger: 19
 
-  - name: "oddball_A"
-    stimulus: '<div style="font-size:72px; color:#ffffff; font-family: Inter, sans-serif; font-weight:bold;">A</div>'
+  - { name: fixation_plus, type: text, text: "+", size: 72px, duration: 1500, trigger: 20, post: [200, 500] }
+
+  # One entry makes oddball_A ... oddball_Ǝ, with triggers 100 ... 109.
+  - name: "oddball_{value}"
+    type: text
+    text: "{value}"
+    size: 72px
+    weight: bold
+    each: [A, B, C, D, E, F, H, I, L, Ǝ]
+    trigger_base: 100
     duration: 200
-    trigger: 100
     post: 300
 
-  - name: "oddball_B"
-    stimulus: '<div style="font-size:72px; color:#ffffff; font-family: Inter, sans-serif; font-weight:bold;">B</div>'
-    duration: 200
-    trigger: 101
-    post: 300
-
-  - name: "oddball_C"
-    stimulus: '<div style="font-size:72px; color:#ffffff; font-family: Inter, sans-serif; font-weight:bold;">C</div>'
-    duration: 200
-    trigger: 102
-    post: 300
-
-  - name: "oddball_D"
-    stimulus: '<div style="font-size:72px; color:#ffffff; font-family: Inter, sans-serif; font-weight:bold;">D</div>'
-    duration: 200
-    trigger: 103
-    post: 300
-
-  - name: "oddball_E"
-    stimulus: '<div style="font-size:72px; color:#ffffff; font-family: Inter, sans-serif; font-weight:bold;">E</div>'
-    duration: 200
-    trigger: 104
-    post: 300
-
-  - name: "oddball_F"
-    stimulus: '<div style="font-size:72px; color:#ffffff; font-family: Inter, sans-serif; font-weight:bold;">F</div>'
-    duration: 200
-    trigger: 105
-    post: 300
-
-  - name: "oddball_H"
-    stimulus: '<div style="font-size:72px; color:#ffffff; font-family: Inter, sans-serif; font-weight:bold;">H</div>'
-    duration: 200
-    trigger: 106
-    post: 300
-
-  - name: "oddball_I"
-    stimulus: '<div style="font-size:72px; color:#ffffff; font-family: Inter, sans-serif; font-weight:bold;">I</div>'
-    duration: 200
-    trigger: 107
-    post: 300
-
-  - name: "oddball_L"
-    stimulus: '<div style="font-size:72px; color:#ffffff; font-family: Inter, sans-serif; font-weight:bold;">L</div>'
-    duration: 200
-    trigger: 108
-    post: 300
-
-  - name: "oddball_Ǝ"
-    stimulus: '<div style="font-size:72px; color:#ffffff; font-family: Inter, sans-serif; font-weight:bold;">Ǝ</div>'
-    duration: 200
-    trigger: 109
-    post: 300
-
-  - name: "flash_instructions"
-    stimulus: |
-      <div class="glass-panel" style="max-width: 600px; margin: 0 auto; padding: 35px; text-align: center; background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 16px; color: #f8fafc; font-family: 'Inter', sans-serif; line-height: 1.6; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4); backdrop-filter: blur(10px);">
-          <h2 style="font-size: 1.8rem; font-weight: 700; margin-bottom: 1.5rem; background: linear-gradient(to right, #3b82f6, #8b5cf6); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Alternating Flashes Task</h2>
-          <p style="margin-bottom: 1.5rem; font-size: 1rem; color: #cbd5e1;">
-              In this block, you will see alternating full screen black and white flashes.
-          </p>
-          <p style="margin-bottom: 2rem; font-size: 1rem; color: #cbd5e1;">
-              No keyboard response is required. Please focus on the screen.
-          </p>
-          <div style="font-size: 0.95rem; color: #94a3b8; animation: pulse 2s infinite;">
-              Press any key to begin.
-          </div>
-      </div>
+  # ---- visual search --------------------------------------------------------------------------------
+  - name: search_instructions
+    type: html
+    style: panel
+    html: |
+      <h2>Visual search task</h2>
+      <p>You will see several letters scattered on the screen. Two of them are the target <b>E</b>; all the others are the mirror image of it, <b>Ǝ</b>.</p>
+      <p>Find both targets, then {{next.hint}}. Be quick and accurate.</p>
+      <p>Sometimes the targets will stand out in colour. Find both of them in the same way.</p>
     duration: null
-    trigger: 9
 
-  - name: "flash_black"
-    stimulus: '<div style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: #000000; margin: 0; padding: 0; z-index: 9999;"></div>'
-    duration: 250
-    trigger: 11
+  # Top-down search: targets (E) and distractors (the mirror image of E) have the same colour, so the targets
+  # can only be found by their orientation. The letters are small (size) to make it harder.
+  - name: search_array
+    type: search_array          # the generator in custom/stimuli/search_array.js
+    params: { targets: 2, distractors: 10, size: 16px }
+    duration: null
 
-  - name: "flash_white"
-    stimulus: '<div style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: #ffffff; margin: 0; padding: 0; z-index: 9999;"></div>'
-    duration: 250
-    trigger: 10
+  # Bottom-up search: the targets are a different colour, so they pop out. Same letter size as the top-down search.
+  - name: search_array_popout
+    type: search_array
+    params: { targets: 2, distractors: 10, size: 16px, target_color: "#ff5a36" }
+    duration: null

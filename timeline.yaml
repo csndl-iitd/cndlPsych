@@ -1,82 +1,104 @@
+# The order of things. Documented in docs/yaml/timeline.md.
 blocks:
-  - id: "participant_survey"
-    module: "survey"
-    config:
-      form_id: "participant"
 
-  - id: "session_survey"
-    module: "survey"
-    config:
-      form_id: "session"
+  # ---- 1. visual oddball ------------------------------------------------------------------------------
+  - id: oddball_intro
+    module: instructions
+    config: { pages: [oddball_instructions] }
 
-  - id: "flash_task"
-    module: "keyboard_task"
+  # Each trial: a fixation cross, then the ten letters twice in random order, 200 ms each. The participant
+  # responds to the second Ǝ. A response after it has appeared is correct and is timed from its onset, even when a
+  # later letter is already showing; a response before it is incorrect (no response time). The first response ends
+  # the trial (no response at all: the trial ends after the last letter, and is a miss).
+  - id: oddball_task
+    module: response_task
     config:
+      order: sequential
       trials:
-        - name: "flash_instructions_trial"
+        - name: oddball_flashes
+          start: fixation_plus
           sequence:
-            - "flash_instructions"
-          choices: "ALL_KEYS"
-          post: 1000
-          repetitions: 1
-        - name: "alternating_flashes"
-          sequence:
-            - "flash_black"
-            - "flash_white"
-          shuffle: false
-          choices: "NO_KEYS"
-          post: 0
-          repetitions: 10
-      shuffle_trials: false
-
-  - id: "oddball_task"
-    module: "keyboard_task"
-    config:
-      touch_mapping:
-        - key: "f"
-          x: [0.0, 0.5]
-          y: [0.0, 1.0]
-        - key: "j"
-          x: [0.5, 1.0]
-          y: [0.0, 1.0]
-      trials:
-        - name: "oddball_instructions_trial"
-          sequence:
-            - "oddball_instructions"
-          choices: "ALL_KEYS"
-          post: 0
-          repetitions: 1
-        - name: "oddball_flashes"
-          start: "fixation_plus"
-          sequence:
-            - "oddball_A"
-            - "oddball_B"
-            - "oddball_C"
-            - "oddball_D"
-            - "oddball_E"
-            - "oddball_F"
-            - "oddball_H"
-            - "oddball_I"
-            - "oddball_L"
-            - "oddball_Ǝ"
-            - "oddball_A"
-            - "oddball_B"
-            - "oddball_C"
-            - "oddball_D"
-            - "oddball_E"
-            - "oddball_F"
-            - "oddball_H"
-            - "oddball_I"
-            - "oddball_L"
-            - "oddball_Ǝ"
-          # end: "end_marker"
+            [oddball_A, oddball_B, oddball_C, oddball_D, oddball_E, oddball_F, oddball_H, oddball_I, oddball_L, oddball_Ǝ,
+             oddball_A, oddball_B, oddball_C, oddball_D, oddball_E, oddball_F, oddball_H, oddball_I, oddball_L, oddball_Ǝ]
           shuffle: true
-          choices: "ALL_KEYS"
+          response: go
+          response_window: any
+          correct: { intent: go, where: { stimulus: "oddball_Ǝ", occurrence: 2 } }
+          rt_from: { stimulus: "oddball_Ǝ", occurrence: 2 }   # response times are from the second Ǝ, not from the letter showing
           post: 1500
           repetitions: 5
-      shuffle_trials: false
 
-  - id: "visual_search_task"
-    module: "visual_search"
+  # ---- 2. visual search: top-down trials with some bottom-up (pop-out) trials ---------------------------
+  - id: search_intro
+    module: instructions
+    config: { pages: [search_instructions] }
+
+  - id: visual_search
+    module: response_task
+
+    # On a computer the participant presses SPACE after finding both targets; on a phone or tablet they
+    # tap both targets (two different targets; taps on distractors do not count).
+    input:
+      intents:
+        next:
+          hint:
+            desktop: "press the SPACEBAR"
+            phone: "tap both targets"
+            tablet: "tap both targets"
+      profiles:
+        desktop:
+          rules:
+            - id: space_done
+              match: { on: input.key.down, where: { key: " " } }
+              emit: { intent: next, data: { completion: self_report } }
+        phone: &touch_search
+          hit_padding: 0.035
+          gestures: [tap]
+          rules:
+            - id: two_taps
+              match:
+                sequence:
+                  - { on: input.tap, where: { target.role: target } }
+                  - { on: input.tap, where: { target.role: target } }
+                distinct_by: target.id
+              emit:
+                - { intent: next, data: { completion: verified_taps } }
+              reset: trial
+            - id: distractor_tap
+              match: { on: input.tap, where: { target.role: distractor } }
+              emit: { event: semantic.miss }
+        tablet: *touch_search
+
+    # Trigger codes: 30 fixation; 31 top-down array on, 34 bottom-up array on; 32 both targets found; 33 array off.
+    triggers:
+      disable: [resp_correct, resp_incorrect, resp_timeout]
+      rules:
+        - { id: "stim:fixation_plus", value: 30 }
+        - { id: topdown_onset, on: phase.onset, where: { stimulus: search_array }, value: 31 }
+        - { id: bottomup_onset, on: phase.onset, where: { stimulus: search_array_popout }, value: 34 }
+        - { id: search_done, on: semantic.next, where: { phase: { in: [search_array, search_array_popout] } }, value: 32 }
+        - { id: search_offset, on: phase.offset, where: { stimulus: { in: [search_array, search_array_popout] } }, value: 33 }
+
     config:
-      n_trials: 10
+      order: shuffle              # top-down and bottom-up trials are mixed in random order
+      trials:
+        - name: search_topdown
+          start: fixation_plus
+          sequence: [search_array]
+          response: next
+          timeout: 10s
+          post: 1250
+          repetitions: 12
+        - name: search_bottomup
+          start: fixation_plus
+          sequence: [search_array_popout]
+          response: next
+          timeout: 10s
+          post: 1250
+          repetitions: 4
+
+  # ---- questionnaire (only for the experimental group) ---------------------------------------------------
+  - id: post_task
+    module: survey
+    # when: { session.session_type: Experimental }
+    config: { form_id: post_task }

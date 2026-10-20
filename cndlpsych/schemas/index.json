@@ -1,0 +1,16 @@
+[
+  "common.schema.json",
+  "event.schema.json",
+  "experiment.schema.json",
+  "firestore.schema.json",
+  "forms.schema.json",
+  "input.schema.json",
+  "module-instructions.schema.json",
+  "module-response-task.schema.json",
+  "module-survey.schema.json",
+  "session.schema.json",
+  "stimuli.schema.json",
+  "task-manifest.schema.json",
+  "timeline.schema.json",
+  "triggers.schema.json"
+]
