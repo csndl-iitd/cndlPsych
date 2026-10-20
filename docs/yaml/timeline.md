@@ -1,6 +1,6 @@
 # timeline.yaml
 
-_Generated from the schemas in `spec/schema/` by `tools/build-docs.js`; do not edit by hand. The schemas themselves are the contract: `expfw validate` reports anything outside them with the file and the path._
+_Generated from the schemas in `spec/schema/` by `tools/build-docs.js`; do not edit by hand. The schemas themselves are the contract: `cndlpsych validate` reports anything outside them with the file and the path._
 
 The order of blocks. What a block's `config` accepts depends on its `module`; those settings follow the table.
 

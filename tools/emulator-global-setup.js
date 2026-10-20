@@ -5,7 +5,7 @@ const PORT = 8089;
 
 export async function setup() {
   const emulator = await startFirestoreEmulator({ port: PORT });
-  process.env.EXPFW_FIRESTORE_HOST = emulator.host;
-  process.env.EXPFW_FIRESTORE_PORT = String(emulator.port);
+  process.env.CNDLPSYCH_FIRESTORE_HOST = emulator.host;
+  process.env.CNDLPSYCH_FIRESTORE_PORT = String(emulator.port);
   return async () => { await emulator.stop(); };
 }

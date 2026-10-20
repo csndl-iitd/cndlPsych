@@ -1,6 +1,6 @@
 # experiment.yaml
 
-_Generated from the schemas in `spec/schema/` by `tools/build-docs.js`; do not edit by hand. The schemas themselves are the contract: `expfw validate` reports anything outside them with the file and the path._
+_Generated from the schemas in `spec/schema/` by `tools/build-docs.js`; do not edit by hand. The schemas themselves are the contract: `cndlpsych validate` reports anything outside them with the file and the path._
 
 Who can take part, what is stored, how responses and triggers work. Everything outside the blocks.
 

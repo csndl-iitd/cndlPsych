@@ -1,4 +1,4 @@
-// The M10 acceptance for users: a fresh folder made by `expfw init` runs a working experiment,
+// The M10 acceptance for users: a fresh folder made by `cndlpsych init` runs a working experiment,
 // and changing it needs only the YAML files (and index.html, which the template already has).
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -14,7 +14,7 @@ test.setTimeout(240_000);
 let dir;
 test.beforeEach(({ isMobile }) => {
   test.skip(isMobile, 'the dry run emulates the devices itself; run once');
-  dir = join(mkdtempSync(join(tmpdir(), 'expfw-fresh-')), 'study'); initProject(dir);
+  dir = join(mkdtempSync(join(tmpdir(), 'cndlpsych-fresh-')), 'study'); initProject(dir);
 });
 test.afterEach(() => { if (dir) rmSync(join(dir, '..'), { recursive: true, force: true }); });
 

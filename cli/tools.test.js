@@ -12,9 +12,9 @@ import { validateProject } from './validate.js';
 
 const ROOT = join(import.meta.dirname, '..');
 const TEMPLATE = join(ROOT, 'template');
-const EXPFW = join(ROOT, 'cli', 'expfw.js');
+const CNDLPSYCH = join(ROOT, 'cli', 'cndlpsych.js');
 const temp = [];
-const tempDir = () => { const dir = mkdtempSync(join(tmpdir(), 'expfw-cli-')); temp.push(dir); return dir; };
+const tempDir = () => { const dir = mkdtempSync(join(tmpdir(), 'cndlpsych-cli-')); temp.push(dir); return dir; };
 afterAll(() => temp.forEach((dir) => rmSync(dir, { recursive: true, force: true })));
 
 describe('template', () => {
@@ -26,7 +26,7 @@ describe('template', () => {
 
   it('has only YAML, one consent file and index.html for the user to edit', () => {
     expect(readdirSync(TEMPLATE).sort()).toEqual(['assets', 'consent.md', 'experiment.yaml', 'forms.yaml', 'index.html', 'stimuli.yaml', 'timeline.yaml']);
-    expect(readFileSync(join(TEMPLATE, 'index.html'), 'utf8')).toContain('src="expfw/boot.js"');
+    expect(readFileSync(join(TEMPLATE, 'index.html'), 'utf8')).toContain('src="cndlpsych/boot.js"');
   });
 });
 
@@ -92,15 +92,15 @@ describe('init', () => {
   it('creates the template and the bundled framework, and refuses a folder that is not empty', () => {
     const dir = join(tempDir(), 'my-study');
     initProject(dir);
-    for (const file of ['index.html', 'experiment.yaml', 'timeline.yaml', 'expfw/boot.js', 'expfw/start.js', 'expfw/framework/runtime/boot.js', 'expfw/vendor/jspsych.js', 'expfw/LICENSE']) expect(existsSync(join(dir, file)), file).toBe(true);
-    expect(existsSync(join(dir, 'expfw-eyetracking'))).toBe(false);
+    for (const file of ['index.html', 'experiment.yaml', 'timeline.yaml', 'cndlpsych/boot.js', 'cndlpsych/start.js', 'cndlpsych/framework/runtime/boot.js', 'cndlpsych/vendor/jspsych.js', 'cndlpsych/LICENSE']) expect(existsSync(join(dir, file)), file).toBe(true);
+    expect(existsSync(join(dir, 'cndlpsych-eyetracking'))).toBe(false);
     expect(() => initProject(dir)).toThrow('not empty');
   });
 
   it('copies the eye tracking add-on only when asked', () => {
     const dir = join(tempDir(), 'eye-study');
     initProject(dir, { eyetracking: true });
-    for (const file of ['expfw-eyetracking/webgazer.js', 'expfw-eyetracking/LICENSE.md', 'expfw-eyetracking/mediapipe/face_mesh/face_mesh.binarypb']) expect(existsSync(join(dir, file)), file).toBe(true);
+    for (const file of ['cndlpsych-eyetracking/webgazer.js', 'cndlpsych-eyetracking/LICENSE.md', 'cndlpsych-eyetracking/mediapipe/face_mesh/face_mesh.binarypb']) expect(existsSync(join(dir, file)), file).toBe(true);
   });
 
   it('the folder it creates passes validate', async () => {
@@ -145,12 +145,12 @@ describe('migrate', () => {
   });
 
   it('refuses a newer version and a missing one, with a message the user can act on', () => {
-    expect(() => migrateDocument({ spec_version: CURRENT_VERSION + 1 })).toThrow('update expfw');
+    expect(() => migrateDocument({ spec_version: CURRENT_VERSION + 1 })).toThrow('update cndlpsych');
     expect(() => migrateDocument({ name: 'x' })).toThrow('spec_version');
   });
 
   it('the command reports a current project', () => {
-    expect(execFileSync(process.execPath, [EXPFW, 'migrate', TEMPLATE], { encoding: 'utf8' })).toContain('nothing to do');
+    expect(execFileSync(process.execPath, [CNDLPSYCH, 'migrate', TEMPLATE], { encoding: 'utf8' })).toContain('nothing to do');
   });
 });
 
@@ -183,15 +183,15 @@ describe('deploy', () => {
   it('--print writes nothing', () => {
     const dir = tempDir();
     writeFileSync(join(dir, 'experiment.yaml'), 'spec_version: 1\n');
-    const out = execFileSync(process.execPath, [EXPFW, 'deploy', dir, '--project', 'p1', '--print'], { encoding: 'utf8' });
+    const out = execFileSync(process.execPath, [CNDLPSYCH, 'deploy', dir, '--project', 'p1', '--print'], { encoding: 'utf8' });
     expect(out).toContain('npx firebase-tools deploy --project p1 --only hosting');
     expect(existsSync(join(dir, 'firebase.json'))).toBe(false);
   });
 });
 
-describe('expfw command', () => {
+describe('cndlpsych command', () => {
   it('exits non-zero for an unknown command', () => {
-    expect(() => execFileSync(process.execPath, [EXPFW, 'nope'], { stdio: 'pipe' })).toThrow();
+    expect(() => execFileSync(process.execPath, [CNDLPSYCH, 'nope'], { stdio: 'pipe' })).toThrow();
   });
 });
 

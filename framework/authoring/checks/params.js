@@ -3,7 +3,7 @@
 import { blockProfiles, FILES } from '../context.js';
 import { compileSchema, validateAgainst } from '../spec.js';
 
-const COMMON = 'https://example.org/expfw/1/common.schema.json#/definitions/';
+const COMMON = 'https://example.org/cndlpsych/1/common.schema.json#/definitions/';
 
 function paramSchema(decl) {
   const bounds = {};

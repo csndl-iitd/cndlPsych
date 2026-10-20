@@ -6,7 +6,7 @@ import Ajv from 'ajv';
 import addFormats from 'ajv-formats';
 
 const SCHEMA_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', 'spec', 'schema');
-const BASE = 'https://example.org/expfw/1/';
+const BASE = 'https://example.org/cndlpsych/1/';
 
 const ajv = new Ajv({ allErrors: true, strict: true, strictTypes: false, strictRequired: false });
 addFormats(ajv);

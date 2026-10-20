@@ -19,8 +19,8 @@ const now = () => firebase.firestore.FieldValue.serverTimestamp();
 const environments = {};
 async function environment(mode) {
   environments[mode] = await initializeTestEnvironment({
-    projectId: `demo-expfw-${mode}`,
-    firestore: { host: process.env.EXPFW_FIRESTORE_HOST, port: Number(process.env.EXPFW_FIRESTORE_PORT), rules: readFileSync(join(SPEC, 'firebase', `firestore.${mode}.rules`), 'utf8') },
+    projectId: `demo-cndlpsych-${mode}`,
+    firestore: { host: process.env.CNDLPSYCH_FIRESTORE_HOST, port: Number(process.env.CNDLPSYCH_FIRESTORE_PORT), rules: readFileSync(join(SPEC, 'firebase', `firestore.${mode}.rules`), 'utf8') },
   });
   return environments[mode];
 }

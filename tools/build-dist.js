@@ -1,12 +1,12 @@
 // Build the user-facing folders into dist/:
 //
-//   expfw/                 the framework, as source: the same readable ES modules as framework/,
+//   cndlpsych/                 the framework, as source: the same readable ES modules as framework/,
 //                          unminified and unbundled, plus the third-party code it needs
-//   expfw-eyetracking/     the eye tracking add-on: WebGazer (GPL-3.0-or-later) and its face model
+//   cndlpsych-eyetracking/     the eye tracking add-on: WebGazer (GPL-3.0-or-later) and its face model
 //
-// `expfw init` copies expfw/ next to a new experiment (and the add-on with --eyetracking); users never
+// `cndlpsych init` copies cndlpsych/ next to a new experiment (and the add-on with --eyetracking); users never
 // edit them. The browser loads the modules directly (an import map in boot.js points the third-party
-// module names at expfw/vendor/), so there are no bundles, no hashes and no generated names.
+// module names at cndlpsych/vendor/), so there are no bundles, no hashes and no generated names.
 //
 //   node tools/build-dist.js
 import { build } from 'esbuild';
@@ -17,13 +17,13 @@ import { stripRemoteFonts } from './esbuild-plugins.js';
 import { bundledPackages, noticesFor } from './notices.js';
 
 const root = join(import.meta.dirname, '..');
-// EXPFW_DIST_DIR lets a test build somewhere else without touching the folders other tests copy from.
-const out = process.env.EXPFW_DIST_DIR ?? join(root, 'dist');
-export const DIST = join(out, 'expfw');
-export const DIST_EYETRACKING = join(out, 'expfw-eyetracking');
+// CNDLPSYCH_DIST_DIR lets a test build somewhere else without touching the folders other tests copy from.
+const out = process.env.CNDLPSYCH_DIST_DIR ?? join(root, 'dist');
+export const DIST = join(out, 'cndlpsych');
+export const DIST_EYETRACKING = join(out, 'cndlpsych-eyetracking');
 const { version } = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
 
-const README = `expfw ${version}: the framework. Do not edit these files; they are replaced when you update.
+const README = `cndlpsych ${version}: the framework. Do not edit these files; they are replaced when you update.
 
 boot.js        what index.html loads; says where the third-party modules are, then starts start.js
 start.js       loads the schemas and runs the framework on the files next to index.html
@@ -87,8 +87,8 @@ for (const vendor of VENDOR) {
 writeFileSync(join(DIST, 'vendor', SURVEY_CSS.file), stripRemoteFonts(readFileSync(join(root, 'node_modules', SURVEY_CSS.from), 'utf8')));
 
 cpSync(join(root, 'LICENSE'), join(DIST, 'LICENSE'));
-writeFileSync(join(DIST, 'THIRD-PARTY-LICENSES.txt'), noticesFor([...bundled].sort(), 'Third-party software in expfw/vendor/ (all under permissive licences).'));
-writeFileSync(join(DIST, 'VERSION'), `expfw ${version}\n`);
+writeFileSync(join(DIST, 'THIRD-PARTY-LICENSES.txt'), noticesFor([...bundled].sort(), 'Third-party software in cndlpsych/vendor/ (all under permissive licences).'));
+writeFileSync(join(DIST, 'VERSION'), `cndlpsych ${version}\n`);
 writeFileSync(join(DIST, 'README.txt'), README);
 
 // ---- add-on: WebGazer and the face model it loads ----
@@ -106,6 +106,6 @@ const addOn = await build({
 cpSync(join(root, 'node_modules', 'webgazer', 'dist', 'mediapipe'), join(DIST_EYETRACKING, 'mediapipe'), { recursive: true });
 cpSync(join(root, 'node_modules', 'webgazer', 'LICENSE.md'), join(DIST_EYETRACKING, 'LICENSE.md'));
 cpSync(join(root, 'LICENSE-eyetracking.md'), join(DIST_EYETRACKING, 'README.md'));
-writeFileSync(join(DIST_EYETRACKING, 'THIRD-PARTY-LICENSES.txt'), noticesFor(bundledPackages(addOn.metafile), 'Software in expfw-eyetracking/ (WebGazer is GPL-3.0-or-later; the rest is listed with its own licence).'));
-writeFileSync(join(DIST_EYETRACKING, 'VERSION'), `expfw-eyetracking ${version}\n`);
+writeFileSync(join(DIST_EYETRACKING, 'THIRD-PARTY-LICENSES.txt'), noticesFor(bundledPackages(addOn.metafile), 'Software in cndlpsych-eyetracking/ (WebGazer is GPL-3.0-or-later; the rest is listed with its own licence).'));
+writeFileSync(join(DIST_EYETRACKING, 'VERSION'), `cndlpsych-eyetracking ${version}\n`);
 console.log(`built ${DIST} and ${DIST_EYETRACKING}`);

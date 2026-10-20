@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://example.org/expfw/1/firestore.schema.json",
+  "$id": "https://example.org/cndlpsych/1/firestore.schema.json",
   "title": "Firestore documents",
   "description": "Shapes of the documents the Firebase sink writes (JSON view; created_at is a Firestore server timestamp, everything else is stored as shown). Layout:\n  experiments/{exp}/admins/{email}                          allow-list, managed in the console\n  experiments/{exp}/claims/{n}                              subject-number claims (doc id = string(n))\n  experiments/{exp}/claims_by_uid/{uid}                     one claim per anonymous user (public mode)\n  experiments/{exp}/data/{uid}/sessions/{subject}_{ses}     session record (session.schema.json)\n  experiments/{exp}/data/{uid}/sessions/{...}/chunks/{i}    event chunks\n",
   "definitions": {

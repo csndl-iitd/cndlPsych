@@ -13,7 +13,7 @@ test.setTimeout(180_000);
 let dir;
 test.beforeEach(({ isMobile }) => {
   test.skip(isMobile, 'the dry run emulates the devices itself; run once');
-  dir = join(mkdtempSync(join(tmpdir(), 'expfw-universal-')), 'study');
+  dir = join(mkdtempSync(join(tmpdir(), 'cndlpsych-universal-')), 'study');
   initProject(dir);
   appendFileSync(join(dir, 'experiment.yaml'), `
 triggers:

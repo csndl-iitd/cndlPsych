@@ -10,8 +10,8 @@ import { join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 
 const ROOT = join(import.meta.dirname, '..');
-const DIST = join(ROOT, 'dist', 'expfw');
-const DIST_EYETRACKING = join(ROOT, 'dist', 'expfw-eyetracking');
+const DIST = join(ROOT, 'dist', 'cndlpsych');
+const DIST_EYETRACKING = join(ROOT, 'dist', 'cndlpsych-eyetracking');
 const TEMPLATES = { basic: 'template', timing: 'template-timing' };
 
 /** @returns {string} the created folder */
@@ -21,20 +21,20 @@ export function initProject(target, { template = 'basic', eyetracking = false } 
   if (existsSync(dir) && readdirSync(dir).length) throw new Error(`${dir} is not empty`);
   if (!existsSync(join(DIST, 'boot.js'))) execFileSync(process.execPath, [join(ROOT, 'tools', 'build-dist.js')], { stdio: 'inherit' });
   cpSync(join(ROOT, TEMPLATES[template]), dir, { recursive: true });
-  cpSync(DIST, join(dir, 'expfw'), { recursive: true });
-  if (eyetracking) cpSync(DIST_EYETRACKING, join(dir, 'expfw-eyetracking'), { recursive: true });
+  cpSync(DIST, join(dir, 'cndlpsych'), { recursive: true });
+  if (eyetracking) cpSync(DIST_EYETRACKING, join(dir, 'cndlpsych-eyetracking'), { recursive: true });
   return dir;
 }
 
 function main() {
   const { values, positionals: [target] } = parseArgs({ allowPositionals: true, options: { template: { type: 'string', default: 'basic' }, eyetracking: { type: 'boolean', default: false } } });
   if (!target) {
-    console.error('usage: expfw init <folder> [--template basic|timing] [--eyetracking]');
+    console.error('usage: cndlpsych init <folder> [--template basic|timing] [--eyetracking]');
     process.exit(2);
   }
   try {
     const dir = initProject(target, { template: values.template, eyetracking: values.eyetracking });
-    console.log(`created ${dir}\n\nnext:\n  expfw validate ${target}\n  expfw serve ${target}\nedit experiment.yaml, stimuli.yaml, timeline.yaml and forms.yaml; index.html rarely changes.`);
+    console.log(`created ${dir}\n\nnext:\n  cndlpsych validate ${target}\n  cndlpsych serve ${target}\nedit experiment.yaml, stimuli.yaml, timeline.yaml and forms.yaml; index.html rarely changes.`);
   } catch (error) {
     console.error(error.message);
     process.exit(1);

@@ -17,7 +17,7 @@ export const MIGRATIONS = {};
 export function migrateDocument(experiment) {
   const from = experiment.spec_version;
   if (!Number.isInteger(from) || from < 1) throw new Error('experiment.yaml has no valid spec_version');
-  if (from > CURRENT_VERSION) throw new Error(`this project is spec_version ${from}, newer than this framework supports (${CURRENT_VERSION}); update expfw`);
+  if (from > CURRENT_VERSION) throw new Error(`this project is spec_version ${from}, newer than this framework supports (${CURRENT_VERSION}); update cndlpsych`);
   let document = structuredClone(experiment);
   for (let version = from; version < CURRENT_VERSION; version += 1) document = { ...MIGRATIONS[version](document), spec_version: version + 1 };
   return { from, to: document.spec_version, document };

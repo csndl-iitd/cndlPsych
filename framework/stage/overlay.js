@@ -74,7 +74,7 @@ export function createOverlay({ root, bus, spec = {}, calibration = {}, viewport
     const ids = m.tags.ids ?? AVAILABLE_TAG_IDS;
     CORNERS.forEach((corner, index) => {
       const box = layer({ ...placement(corner, m.gap), padding: `${m.quiet}px`, background: '#fff', width: `${m.tagPx}px`, height: `${m.tagPx}px` });
-      box.className = 'expfw-apriltag';
+      box.className = 'cndlpsych-apriltag';
       const img = doc.createElement('img');
       Object.assign(img.style, { width: '100%', height: '100%', display: 'block', imageRendering: 'pixelated' });
       img.src = TAG36H11[ids[index]];
@@ -89,7 +89,7 @@ export function createOverlay({ root, bus, spec = {}, calibration = {}, viewport
   if (m.diode) {
     const corner = m.diode.corner ?? 'bl';
     const patch = layer({ width: `${m.diodePx}px`, height: `${m.diodePx}px`, background: '#000' });
-    patch.className = 'expfw-photodiode';
+    patch.className = 'cndlpsych-photodiode';
     const place = () => {
       Object.assign(patch.style, { top: '', bottom: '', left: '', right: '' }, diodePlacement(corner, m, viewport()));
     };

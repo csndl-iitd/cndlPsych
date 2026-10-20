@@ -1,5 +1,5 @@
 $schema: http://json-schema.org/draft-07/schema#
-$id: https://example.org/expfw/1/input.schema.json
+$id: https://example.org/cndlpsych/1/input.schema.json
 title: Input scope
 description: >
   How physical input becomes semantic responses. This one shape is used at every

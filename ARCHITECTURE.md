@@ -1,6 +1,6 @@
 # Architecture
 
-`expfw` is a placeholder name. This document is the contract between design and implementation. `spec/` holds the machine-readable half (JSON Schemas, event catalog, `types.d.ts`, examples, Firestore rules and design). When this file and `spec/` disagree, `spec/` wins and this file gets fixed.
+`cndlpsych` is a placeholder name. This document is the contract between design and implementation. `spec/` holds the machine-readable half (JSON Schemas, event catalog, `types.d.ts`, examples, Firestore rules and design). When this file and `spec/` disagree, `spec/` wins and this file gets fixed.
 
 Status words used below: **decided** = the author said so; **intent** = proposed design that follows from decisions but was not explicitly confirmed. Intent items may be changed with a note in `docs/decisions.md`.
 
@@ -122,15 +122,15 @@ L1 and L2 files import nothing and use no globals: everything comes through the 
 
 ```
 my-experiment/
-  index.html            <script type=module src="expfw/boot.js"> and a stage div
+  index.html            <script type=module src="cndlpsych/boot.js"> and a stage div
   experiment.yaml  forms.yaml  stimuli.yaml  timeline.yaml  consent.md
   assets/               images, audio
   custom/               optional: stimuli/ tasks/ plugins/
-  expfw/                the framework as readable source (framework/, vendor/, schemas/); do not edit
-  expfw-eyetracking/    optional add-on: WebGazer (GPL), only with eye tracking
+  cndlpsych/                the framework as readable source (framework/, vendor/, schemas/); do not edit
+  cndlpsych-eyetracking/    optional add-on: WebGazer (GPL), only with eye tracking
 ```
 
-`cli serve` hosts it locally; `cli deploy` pushes to Firebase Hosting; `cli dry-run` plays the timeline with synthetic input and prints the event stream and triggers; `cli migrate` upgrades `spec_version`. Implemented in M10 as `expfw init|validate|dry-run|serve|deploy|migrate`; the bundle comes from `npm run build` (entry `bundle/entry.js`, outside the framework layers); see `docs/decisions.md`.
+`cli serve` hosts it locally; `cli deploy` pushes to Firebase Hosting; `cli dry-run` plays the timeline with synthetic input and prints the event stream and triggers; `cli migrate` upgrades `spec_version`. Implemented in M10 as `cndlpsych init|validate|dry-run|serve|deploy|migrate`; the bundle comes from `npm run build` (entry `bundle/entry.js`, outside the framework layers); see `docs/decisions.md`.
 
 ## 11. Open decisions (defaults assumed)
 

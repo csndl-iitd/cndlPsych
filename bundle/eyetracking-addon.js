@@ -1,5 +1,5 @@
 // The eye tracking add-on's entry: WebGazer plus where its face model lives and its version.
-// WebGazer is GPL-3.0-or-later, so this is built into its own folder (dist/expfw-eyetracking),
+// WebGazer is GPL-3.0-or-later, so this is built into its own folder (dist/cndlpsych-eyetracking),
 // separate from the MIT-licensed core; see LICENSE-eyetracking.md.
 import webgazer from 'webgazer';
 import manifest from 'webgazer/package.json';

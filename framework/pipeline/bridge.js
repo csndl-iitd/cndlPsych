@@ -59,7 +59,7 @@ export function createBridge({ bus, doc = globalThis.document }) {
   }
 
   class BridgeExtension {
-    static info = { name: 'expfw-bridge', version: '0.1.0', data: {} };
+    static info = { name: 'cndlpsych-bridge', version: '0.1.0', data: {} };
 
     constructor(instance) {
       jsPsych = instance;

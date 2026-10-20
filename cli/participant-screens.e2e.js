@@ -22,7 +22,7 @@ test.afterEach(async () => {
 
 /** A fresh project served from a temporary folder; `forms` replaces forms.yaml. */
 async function project({ forms } = {}) {
-  dir = join(mkdtempSync(join(tmpdir(), 'expfw-screens-')), 'study');
+  dir = join(mkdtempSync(join(tmpdir(), 'cndlpsych-screens-')), 'study');
   initProject(dir);
   if (forms) writeFileSync(join(dir, 'forms.yaml'), forms);
   served = await serveDirectory({ dir });
@@ -57,7 +57,7 @@ test('the screens are dark, readable and compact: no white panel, good contrast,
   await page.locator('[data-name="decision"]').waitFor();
   const colours = await page.evaluate(() => {
     const style = (selector) => getComputedStyle(document.querySelector(selector));
-    return { stage: style('.expfw-stage').backgroundColor, root: style('.sd-root-modern').backgroundColor, text: style('.sd-html').color, title: style('.sd-question__title').color, font: style('.expfw-stage').fontFamily };
+    return { stage: style('.cndlpsych-stage').backgroundColor, root: style('.sd-root-modern').backgroundColor, text: style('.sd-html').color, title: style('.sd-question__title').color, font: style('.cndlpsych-stage').fontFamily };
   });
   expect(luminance(rgbOf(colours.stage))).toBeLessThan(0.05);
   expect(colours.root === 'rgba(0, 0, 0, 0)' || luminance(rgbOf(colours.root)) < 0.05).toBe(true);
@@ -66,14 +66,14 @@ test('the screens are dark, readable and compact: no white panel, good contrast,
   expect(colours.font).toMatch(/system-ui|Segoe UI|Roboto|Arial/);
 
   await toSubjectForm(page, url);
-  const lightBoxes = await page.evaluate(() => [...document.querySelectorAll('.expfw-display *')].filter((el) => {
+  const lightBoxes = await page.evaluate(() => [...document.querySelectorAll('.cndlpsych-display *')].filter((el) => {
     const c = getComputedStyle(el).backgroundColor.match(/[\d.]+/g)?.map(Number) ?? [];
     return c.length >= 3 && (c[3] ?? 1) > 0.5 && c[0] > 200 && c[1] > 200 && c[2] > 200;
   }).length);
   expect(lightBoxes).toBe(0);
   const box = await page.locator('.sd-root-modern').boundingBox();
   expect(box.height).toBeLessThan(Math.min(viewport.height - 40, 520)); // ID, sex, age, one extra question and the button
-  const overflow = await page.evaluate(() => ({ vertical: document.querySelector('.expfw-display').scrollHeight - document.querySelector('.expfw-display').clientHeight, horizontal: document.documentElement.scrollWidth - innerWidth }));
+  const overflow = await page.evaluate(() => ({ vertical: document.querySelector('.cndlpsych-display').scrollHeight - document.querySelector('.cndlpsych-display').clientHeight, horizontal: document.documentElement.scrollWidth - innerWidth }));
   expect(overflow).toEqual({ vertical: 0, horizontal: 0 });
 });
 
@@ -84,7 +84,7 @@ test('the instructions use the same font as the forms', async ({ page }) => {
   await answerSubjectForm(page);
   await clickContinue(page); // the session form
   await page.getByText('Reaction time').waitFor();
-  const instructionFont = await page.evaluate(() => getComputedStyle(document.querySelector('.expfw-display h2')).fontFamily);
+  const instructionFont = await page.evaluate(() => getComputedStyle(document.querySelector('.cndlpsych-display h2')).fontFamily);
   expect(instructionFont).toBe(formFont);
   expect(instructionFont).not.toMatch(/Times/);
 });
@@ -116,7 +116,7 @@ test('a form taller than the screen scrolls (wheel or touch), starts at its top,
   const url = await project({ forms: LONG_FORM });
   if (!isMobile) await page.setViewportSize({ width: 1100, height: 420 });
   await toSubjectForm(page, url);
-  const metrics = () => page.evaluate(() => { const d = document.querySelector('.expfw-display'); return { top: d.scrollTop, max: d.scrollHeight - d.clientHeight }; });
+  const metrics = () => page.evaluate(() => { const d = document.querySelector('.cndlpsych-display'); return { top: d.scrollTop, max: d.scrollHeight - d.clientHeight }; });
   const before = await metrics();
   expect(before.max).toBeGreaterThan(200);
   expect(before.top).toBe(0);
@@ -159,25 +159,25 @@ async function toInstructions(page, url) {
 }
 
 const tap = (page) => page.evaluate(() => {
-  const { stage } = window.expfw.services;
+  const { stage } = window.cndlpsych.services;
   const { x, y, w, h } = stage.rect;
   ['pointerdown', 'pointerup'].forEach((type) => stage.root.dispatchEvent(new PointerEvent(type, { clientX: x + w / 2, clientY: y + h / 2, pointerId: 7, pointerType: 'touch', button: 0, isPrimary: true, bubbles: true })));
 });
-const eventTypes = (page) => page.evaluate(async () => (await window.expfw.store.snapshot()).events.map((e) => e.type));
+const eventTypes = (page) => page.evaluate(async () => (await window.cndlpsych.store.snapshot()).events.map((e) => e.type));
 
 test('a computer with a touch screen shows both ways to respond, and a tap works as well as SPACE', async ({ page, isMobile }) => {
   test.skip(isMobile, 'this is about a computer that also has touch');
   await touchAndMouse(page);
   await toInstructions(page, await project());
   await expect(page.getByText('Press SPACE or tap the screen')).toBeVisible();
-  const { record } = await page.evaluate(() => window.expfw.store.snapshot());
+  const { record } = await page.evaluate(() => window.cndlpsych.store.snapshot());
   expect(record.device.profile).toBe('desktop');
   expect(record.device.input_profiles).toEqual(['desktop', 'phone', 'tablet']);
   await tap(page);
   await expect.poll(() => eventTypes(page)).toContain('input.tap');
   await expect.poll(async () => (await eventTypes(page)).includes('phase.onset')).toBe(true);
   // the page moved on from the instructions: the fixation of the first trial is next
-  const events = await page.evaluate(async () => (await window.expfw.store.snapshot()).events);
+  const events = await page.evaluate(async () => (await window.cndlpsych.store.snapshot()).events);
   expect(events.filter((e) => e.type === 'phase.onset').map((e) => e.data.stimulus)).toEqual(expect.arrayContaining(['instructions', 'fixation']));
 });
 
@@ -189,7 +189,7 @@ test('SPACE still answers on that same computer', async ({ page, isMobile }) => 
   await expect.poll(async () => (await eventTypes(page)).includes('semantic.go')).toBe(true);
 });
 
-const allEvents = (page) => page.evaluate(async () => (await window.expfw.store.snapshot()).events);
+const allEvents = (page) => page.evaluate(async () => (await window.cndlpsych.store.snapshot()).events);
 
 test('SPACE answers during the task itself, on a plain computer and on one that also has touch', async ({ page, isMobile }) => {
   test.skip(isMobile, 'this is about a computer');
@@ -214,7 +214,7 @@ test('SPACE answers during the task on a touch-first device that has a keyboard 
     window.matchMedia = (query) => (fine.some((q) => query.includes(q)) ? { ...real(query), matches: true } : real(query));
   });
   await toInstructions(page, await project());
-  const { record } = await page.evaluate(() => window.expfw.store.snapshot());
+  const { record } = await page.evaluate(() => window.cndlpsych.store.snapshot());
   expect(record.device.input_profiles).toContain('desktop');
   await page.keyboard.press('Space');
   await expect.poll(async () => (await allEvents(page)).filter((e) => e.type === 'phase.onset' && e.data.stimulus === 'circle').length).toBe(1);
@@ -231,7 +231,7 @@ test('a Windows tablet that reports touch only (no mouse attached) still answers
     window.matchMedia = (query) => (query in answers ? { ...real(query), matches: answers[query] } : real(query));
   });
   await toInstructions(page, await project());
-  const { record } = await page.evaluate(() => window.expfw.store.snapshot());
+  const { record } = await page.evaluate(() => window.cndlpsych.store.snapshot());
   expect(record.device).toMatchObject({ profile: 'tablet', keyboard: true });
   expect(record.device.input_profiles).toContain('desktop');
   await page.keyboard.press('Space');
@@ -244,6 +244,6 @@ test('a computer with only a mouse and keyboard shows just the keyboard hint, an
   if (!isMobile) await mouseOnly(page);
   await toInstructions(page, await project());
   await expect(page.getByText(isMobile ? 'Tap the screen as soon as you see it.' : 'Press SPACE as soon as you see it.')).toBeVisible();
-  const { record } = await page.evaluate(() => window.expfw.store.snapshot());
+  const { record } = await page.evaluate(() => window.cndlpsych.store.snapshot());
   expect(record.device.input_profiles ?? [record.device.profile]).not.toContain(isMobile ? 'desktop' : 'phone');
 });

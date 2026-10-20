@@ -4,7 +4,7 @@
 import Ajv from 'ajv';
 import { CORE_SCHEMA, load, types } from 'js-yaml';
 
-const BASE = 'https://example.org/expfw/1/';
+const BASE = 'https://example.org/cndlpsych/1/';
 // YAML 1.2: `on` stays a string key. Merge keys are kept for authors who use them.
 const YAML_SCHEMA = CORE_SCHEMA.extend({ implicit: [types.merge] });
 

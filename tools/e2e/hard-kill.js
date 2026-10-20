@@ -10,7 +10,7 @@ export async function launchProfile(dir, baseURL) {
   return chromium.launchPersistentContext(dir, { baseURL, headless: true, viewport: { width: 1280, height: 720 }, acceptDownloads: true });
 }
 
-export const newProfileDir = () => mkdtempSync(join(tmpdir(), 'expfw-profile-'));
+export const newProfileDir = () => mkdtempSync(join(tmpdir(), 'cndlpsych-profile-'));
 /** Best effort: Chromium can hold files for a moment after it exits, and this is only a temp folder. */
 export function removeProfileDir(dir) {
   try {

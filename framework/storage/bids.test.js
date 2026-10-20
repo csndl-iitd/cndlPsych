@@ -140,7 +140,7 @@ describe('bidsFiles', () => {
 
   it('describes every events.tsv column in the sidecar', () => {
     const sidecar = JSON.parse(read('task-Oddballflashesandvisualsearch_events.json'));
-    expect(sidecar).toMatchObject({ TaskName: record.experiment.name, StimulusPresentation: { SoftwareName: 'expfw', SoftwareVersion: '0.1.0' } });
+    expect(sidecar).toMatchObject({ TaskName: record.experiment.name, StimulusPresentation: { SoftwareName: 'cndlpsych', SoftwareVersion: '0.1.0' } });
     expect(Object.keys(sidecar).filter((key) => EVENT_COLUMNS.includes(key))).toEqual(EVENT_COLUMNS);
   });
 

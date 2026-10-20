@@ -1,25 +1,25 @@
-# expfw
+# cndlpsych
 
-Browser experiment framework (`expfw` is a placeholder name). Experimenters write four YAML files and an `index.html`; the framework runs the session, logs every event on one clock, sends triggers, stores the data locally and optionally in Firebase, and exports BIDS.
+Browser experiment framework (cndlpsych). Experimenters write four YAML files and an `index.html`; the framework runs the session, logs every event on one clock, sends triggers, stores the data locally and optionally in Firebase, and exports BIDS.
 
 ## Make an experiment
 
     npm install
     npx playwright install chromium      # once; only needed for dry-run and the browser tests
-    npm run build                        # assembles dist/expfw (readable source + vendor code) and dist/expfw-eyetracking
-    node cli/expfw.js init my-study      # a working template + the bundled framework
-    node cli/expfw.js validate my-study  # check the YAML (file, path and message for every problem)
-    node cli/expfw.js dry-run my-study   # play it with a synthetic participant and print what happened
-    node cli/expfw.js serve my-study     # open http://localhost:8080 (add ?manage=1 for stored sessions)
-    node cli/expfw.js deploy my-study    # Firebase Hosting (+ Firestore rules); log in with firebase-tools first
+    npm run build                        # assembles dist/cndlpsych (readable source + vendor code) and dist/cndlpsych-eyetracking
+    node cli/cndlpsych.js init my-study      # a working template + the bundled framework
+    node cli/cndlpsych.js validate my-study  # check the YAML (file, path and message for every problem)
+    node cli/cndlpsych.js dry-run my-study   # play it with a synthetic participant and print what happened
+    node cli/cndlpsych.js serve my-study     # open http://localhost:8080 (add ?manage=1 for stored sessions)
+    node cli/cndlpsych.js deploy my-study    # Firebase Hosting (+ Firestore rules); log in with firebase-tools first
 
-Edit `experiment.yaml`, `stimuli.yaml`, `timeline.yaml`, `forms.yaml`, `consent.md`; `expfw/` is the bundled framework and is never edited. Every setting is documented in `docs/yaml/` (generated from the schemas). The same commands are available as `expfw <command>` once the package is installed (`bin`).
+Edit `experiment.yaml`, `stimuli.yaml`, `timeline.yaml`, `forms.yaml`, `consent.md`; `cndlpsych/` is the bundled framework and is never edited. Every setting is documented in `docs/yaml/` (generated from the schemas). The same commands are available as `cndlpsych <command>` once the package is installed (`bin`).
 
-Other commands: `expfw migrate <dir>` (spec_version), `expfw export-firestore ...` (BIDS from Firestore), `expfw relay ...` (WebSocket to serial; see `docs/triggers.md`).
+Other commands: `cndlpsych migrate <dir>` (spec_version), `cndlpsych export-firestore ...` (BIDS from Firestore), `cndlpsych relay ...` (WebSocket to serial; see `docs/triggers.md`).
 
 Webcam recording is a setting (`webcam:` in experiment.yaml, commented out in the template): the video is written to a file on disk (Chrome, Edge) or downloaded separately, never into the exported zip and not to Firebase.
 
-Eye tracking is an add-on: `node cli/expfw.js init my-study --eyetracking` also copies `expfw-eyetracking/` (WebGazer, GPL-3.0-or-later; see `LICENSE-eyetracking.md`). Without eye tracking nothing GPL is involved.
+Eye tracking is an add-on: `node cli/cndlpsych.js init my-study --eyetracking` also copies `cndlpsych-eyetracking/` (WebGazer, GPL-3.0-or-later; see `LICENSE-eyetracking.md`). Without eye tracking nothing GPL is involved.
 
 ## Developing the framework
 

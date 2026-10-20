@@ -18,18 +18,18 @@ async function loadSchemas() {
 }
 
 function stageRoot() {
-  const found = document.getElementById('expfw');
+  const found = document.getElementById('cndlpsych');
   if (found) return found;
   const root = document.createElement('div');
   document.body.append(root);
   return root;
 }
 
-// `services`, `store` and `plan` are a handle for tools (`expfw dry-run`) and for the console.
-window.expfw = {};
-window.expfw.finished = loadSchemas().then((schemas) => boot({
+// `services`, `store` and `plan` are a handle for tools (`cndlpsych dry-run`) and for the console.
+window.cndlpsych = {};
+window.cndlpsych.finished = loadSchemas().then((schemas) => boot({
   root: stageRoot(),
   url: './',
   schemas,
-  onReady: (services, store, plan) => Object.assign(window.expfw, { services, store, plan }),
+  onReady: (services, store, plan) => Object.assign(window.cndlpsych, { services, store, plan }),
 }));

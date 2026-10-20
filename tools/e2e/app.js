@@ -67,5 +67,5 @@ function createApp({ stageSpec = {}, scope = { intents: {}, rules: [] }, profile
   return { bus, events, problems, root, stage, input, cursor, mapping, bridge, keys, jsPsych, runTrial, addTarget };
 }
 
-window.expfw = { createApp };
+window.cndlpsych = { createApp };
 window.appReady = true;

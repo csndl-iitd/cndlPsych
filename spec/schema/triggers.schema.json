@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://example.org/expfw/1/triggers.schema.json",
+  "$id": "https://example.org/cndlpsych/1/triggers.schema.json",
   "title": "Triggers",
   "description": "Trigger rules cascade exactly like input scopes (framework < task module event catalog < experiment.yaml < block < trial). Sinks are session-wide: they are defined in experiment.yaml only and connected once during setup. Rules route to sinks by id. 'value' or 'on' may be omitted when overriding an inherited rule by id; the compiler validates the resolved rule.\n",
   "$ref": "#/definitions/experiment",

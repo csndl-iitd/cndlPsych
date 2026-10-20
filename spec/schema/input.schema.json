@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://example.org/expfw/1/input.schema.json",
+  "$id": "https://example.org/cndlpsych/1/input.schema.json",
   "title": "Input scope",
   "description": "How physical input becomes semantic responses. This one shape is used at every cascade level: framework defaults < task module defaults < experiment.yaml < block < trial (timeline.yaml). Merge rules are resolved at compile time: maps deep-merge by key, rules merge by id (same id = field-wise override), 'disable' removes inherited rule ids, 'reset: true' discards everything inherited. Rules and settings live inside profiles; a \"*\" profile applies to all profiles.\n",
   "$ref": "#/definitions/scope",

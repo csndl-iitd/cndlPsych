@@ -22,7 +22,7 @@ export function createStage({ root, bus, spec = {}, calibration = {}, schedule =
   const doc = root.ownerDocument;
   const win = doc.defaultView;
   const element = doc.createElement('div');
-  element.className = 'expfw-stage';
+  element.className = 'cndlpsych-stage';
   root.append(element);
 
   Object.assign(root.style, {

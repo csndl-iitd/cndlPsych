@@ -1,6 +1,6 @@
 # Schemas v1 (draft for review)
 
-`expfw` is a placeholder name and `example.org` a placeholder `$id` host; both are one-line changes in `tools/build.js`.
+`cndlpsych` is a placeholder name and `example.org` a placeholder `$id` host; both are one-line changes in `tools/build.js`.
 
 ```
 src/        authoring format (YAML): *.schema.yaml + events.catalog.yaml

@@ -3,7 +3,7 @@ import { THEME_CSS } from './theme.js';
 
 describe('THEME_CSS', () => {
   it('makes the display scroll vertically and keeps text selectable in forms', () => {
-    expect(THEME_CSS).toMatch(/\.expfw-display \{[^}]*overflow-y: auto/);
+    expect(THEME_CSS).toMatch(/\.cndlpsych-display \{[^}]*overflow-y: auto/);
     expect(THEME_CSS).toMatch(/touch-action: pan-y/);
     expect(THEME_CSS).toMatch(/user-select: text/);
   });

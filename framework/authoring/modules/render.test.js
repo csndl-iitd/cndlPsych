@@ -49,7 +49,7 @@ describe('renderStimulus', () => {
 
   it('inline style objects and extra classes are applied', () => {
     const { html } = render({ type: 'text', text: 'x', style: { 'letter-spacing': '2px' }, class: 'big' });
-    expect(html).toContain('class="expfw-stimulus big"');
+    expect(html).toContain('class="cndlpsych-stimulus big"');
     expect(html).toContain('letter-spacing:2px;');
   });
 
@@ -73,7 +73,7 @@ describe('renderStimulus', () => {
   });
 
   it('blank is an empty box', () => {
-    expect(render({ type: 'blank' }).html).toBe('<div class="expfw-stimulus" data-stimulus="s" style=""></div>');
+    expect(render({ type: 'blank' }).html).toBe('<div class="cndlpsych-stimulus" data-stimulus="s" style=""></div>');
   });
 
   it('custom generators: defaults from the manifest, rng and layout injected, data and css returned', () => {

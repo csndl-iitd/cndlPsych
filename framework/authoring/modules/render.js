@@ -72,7 +72,7 @@ function mediaBody(stimulus) {
  */
 export function renderStimulus(stimulus, { styles = {}, hint, vars = {}, generators = {}, generatorContext }) {
   const template = (text) => fillTemplate(text, { hint, vars: { ...stimulus.params, ...vars } });
-  const classes = ['expfw-stimulus', stimulus.class].filter(Boolean).join(' ');
+  const classes = ['cndlpsych-stimulus', stimulus.class].filter(Boolean).join(' ');
   const wrap = (css, body) => `<div class="${classes}" data-stimulus="${escapeHtml(stimulus.name)}" style="${css}">${body}</div>`;
   // The named style goes on the stimulus box, or on an inner panel when the body carries it (html).
   const placed = (body, { bodyStyled = false } = {}) => {

@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://example.org/expfw/1/forms.schema.json",
+  "$id": "https://example.org/cndlpsych/1/forms.schema.json",
   "title": "forms.yaml",
   "description": "Survey forms plus extensions to the two built-in forms that every experiment runs after consent: 'subject' (subject_id in BIDS sub-xxx format, sex, age) and 'session' (session_id, ses-xx). Experimenters append questions and may relabel built-in fields but cannot remove them. The whole file is optional.\n",
   "type": "object",

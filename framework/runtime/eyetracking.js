@@ -21,7 +21,7 @@ function createDots(stage, ownerDocument) {
           position: 'absolute', width: `${DOT_SIZE_PX}px`, height: `${DOT_SIZE_PX}px`, marginLeft: `-${DOT_SIZE_PX / 2}px`, marginTop: `-${DOT_SIZE_PX / 2}px`,
           borderRadius: '50%', background: '#e33', border: '3px solid #fff', boxShadow: '0 0 0 2px #333', pointerEvents: 'none', zIndex: '1000',
         });
-        dot.className = 'expfw-gaze-dot';
+        dot.className = 'cndlpsych-gaze-dot';
         stage.element.append(dot);
       }
       Object.assign(dot.style, { left: `${x * 100}%`, top: `${y * 100}%` });

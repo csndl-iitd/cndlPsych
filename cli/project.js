@@ -6,7 +6,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const REPO = join(dirname(fileURLToPath(import.meta.url)), '..');
 export const DEFAULT_SCHEMA_DIR = join(REPO, 'spec', 'schema');
 const PROJECT_FILES = ['experiment.yaml', 'forms.yaml', 'stimuli.yaml', 'timeline.yaml'];
-const IGNORED = new Set(['node_modules', '.git', 'expfw']);
+const IGNORED = new Set(['node_modules', '.git', 'cndlpsych']);
 
 function listFiles(root, dir = root) {
   return readdirSync(dir).flatMap((name) => {

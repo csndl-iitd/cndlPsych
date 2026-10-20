@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://example.org/expfw/1/task-manifest.schema.json",
+  "$id": "https://example.org/cndlpsych/1/task-manifest.schema.json",
   "title": "Custom task / stimulus generator manifest",
   "description": "The declarative half of a custom module (custom/tasks/*.js and custom/stimuli/*.js). The compiler validates the default-exported object with its functions (build, generate) removed. 'params' drive validation, defaults, yaml autocomplete and the VS Code forms; 'input' is the task's cascade default (level 2); 'events' declares custom events so triggers can refer to them.\n",
   "definitions": {

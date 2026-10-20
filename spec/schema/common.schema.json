@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://example.org/expfw/1/common.schema.json",
+  "$id": "https://example.org/cndlpsych/1/common.schema.json",
   "title": "Shared definitions",
   "description": "Building blocks reused by every other schema. Conventions: snake_case keys, durations in ms unless a unit is given, bare lengths are fractions of the stage's shorter side, coordinates are stage-normalized (0-1).\n",
   "definitions": {

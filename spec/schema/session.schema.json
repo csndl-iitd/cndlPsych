@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://example.org/expfw/1/session.schema.json",
+  "$id": "https://example.org/cndlpsych/1/session.schema.json",
   "title": "Session record",
   "description": "Written once at recording start and updated at the end (session.json in every export; the session document in Firestore). Everything needed to interpret the event stream lives here. Built-in subject/session answers are stored here, not in the event stream.\n",
   "type": "object",

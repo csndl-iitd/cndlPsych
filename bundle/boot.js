@@ -1,4 +1,4 @@
-// What index.html loads: <script src="expfw/boot.js"></script>
+// What index.html loads: <script src="cndlpsych/boot.js"></script>
 //
 // A plain script (not a module) because it has to tell the browser where the third-party modules
 // are (an import map) before the first module is loaded. It then loads the survey stylesheet and
@@ -6,7 +6,7 @@
 //
 // The list below must match bundle/vendor.js; tools/dist.test.js checks that it does.
 (function loadFramework() {
-  const folder = new URL('.', document.currentScript.src).href; // .../expfw/
+  const folder = new URL('.', document.currentScript.src).href; // .../cndlpsych/
   const vendor = (file) => `${folder}vendor/${file}`;
 
   const imports = {
@@ -20,8 +20,8 @@
     'firebase/auth': vendor('firebase.js'),
     'firebase/firestore': vendor('firebase.js'),
     'firebase/app-check': vendor('firebase.js'),
-    // The eye tracking add-on is a separate folder next to expfw/ and is only fetched if eye tracking runs.
-    webgazer: new URL('../expfw-eyetracking/webgazer.js', folder).href,
+    // The eye tracking add-on is a separate folder next to cndlpsych/ and is only fetched if eye tracking runs.
+    webgazer: new URL('../cndlpsych-eyetracking/webgazer.js', folder).href,
   };
 
   const importMap = document.createElement('script');

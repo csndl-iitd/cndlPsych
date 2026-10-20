@@ -8,13 +8,13 @@ async function openPage(page) {
 
 const record = (n = 1) => ({ subject_id: `sub-00${n}`, session_id: 'ses-01', started_at: `2026-10-01T10:00:0${n}.000Z` });
 const event = (seq) => ({ v: 1, seq, t: seq * 10, source: 'system', type: 'page.focus', data: { focused: true }, block: null, trial: null, phase: null, caused_by: null });
-const dbName = (testInfo) => `expfw-test-${testInfo.parallelIndex}-${testInfo.testId}`;
+const dbName = (testInfo) => `cndlpsych-test-${testInfo.parallelIndex}-${testInfo.testId}`;
 
 test('round trip, finish and what findUnfinished reports', async ({ page }, testInfo) => {
   await openPage(page);
   const result = await page.evaluate(async ({ name, rec }) => {
     const mk = (seq) => ({ v: 1, seq, t: seq * 10, source: 'system', type: 'page.focus', data: { focused: true }, block: null, trial: null, phase: null, caused_by: null });
-    const store = window.expfwStorage.createLocalStore({ dbName: name, flushMs: 100 });
+    const store = window.cndlpsychStorage.createLocalStore({ dbName: name, flushMs: 100 });
     const statuses = [];
     store.onStatus((s) => statuses.push(s.state));
     store.begin(rec);
@@ -22,7 +22,7 @@ test('round trip, finish and what findUnfinished reports', async ({ page }, test
     const snapshot = await store.snapshot();
     const unfinishedBefore = await store.findUnfinished();
     await store.finish({ ...rec, status: 'complete' });
-    const fresh = window.expfwStorage.createLocalStore({ dbName: name });
+    const fresh = window.cndlpsychStorage.createLocalStore({ dbName: name });
     return {
       statuses, events: snapshot.events, unfinishedBefore,
       unfinishedAfter: await fresh.findUnfinished(), read: await fresh.read(unfinishedBefore[0].key),
@@ -44,8 +44,8 @@ test('a timer flush writes without anyone asking; before it, nothing is on disk'
   const result = await page.evaluate(async ({ name, rec }) => {
     const mk = (seq) => ({ v: 1, seq, t: seq, source: 'system', type: 'page.focus', data: { focused: true }, block: null, trial: null, phase: null, caused_by: null });
     const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-    const writer = window.expfwStorage.createLocalStore({ dbName: name, flushMs: 400 });
-    const reader = window.expfwStorage.createLocalStore({ dbName: name });
+    const writer = window.cndlpsychStorage.createLocalStore({ dbName: name, flushMs: 400 });
+    const reader = window.cndlpsychStorage.createLocalStore({ dbName: name });
     writer.begin(rec);
     await wait(100);
     const key = (await reader.findUnfinished())[0].key;
@@ -62,8 +62,8 @@ test('what is on disk is always a gap-free prefix, even across many flushes', as
   await openPage(page);
   const result = await page.evaluate(async ({ name, rec }) => {
     const mk = (seq) => ({ v: 1, seq, t: seq, source: 'system', type: 'page.focus', data: { focused: true }, block: null, trial: null, phase: null, caused_by: null });
-    const writer = window.expfwStorage.createLocalStore({ dbName: name, flushMs: 5 });
-    const reader = window.expfwStorage.createLocalStore({ dbName: name });
+    const writer = window.cndlpsychStorage.createLocalStore({ dbName: name, flushMs: 5 });
+    const reader = window.cndlpsychStorage.createLocalStore({ dbName: name });
     writer.begin(rec);
     const checks = [];
     for (let seq = 0; seq < 700; seq += 1) {
@@ -93,11 +93,11 @@ test('abandon closes an interrupted session as aborted at its real last event; r
   await openPage(page);
   const result = await page.evaluate(async ({ name, rec }) => {
     const mk = (seq) => ({ v: 1, seq, t: seq, source: 'system', type: 'page.focus', data: { focused: true }, block: null, trial: null, phase: null, caused_by: null });
-    const writer = window.expfwStorage.createLocalStore({ dbName: name, flushMs: 50 });
+    const writer = window.cndlpsychStorage.createLocalStore({ dbName: name, flushMs: 50 });
     writer.begin(rec);
     for (let seq = 0; seq < 8; seq += 1) writer.append(mk(seq));
     await writer.flush();
-    const store = window.expfwStorage.createLocalStore({ dbName: name });
+    const store = window.cndlpsychStorage.createLocalStore({ dbName: name });
     const [item] = await store.findUnfinished();
     const closed = await store.abandon(item.key);
     const after = await store.findUnfinished();
@@ -118,12 +118,12 @@ test('several sessions are kept apart', async ({ page }, testInfo) => {
   const result = await page.evaluate(async ({ name, records }) => {
     const mk = (seq, n) => ({ v: 1, seq, t: seq, source: 'system', type: 'page.focus', data: { focused: n % 2 === 0 }, block: null, trial: null, phase: null, caused_by: null });
     for (const [i, rec] of records.entries()) {
-      const store = window.expfwStorage.createLocalStore({ dbName: name, flushMs: 50 });
+      const store = window.cndlpsychStorage.createLocalStore({ dbName: name, flushMs: 50 });
       store.begin(rec);
       for (let seq = 0; seq <= i + 1; seq += 1) store.append(mk(seq, i));
       await store.flush();
     }
-    const store = window.expfwStorage.createLocalStore({ dbName: name });
+    const store = window.cndlpsychStorage.createLocalStore({ dbName: name });
     const found = await store.findUnfinished();
     return Promise.all(found.map(async (f) => [f.record.subject_id, f.lastSeq, (await store.read(f.key)).events.length]));
   }, { name: dbName(testInfo), records: [record(1), record(2), record(3)] });
@@ -134,7 +134,7 @@ test('querying old sessions does not create the database', async ({ page }, test
   await openPage(page);
   const name = dbName(testInfo);
   const result = await page.evaluate(async (dbNameValue) => {
-    const store = window.expfwStorage.createLocalStore({ dbName: dbNameValue });
+    const store = window.cndlpsychStorage.createLocalStore({ dbName: dbNameValue });
     const found = await store.findUnfinished();
     const names = (await indexedDB.databases()).map((d) => d.name);
     return { found, exists: names.includes(dbNameValue) };
@@ -147,7 +147,7 @@ test('without IndexedDB the store degrades to memory, says so, and still exports
   const result = await page.evaluate(async ({ name, rec }) => {
     const mk = (seq) => ({ v: 1, seq, t: seq, source: 'system', type: 'page.focus', data: { focused: true }, block: null, trial: null, phase: null, caused_by: null });
     const broken = { open: () => { const req = {}; setTimeout(() => { req.error = new Error('storage is disabled'); req.onerror(); }, 0); return req; } };
-    const store = window.expfwStorage.createLocalStore({ indexedDB: broken, dbName: name, flushMs: 20 });
+    const store = window.cndlpsychStorage.createLocalStore({ indexedDB: broken, dbName: name, flushMs: 20 });
     const statuses = [];
     store.onStatus((s) => statuses.push(s));
     store.begin(rec);

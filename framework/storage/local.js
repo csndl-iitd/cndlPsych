@@ -26,7 +26,7 @@ const request = (req) => new Promise((resolve, reject) => {
  */
 export function createLocalStore({
   indexedDB = globalThis.indexedDB, IDBKeyRange = globalThis.IDBKeyRange, flushMs = 2000, schedule = defaultSchedule,
-  dbName = 'expfw', now = () => new Date().toISOString(),
+  dbName = 'cndlpsych', now = () => new Date().toISOString(),
 } = {}) {
   let db = null;
   let session = null; // {key, record}

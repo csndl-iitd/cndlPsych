@@ -47,7 +47,7 @@ test.afterEach(async () => {
 const choose = (page, name, value) => page.locator(`[data-name="${name}"] label:has(input[value="${value}"])`).click();
 
 test('the response time is from the second T, in the gap or while a later letter shows; a response before it has none; no response is a miss', async ({ page }) => {
-  dir = join(mkdtempSync(join(tmpdir(), 'expfw-rtfrom-')), 'study');
+  dir = join(mkdtempSync(join(tmpdir(), 'cndlpsych-rtfrom-')), 'study');
   initProject(dir);
   writeFileSync(join(dir, 'stimuli.yaml'), STIMULI);
   writeFileSync(join(dir, 'timeline.yaml'), TIMELINE);
@@ -69,7 +69,7 @@ test('the response time is from the second T, in the gap or while a later letter
   // trial 1 in the gap after it, 2 while the next letter shows, 3 early, 4 nothing, 5 at the very end of the sequence's last letter.
   await page.evaluate(() => {
     const plan = [350, 650, 'early', null, 1200];
-    const { bus } = window.expfw.services;
+    const { bus } = window.cndlpsych.services;
     const press = () => ['keydown', 'keyup'].forEach((type) => document.dispatchEvent(new KeyboardEvent(type, { key: ' ', bubbles: true, cancelable: true })));
     const seen = {};
     bus.on('phase.onset', (e) => {
@@ -79,12 +79,12 @@ test('the response time is from the second T, in the gap or while a later letter
       if (what === 'early' && seen[e.trial] === 1) setTimeout(press, 60);
       if (typeof what === 'number' && seen[e.trial] === 2) setTimeout(press, what);
     });
-    window.expfw.finished.then((result) => { window.__result = result; });
+    window.cndlpsych.finished.then((result) => { window.__result = result; });
   });
   await page.keyboard.press('Space'); // the instructions
   await page.waitForFunction(() => window.__result !== undefined, null, { timeout: 90_000 });
 
-  const events = await page.evaluate(async () => (await window.expfw.store.snapshot()).events);
+  const events = await page.evaluate(async () => (await window.cndlpsych.store.snapshot()).events);
   const secondT = (trial) => events.filter((e) => e.type === 'phase.onset' && e.trial === trial && e.data.stimulus === 'letter_T')[1];
   const evaluated = (trial) => events.filter((e) => e.type === 'response.evaluated' && e.trial === trial);
   const ended = (trial) => events.find((e) => e.type === 'trial.end' && e.trial === trial);

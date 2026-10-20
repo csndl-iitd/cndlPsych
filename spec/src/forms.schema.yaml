@@ -1,5 +1,5 @@
 $schema: http://json-schema.org/draft-07/schema#
-$id: https://example.org/expfw/1/forms.schema.json
+$id: https://example.org/cndlpsych/1/forms.schema.json
 title: forms.yaml
 description: >
   Survey forms plus extensions to the two built-in forms that every experiment

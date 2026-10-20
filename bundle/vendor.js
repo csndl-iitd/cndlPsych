@@ -1,5 +1,5 @@
 // The third-party code the framework imports, and the file each import resolves to in the
-// shipped folder (expfw/vendor/). tools/build-dist.js builds these files from node_modules;
+// shipped folder (cndlpsych/vendor/). tools/build-dist.js builds these files from node_modules;
 // bundle/boot.js maps the module names to them in the browser. A test keeps the two in step.
 //
 // Each file is one package (or, for Firebase, one SDK) turned into a single readable ES module.
@@ -7,7 +7,7 @@
 
 /**
  * @typedef {object} VendorFile
- * @property {string} file name inside expfw/vendor/
+ * @property {string} file name inside cndlpsych/vendor/
  * @property {string[]} specifiers the module names that resolve to it
  * @property {string} entry source of the module to build (what it re-exports)
  * @property {string[]} [external] module names it imports from other vendor files

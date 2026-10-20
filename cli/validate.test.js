@@ -11,7 +11,7 @@ let copy;
 afterEach(() => copy && rmSync(copy, { recursive: true, force: true }));
 
 function exampleCopy() {
-  copy = mkdtempSync(join(tmpdir(), 'expfw-'));
+  copy = mkdtempSync(join(tmpdir(), 'cndlpsych-'));
   cpSync(EXAMPLE_DIR, copy, { recursive: true });
   return copy;
 }

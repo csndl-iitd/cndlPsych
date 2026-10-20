@@ -1,5 +1,5 @@
 $schema: http://json-schema.org/draft-07/schema#
-$id: https://example.org/expfw/1/module-response-task.schema.json
+$id: https://example.org/cndlpsych/1/module-response-task.schema.json
 title: response_task module config
 description: >
   The generic stimulus-response task (replaces the former keyboard_task).

@@ -52,15 +52,15 @@ test('nothing is stored before consent: no database exists until the participant
   await startSession(page, { local: true, merge: FAST });
   await page.locator('[data-name="decision"]').waitFor();
   await page.keyboard.press('x');
-  expect(await databases(page)).not.toContain('expfw');
+  expect(await databases(page)).not.toContain('cndlpsych');
   await answerConsent(page);
   await page.locator('[data-name="subject_id"]').waitFor();
-  expect(await databases(page)).not.toContain('expfw');
+  expect(await databases(page)).not.toContain('cndlpsych');
   await answerSubject(page);
   await page.locator('[data-name="session_type"]').waitFor();
-  expect(await databases(page)).not.toContain('expfw');
+  expect(await databases(page)).not.toContain('cndlpsych');
   await answerSession(page);
-  await expect.poll(() => databases(page)).toContain('expfw');
+  await expect.poll(() => databases(page)).toContain('cndlpsych');
 });
 
 test('with the real local store the persisted log still starts with session.start at seq 0', async ({ page }) => {
@@ -70,7 +70,7 @@ test('with the real local store the persisted log still starts with session.star
   await expect.poll(() => page.evaluate(() => window.sessionServices.bus.lastSeq)).toBeGreaterThan(8);
   await page.waitForTimeout(600);
   const stored = await page.evaluate(async () => {
-    const store = window.expfwStorage.createLocalStore();
+    const store = window.cndlpsychStorage.createLocalStore();
     const [item] = await store.findUnfinished();
     return (await store.read(item.key)).events.slice(0, 8).map((e) => [e.seq, e.type]);
   });
@@ -83,13 +83,13 @@ test('declining consent or failing min_age leaves no database at all', async ({ 
   await startSession(page, { local: true, merge: FAST });
   await answerConsent(page, { agree: false });
   expect(await finished(page)).toBe('declined');
-  expect(await databases(page)).not.toContain('expfw');
+  expect(await databases(page)).not.toContain('cndlpsych');
 
   await startSession(page, { local: true, merge: FAST });
   await answerConsent(page);
   await answerSubject(page, { age: '17' });
   expect(await finished(page)).toBe('ineligible');
-  expect(await databases(page)).not.toContain('expfw');
+  expect(await databases(page)).not.toContain('cndlpsych');
 });
 
 test('a finished session is downloaded as one zip (jsonl + csv + bids + session.json) and matches the log', async ({ page, isMobile }) => {
@@ -123,7 +123,7 @@ test('a finished session is downloaded as one zip (jsonl + csv + bids + session.
   const rows = files['bids/sub-007/ses-01/beh/sub-007_ses-01_task-Oddballflashesandvisualsearch_events.tsv'].trim().split(/\n/);
   expect(rows.length).toBeGreaterThan(30);
   expect(rows.filter((row) => row.split(/\t/)[3] === 'trial_start').length).toBe(ofType(events, 'trial.end').length);
-  const dataset = mkdtempSync(join(tmpdir(), 'expfw-bids-'));
+  const dataset = mkdtempSync(join(tmpdir(), 'cndlpsych-bids-'));
   try {
     writeFiles(dataset, bidsNames.map((name) => ({ name: name.slice('bids/'.length), data: files[name] })));
     const verdict = validateBids(dataset);
@@ -239,7 +239,7 @@ test('recovery choices: delete removes the session, keep leaves it for next time
   const last = await context.newPage();
   await startSession(last, { local: true, merge: FAST });
   await last.locator('[data-name="decision"]').waitFor();
-  expect(await last.evaluate(() => window.expfwStorage.createLocalStore().findUnfinished())).toEqual([]);
+  expect(await last.evaluate(() => window.cndlpsychStorage.createLocalStore().findUnfinished())).toEqual([]);
 });
 
 test('recovery policy auto downloads without asking; off leaves the data alone', async ({ context, page, isMobile }) => {
@@ -248,7 +248,7 @@ test('recovery policy auto downloads without asking; off leaves the data alone',
   const off = await interrupt(context, page);
   await startSession(off, { local: true, merge: { ...FAST, storage: { local: { flush_ms: 200, recovery: 'off' } } } });
   await off.locator('[data-name="decision"]').waitFor();
-  expect((await off.evaluate(() => window.expfwStorage.createLocalStore().findUnfinished()))).toHaveLength(1);
+  expect((await off.evaluate(() => window.cndlpsychStorage.createLocalStore().findUnfinished()))).toHaveLength(1);
 
   const auto = await context.newPage();
   const downloaded = auto.waitForEvent('download');
@@ -294,8 +294,8 @@ test('hiding the page flushes what is buffered, and records page.visibility', as
   const log = await page.evaluate(() => window.__log);
   const visibility = ofType(log, 'page.visibility');
   expect(visibility.at(-1).data).toEqual({ state: 'hidden' });
-  const [found] = await other.evaluate(() => window.expfwStorage.createLocalStore().findUnfinished());
+  const [found] = await other.evaluate(() => window.cndlpsychStorage.createLocalStore().findUnfinished());
   expect(found.lastSeq).toBeGreaterThanOrEqual(visibility.at(-1).seq);
-  const stored = await other.evaluate((key) => window.expfwStorage.createLocalStore().read(key), found.key);
+  const stored = await other.evaluate((key) => window.cndlpsychStorage.createLocalStore().read(key), found.key);
   expect(stored.events.map((e) => e.seq)).toEqual(stored.events.map((_, i) => i));
 });

@@ -13,11 +13,11 @@ import { datasetFiles, readSessions, writeFiles } from './export-firestore.js';
 
 const ROOT = join(import.meta.dirname, '..');
 const EXP = 'oddball-2026';
-const PROJECT = 'demo-expfw-export';
+const PROJECT = 'demo-cndlpsych-export';
 const sample = JSON.parse(readFileSync(join(ROOT, 'spec', 'examples', 'session.sample.json'), 'utf8'));
 const events = readFileSync(join(ROOT, 'spec', 'examples', 'events.sample.jsonl'), 'utf8').split('\n').filter(Boolean).map((line) => JSON.parse(line));
-const host = process.env.EXPFW_FIRESTORE_HOST;
-const port = Number(process.env.EXPFW_FIRESTORE_PORT);
+const host = process.env.CNDLPSYCH_FIRESTORE_HOST;
+const port = Number(process.env.CNDLPSYCH_FIRESTORE_PORT);
 const sdk = await loadSdk();
 const config = { enabled: true, experiment_id: EXP, access: 'public', web_config: { apiKey: 'fake', projectId: PROJECT, appId: 'fake' }, chunk: { max_events: 10, flush_ms: 500 } };
 
@@ -103,7 +103,7 @@ describe('export from Firestore', () => {
     await env.withSecurityRulesDisabled((ctx) => ctx.firestore().doc('experiments/other/data/x/sessions/sub-001_ses-01').set({ ...recordFor('sub-001'), experiment_id: 'other', uid: 'x' }));
     const sessions = await readSessions(admin, EXP);
     expect(sessions.map((s) => s.record.subject_id)).toEqual(['sub-001', 'sub-002']);
-    const out = mkdtempSync(join(tmpdir(), 'expfw-export-'));
+    const out = mkdtempSync(join(tmpdir(), 'cndlpsych-export-'));
     try {
       writeFiles(out, datasetFiles(sessions, EXP));
       expect(readFileSync(join(out, 'participants.tsv'), 'utf8').trim().split('\n').map((line) => line.split('\t')[0])).toEqual(['participant_id', 'sub-001', 'sub-002']);

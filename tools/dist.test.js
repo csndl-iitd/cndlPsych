@@ -1,4 +1,4 @@
-// The shape of what ships (dist/expfw and dist/expfw-eyetracking): readable source with the same
+// The shape of what ships (dist/cndlpsych and dist/cndlpsych-eyetracking): readable source with the same
 // layout as the repository, no generated names, a complete import map, and the licence boundary
 // (the MIT core must not contain WebGazer, which is GPL-3.0-or-later).
 import { execFileSync } from 'node:child_process';
@@ -10,9 +10,9 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { VENDOR } from '../bundle/vendor.js';
 
 const ROOT = join(import.meta.dirname, '..');
-const OUT = mkdtempSync(join(tmpdir(), 'expfw-dist-'));
-const CORE = join(OUT, 'expfw');
-const ADDON = join(OUT, 'expfw-eyetracking');
+const OUT = mkdtempSync(join(tmpdir(), 'cndlpsych-dist-'));
+const CORE = join(OUT, 'cndlpsych');
+const ADDON = join(OUT, 'cndlpsych-eyetracking');
 // A message only WebGazer contains.
 const WEBGAZER_MARKER = 'WebGazer works only over https';
 const PERMISSIVE = /^(MIT|ISC|BSD-[23]-Clause|Apache-2\.0|0BSD|BlueOak-1\.0\.0|Python-2\.0|\(MIT OR CC0-1\.0\)|Apache-2\.0 AND MIT)$/;
@@ -37,10 +37,10 @@ function importMapOf(bootSource, scriptUrl) {
   return JSON.parse(appended.find((node) => node.type === 'importmap').textContent).imports;
 }
 
-beforeAll(() => { execFileSync(process.execPath, [join(ROOT, 'tools', 'build-dist.js')], { stdio: 'pipe', env: { ...process.env, EXPFW_DIST_DIR: OUT } }); }, 120_000);
+beforeAll(() => { execFileSync(process.execPath, [join(ROOT, 'tools', 'build-dist.js')], { stdio: 'pipe', env: { ...process.env, CNDLPSYCH_DIST_DIR: OUT } }); }, 120_000);
 afterAll(() => rmSync(OUT, { recursive: true, force: true }));
 
-describe('expfw/ layout', () => {
+describe('cndlpsych/ layout', () => {
   it('has the entry files, the layers, schemas, vendor code and notices, and nothing else at the top', () => {
     expect(readdirSync(CORE).sort()).toEqual(['LICENSE', 'README.txt', 'THIRD-PARTY-LICENSES.txt', 'VERSION', 'boot.js', 'framework', 'schemas', 'start.js', 'types.d.ts', 'vendor']);
     expect(readdirSync(join(CORE, 'framework')).sort()).toEqual(['authoring', 'foundation', 'pipeline', 'runtime', 'stage', 'storage']);
@@ -76,18 +76,18 @@ describe('expfw/ layout', () => {
 });
 
 describe('import map (boot.js)', () => {
-  const map = () => importMapOf(text(join(CORE, 'boot.js')), 'http://host/study/expfw/boot.js');
+  const map = () => importMapOf(text(join(CORE, 'boot.js')), 'http://host/study/cndlpsych/boot.js');
 
   it('points each third-party module name at the vendor file that bundle/vendor.js builds for it', () => {
     const imports = map();
     for (const vendor of VENDOR) {
       expect(existsSync(join(CORE, 'vendor', vendor.file)), vendor.file).toBe(true);
-      for (const specifier of vendor.specifiers) expect(imports[specifier], specifier).toBe(`http://host/study/expfw/vendor/${vendor.file}`);
+      for (const specifier of vendor.specifiers) expect(imports[specifier], specifier).toBe(`http://host/study/cndlpsych/vendor/${vendor.file}`);
     }
   });
 
-  it('maps webgazer to the add-on folder next to expfw/', () => {
-    expect(map().webgazer).toBe('http://host/study/expfw-eyetracking/webgazer.js');
+  it('maps webgazer to the add-on folder next to cndlpsych/', () => {
+    expect(map().webgazer).toBe('http://host/study/cndlpsych-eyetracking/webgazer.js');
   });
 
   it('covers every bare module name the shipped code imports', () => {

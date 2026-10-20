@@ -174,7 +174,7 @@ export const eventsTsv = (events) => tsv(EVENT_COLUMNS, eventRows(events));
 /** The task-level sidecar: the task, the software that presented it, and the events.tsv columns. */
 export const eventsJson = ({ name, frameworkVersion }) => `${JSON.stringify({
   TaskName: name,
-  StimulusPresentation: { SoftwareName: 'expfw', SoftwareVersion: frameworkVersion },
+  StimulusPresentation: { SoftwareName: 'cndlpsych', SoftwareVersion: frameworkVersion },
   onset: { Description: 'Seconds from the start of the session (session.start), on the wall clock; a resumed session is aligned through its clock anchors.', Units: 's' },
   duration: { Description: 'Time until the matching end event (blocks, trials, stimuli) or the length of the gesture; 0 for instantaneous events; n/a when the end was never recorded.', Units: 's' },
   trial_type: {
@@ -240,12 +240,12 @@ const datasetDescription = (name, frameworkVersion) => `${JSON.stringify({
   Name: name,
   BIDSVersion: BIDS_VERSION,
   DatasetType: 'raw',
-  GeneratedBy: [{ Name: 'expfw', Version: frameworkVersion }],
+  GeneratedBy: [{ Name: 'cndlpsych', Version: frameworkVersion }],
 }, null, 2)}\n`;
 
 const README = (name) => `# ${name}
 
-Behavioural data written by expfw. Each session has an \`events.tsv\` under \`beh/\`; onsets are
+Behavioural data written by cndlpsych. Each session has an \`events.tsv\` under \`beh/\`; onsets are
 seconds from the start of the session. The complete event log, the session record and, when a
 session is incomplete, an integrity note are under \`sourcedata/\`.
 `;

@@ -1,5 +1,5 @@
 {
-  "name": "expfw",
+  "name": "cndlpsych",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -19,7 +19,7 @@
     "test:emulator": "vitest run -c vitest.emulator.config.js",
     "ci": "npm run check:schemas && npm run lint && npm run check:layers && npm run typecheck && npm test",
     "build": "node tools/build-dist.js",
-    "expfw": "node cli/expfw.js",
+    "cndlpsych": "node cli/cndlpsych.js",
     "build:docs": "node tools/build-docs.js",
     "timing": "node tools/timing/measure.js --write docs/timing.md"
   },
@@ -45,7 +45,7 @@
     "webgazer": "^3.5.3"
   },
   "bin": {
-    "expfw": "cli/expfw.js"
+    "cndlpsych": "cli/cndlpsych.js"
   },
   "license": "MIT"
 }

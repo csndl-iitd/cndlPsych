@@ -12,15 +12,15 @@ const EXP = 'oddball-2026';
 const ADMIN = { sub: 'admin-uid', email: 'admin@lab.example', email_verified: true };
 const sample = JSON.parse(readFileSync(join(ROOT, 'spec', 'examples', 'session.sample.json'), 'utf8'));
 const events = readFileSync(join(ROOT, 'spec', 'examples', 'events.sample.jsonl'), 'utf8').split('\n').filter(Boolean).map((line) => JSON.parse(line));
-const host = process.env.EXPFW_FIRESTORE_HOST;
-const port = Number(process.env.EXPFW_FIRESTORE_PORT);
+const host = process.env.CNDLPSYCH_FIRESTORE_HOST;
+const port = Number(process.env.CNDLPSYCH_FIRESTORE_PORT);
 const sdk = await loadSdk();
 
 const environments = {};
 let counter = 0;
 
 async function environment(access) {
-  const projectId = `demo-expfw-client-${access}`;
+  const projectId = `demo-cndlpsych-client-${access}`;
   environments[access] = await initializeTestEnvironment({
     projectId,
     firestore: { host, port, rules: readFileSync(join(ROOT, 'spec', 'firebase', `firestore.${access}.rules`), 'utf8') },

@@ -14,7 +14,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SRC = join(ROOT, 'src');
 const OUT = join(ROOT, 'schema');
 const DRAFT = 'http://json-schema.org/draft-07/schema#';
-const BASE = 'https://example.org/expfw/1/';
+const BASE = 'https://example.org/cndlpsych/1/';
 const NAME_PATTERN = '[a-z0-9_]+(\\.[a-z0-9_]+)*';
 
 /** Remove x-* helper keys (used for YAML anchors) recursively. */

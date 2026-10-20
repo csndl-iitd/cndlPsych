@@ -12,8 +12,8 @@ export async function validateProject(dir, options) {
   const problems = loadProblems.map(({ file, message }) => ({
     severity: 'error', code: 'custom-import', file, path: '', message: `could not load: ${message}`,
   }));
-  const missingAddOn = result.plan?.eyetracking?.enabled && !existsSync(join(dir, 'expfw-eyetracking', 'webgazer.js'))
-    ? [{ severity: 'warning', code: 'eyetracking-addon-missing', file: 'experiment.yaml', path: 'eyetracking.enabled', message: 'eye tracking is on but expfw-eyetracking/ is not next to index.html; sessions will stop at the eye tracking step (expfw init <dir> --eyetracking copies it)' }]
+  const missingAddOn = result.plan?.eyetracking?.enabled && !existsSync(join(dir, 'cndlpsych-eyetracking', 'webgazer.js'))
+    ? [{ severity: 'warning', code: 'eyetracking-addon-missing', file: 'experiment.yaml', path: 'eyetracking.enabled', message: 'eye tracking is on but cndlpsych-eyetracking/ is not next to index.html; sessions will stop at the eye tracking step (cndlpsych init <dir> --eyetracking copies it)' }]
     : [];
   const diagnostics = [...problems, ...result.diagnostics, ...missingAddOn];
   const ok = !diagnostics.some((d) => d.severity === 'error');

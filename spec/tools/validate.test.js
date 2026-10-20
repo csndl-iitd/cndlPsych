@@ -12,7 +12,7 @@ import { hasNestedArray } from '../../framework/storage/chunks.js';
 const SPEC = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SCHEMAS = join(SPEC, 'schema');
 const EX = join(SPEC, 'examples');
-const BASE = 'https://example.org/expfw/1/';
+const BASE = 'https://example.org/cndlpsych/1/';
 
 const readText = (path) => readFileSync(path, 'utf8');
 const readJson = (path) => JSON.parse(readText(path));

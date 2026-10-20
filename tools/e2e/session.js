@@ -43,7 +43,7 @@ function fakeGazeEngine({ fail }) {
       if (fail) throw Object.assign(new Error('Permission denied'), { name: fail });
       engine.timer = setInterval(() => {
         if (!engine.face) { onSample(null); return; }
-        const dot = document.querySelector('.expfw-gaze-dot')?.getBoundingClientRect();
+        const dot = document.querySelector('.cndlpsych-gaze-dot')?.getBoundingClientRect();
         const rect = dot ?? window.sessionServices.stage.rect;
         const centre = dot ? { x: dot.x + dot.width / 2, y: dot.y + dot.height / 2 } : { x: rect.x + rect.w / 2, y: rect.y + rect.h / 2 };
         onSample({ x: centre.x + engine.offset.x, y: centre.y + engine.offset.y });
@@ -86,5 +86,5 @@ window.runSession = (options = {}) => {
   }).then((result) => { window.sessionResult = result; return result; });
   return window.sessionPromise;
 };
-window.expfwStorage = { createLocalStore };
+window.cndlpsychStorage = { createLocalStore };
 window.sessionReady = true;

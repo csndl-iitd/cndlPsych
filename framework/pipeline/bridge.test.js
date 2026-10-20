@@ -109,7 +109,7 @@ describe('bridge', () => {
 
   it('declares itself as an extension, not a plugin', () => {
     const { bridge } = setup();
-    expect(bridge.Extension.info.name).toBe('expfw-bridge');
+    expect(bridge.Extension.info.name).toBe('cndlpsych-bridge');
     expect(typeof bridge.Extension.prototype.on_start).toBe('function');
   });
 });

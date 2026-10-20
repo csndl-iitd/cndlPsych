@@ -88,7 +88,7 @@ const END = '<!-- results:end -->';
 
 async function main() {
   const { values } = parseArgs({ options: { write: { type: 'string' } } });
-  const dir = join(mkdtempSync(join(tmpdir(), 'expfw-timing-')), 'run');
+  const dir = join(mkdtempSync(join(tmpdir(), 'cndlpsych-timing-')), 'run');
   try {
     initProject(dir, { template: 'timing' });
     console.log('running 300 flashes at real speed (about 90 s)...');

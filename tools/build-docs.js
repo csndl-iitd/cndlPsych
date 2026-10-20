@@ -111,7 +111,7 @@ function page({ title, intro, schema, modules }) {
   const root = load(schema);
   const parts = [
     `# ${title}`, '',
-    '_Generated from the schemas in `spec/schema/` by `tools/build-docs.js`; do not edit by hand. The schemas themselves are the contract: `expfw validate` reports anything outside them with the file and the path._', '',
+    '_Generated from the schemas in `spec/schema/` by `tools/build-docs.js`; do not edit by hand. The schemas themselves are the contract: `cndlpsych validate` reports anything outside them with the file and the path._', '',
     intro, '',
     `Paths are written as in the YAML: \`a.b\` is key \`b\` inside \`a\`; \`items[]\` is each entry of a list; \`<name>\` is a key you choose.`, '',
     table(rows(root, schema)),
@@ -124,7 +124,7 @@ function page({ title, intro, schema, modules }) {
 
 const INDEX = `# YAML reference
 
-One page per file, generated from the schemas. Start from \`expfw init <folder>\`: the template is a complete, working experiment.
+One page per file, generated from the schemas. Start from \`cndlpsych init <folder>\`: the template is a complete, working experiment.
 
 ${PAGES.map((p) => `- [${p.title}](${p.file}.md) - ${p.intro.split('.')[0]}.`).join('\n')}
 

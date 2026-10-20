@@ -13,7 +13,7 @@ async function seed(page, sessions) {
   await page.waitForFunction(() => window.sessionReady === true);
   await page.evaluate(async (list) => {
     for (const { n, status } of list) {
-      const store = window.expfwStorage.createLocalStore({ flushMs: 20 });
+      const store = window.cndlpsychStorage.createLocalStore({ flushMs: 20 });
       const record = { subject_id: `sub-00${n}`, session_id: 'ses-01', started_at: `2026-10-0${n}T10:00:00.000Z`, status: 'in_progress' };
       store.begin(record);
       for (let seq = 0; seq < 3; seq += 1) {
@@ -26,7 +26,7 @@ async function seed(page, sessions) {
   }, sessions);
 }
 
-const stored = (page) => page.evaluate(async () => (await window.expfwStorage.createLocalStore().listSessions()).map((s) => [s.record.subject_id, s.status]));
+const stored = (page) => page.evaluate(async () => (await window.cndlpsychStorage.createLocalStore().listSessions()).map((s) => [s.record.subject_id, s.status]));
 const openManager = async (page) => {
   await startSession(page, { query: '?manage=1', merge: FAST, local: true });
   await page.locator('[data-name="selected"]').waitFor();

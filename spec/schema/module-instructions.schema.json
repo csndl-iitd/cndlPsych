@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://example.org/expfw/1/module-instructions.schema.json",
+  "$id": "https://example.org/cndlpsych/1/module-instructions.schema.json",
   "title": "instructions module config",
   "description": "One or more instruction pages. Pages are stimulus names (from stimuli.yaml) or inline html/text. Advancing uses an intent (default 'any': any key or a tap anywhere), so the same screen works on every device.\n",
   "$ref": "#/definitions/config",

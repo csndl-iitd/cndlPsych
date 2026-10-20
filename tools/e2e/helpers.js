@@ -12,7 +12,7 @@ export async function openApp(page, options) {
   recordPageErrors(page);
   await page.goto('/tools/e2e/app.html');
   await page.waitForFunction(() => window.appReady === true);
-  await page.evaluate((o) => { window.app = window.expfw.createApp(o); }, options);
+  await page.evaluate((o) => { window.app = window.cndlpsych.createApp(o); }, options);
 }
 
 /** Events logged so far whose type starts with `prefix` (all events when omitted). */

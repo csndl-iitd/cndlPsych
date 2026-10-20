@@ -36,7 +36,7 @@ test.afterEach(async () => {
 
 /** A fresh project with `webcam` switched on (extra YAML lines appended to experiment.yaml) and a short task. */
 async function project(webcamYaml = '  enabled: true\n  chunk_s: 1\n') {
-  dir = join(mkdtempSync(join(tmpdir(), 'expfw-webcam-')), 'study');
+  dir = join(mkdtempSync(join(tmpdir(), 'cndlpsych-webcam-')), 'study');
   initProject(dir);
   const experiment = join(dir, 'experiment.yaml');
   writeFileSync(experiment, `${readFileSync(experiment, 'utf8')}\nwebcam:\n${webcamYaml}`);
@@ -47,7 +47,7 @@ async function project(webcamYaml = '  enabled: true\n  chunk_s: 1\n') {
 }
 
 const choose = (page, name, value) => page.locator(`[data-name="${name}"] label:has(input[value="${value}"])`).click();
-const events = (page) => page.evaluate(async () => (await window.expfw.store.snapshot()).events);
+const events = (page) => page.evaluate(async () => (await window.cndlpsych.store.snapshot()).events);
 const ofType = (list, type) => list.filter((e) => e.type === type);
 
 async function toCameraScreen(page, url) {
@@ -72,7 +72,7 @@ const startRecording = async (page) => {
 
 /** Press SPACE every so often until the session has finished (the instructions and each circle). */
 async function playToTheEnd(page) {
-  await page.evaluate(() => { window.expfw.finished.then((result) => { window.__result = result; }); });
+  await page.evaluate(() => { window.cndlpsych.finished.then((result) => { window.__result = result; }); });
   const deadline = Date.now() + 100_000;
   while (Date.now() < deadline && !(await page.evaluate(() => window.__result !== undefined))) {
     await page.keyboard.press('Space');
@@ -131,7 +131,7 @@ test('the video is appended to one file the participant chose; the zip does not 
     });
   });
   expect(size.w).toBeGreaterThan(0);
-  expect(await page.evaluate(async () => (await window.expfw.store.readMedia()).length)).toBe(0); // nothing kept in the browser
+  expect(await page.evaluate(async () => (await window.cndlpsych.store.readMedia()).length)).toBe(0); // nothing kept in the browser
 
   // the zip has the data and no video, and nothing else was downloaded
   await expect.poll(() => downloads.length).toBe(1);

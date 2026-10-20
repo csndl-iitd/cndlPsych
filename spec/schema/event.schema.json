@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://example.org/expfw/1/event.schema.json",
+  "$id": "https://example.org/cndlpsych/1/event.schema.json",
   "title": "Bus event",
   "description": "Generated from src/events.catalog.yaml - do not edit by hand.",
   "type": "object",

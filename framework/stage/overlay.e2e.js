@@ -15,7 +15,7 @@ async function begin(page, overlay, extra = {}) {
 
 test('apriltags sit in the four corners with a white quiet zone, and the stage keeps clear of them', async ({ page }) => {
   await begin(page, { apriltags: { enabled: true, family: 'tag36h11', ids: [0, 1, 2, 3], size: '40px', margin: '4px' }, photodiode: { enabled: false } });
-  const tags = await page.locator('.expfw-apriltag').evaluateAll((els) => els.map((el) => {
+  const tags = await page.locator('.cndlpsych-apriltag').evaluateAll((els) => els.map((el) => {
     const r = el.getBoundingClientRect();
     return { x: r.x, y: r.y, right: r.right, bottom: r.bottom, w: r.width, src: el.querySelector('img').src.slice(0, 22), bg: getComputedStyle(el).backgroundColor };
   }));
@@ -28,7 +28,7 @@ test('apriltags sit in the four corners with a white quiet zone, and the stage k
   expect(tags[3]).toMatchObject({ x: 4 });
   // tag (40 px) + quiet zone (1 module = 5 px each side) + gap (4 px)
   expect(tags[0].w).toBeCloseTo(50);
-  const stage = await rectOf(page, '.expfw-stage');
+  const stage = await rectOf(page, '.cndlpsych-stage');
   expect(stage.x).toBeGreaterThanOrEqual(54 - 0.5);
   expect(stage.y).toBeGreaterThanOrEqual(54 - 0.5);
   expect(viewport.width - stage.right).toBeGreaterThanOrEqual(54 - 0.5);
@@ -36,18 +36,18 @@ test('apriltags sit in the four corners with a white quiet zone, and the stage k
 
 test('no overlays configured: nothing is drawn and the stage uses the whole viewport', async ({ page }) => {
   await begin(page, { apriltags: { enabled: false }, photodiode: { enabled: false } });
-  expect(await page.locator('.expfw-apriltag, .expfw-photodiode').count()).toBe(0);
-  const stage = await rectOf(page, '.expfw-stage');
+  expect(await page.locator('.cndlpsych-apriltag, .cndlpsych-photodiode').count()).toBe(0);
+  const stage = await rectOf(page, '.cndlpsych-stage');
   expect(stage).toMatchObject({ x: 0, y: 0 });
 });
 
 test('the photodiode patch flips on every phase onset (toggle) and the record says where it is', async ({ page, isMobile }) => {
   test.skip(isMobile, 'the corner geometry is checked on desktop');
   await begin(page, { apriltags: { enabled: false }, photodiode: { enabled: true, corner: 'br', size: '30px', mode: 'toggle' } });
-  const colour = () => page.locator('.expfw-photodiode').evaluate((el) => getComputedStyle(el).backgroundColor);
+  const colour = () => page.locator('.cndlpsych-photodiode').evaluate((el) => getComputedStyle(el).backgroundColor);
   await page.evaluate(() => window.sessionServices.bus.startRecording()); // the bus drops events until a session records
   expect(await colour()).toBe('rgb(0, 0, 0)');
-  const box = await rectOf(page, '.expfw-photodiode');
+  const box = await rectOf(page, '.cndlpsych-photodiode');
   const viewport = page.viewportSize();
   expect(box).toMatchObject({ w: 30, h: 30, right: viewport.width, bottom: viewport.height });
   await page.evaluate(() => window.sessionServices.bus.emit({ source: 'task', type: 'phase.onset', data: { phase: 'p', planned_ms: null } }));
@@ -61,7 +61,7 @@ test('the photodiode patch flips on every phase onset (toggle) and the record sa
 test('pulse mode lights the patch for pulse_ms and then returns to black', async ({ page, isMobile }) => {
   test.skip(isMobile, 'desktop only');
   await begin(page, { apriltags: { enabled: false }, photodiode: { enabled: true, mode: 'pulse', pulse_ms: 120, size: '20px' } });
-  const colour = () => page.locator('.expfw-photodiode').evaluate((el) => getComputedStyle(el).backgroundColor);
+  const colour = () => page.locator('.cndlpsych-photodiode').evaluate((el) => getComputedStyle(el).backgroundColor);
   await page.evaluate(() => window.sessionServices.bus.startRecording());
   await page.evaluate(() => window.sessionServices.bus.emit({ source: 'task', type: 'phase.onset', data: { phase: 'p', planned_ms: null } }));
   expect(await colour()).toBe('rgb(255, 255, 255)');
@@ -92,9 +92,9 @@ for (const corner of ['tl', 'tr', 'br', 'bl']) {
     for (const [width, height] of [[1000, 600], [500, 900]]) {
       await page.setViewportSize({ width, height });
       const settled = width > height ? (d) => (corner[1] === 'l' ? d.x : width - d.right) === 0 : (d) => (corner[0] === 't' ? d.y : height - d.bottom) === 0;
-      await expect.poll(async () => settled(await rectOf(page, '.expfw-photodiode'))).toBe(true); // placed again after the resize
-      const tag = await rectOf(page, `.expfw-apriltag >> nth=${tagIndex}`);
-      const diode = await rectOf(page, '.expfw-photodiode');
+      await expect.poll(async () => settled(await rectOf(page, '.cndlpsych-photodiode'))).toBe(true); // placed again after the resize
+      const tag = await rectOf(page, `.cndlpsych-apriltag >> nth=${tagIndex}`);
+      const diode = await rectOf(page, '.cndlpsych-photodiode');
       const tagCorner = { tl: [tag.x, tag.y], tr: [width - tag.right, tag.y], br: [width - tag.right, height - tag.bottom], bl: [tag.x, height - tag.bottom] }[corner];
       expect(tagCorner, 'the tag keeps its corner').toEqual([4, 4]);
       const apart = diode.right <= tag.x || diode.x >= tag.right || diode.bottom <= tag.y || diode.y >= tag.bottom;

@@ -57,7 +57,7 @@ function installFakeDevices() {
 
 /** Answers what is on screen the way the input settings allow: a key or a tap per phase. Runs in the page once the session exists. */
 function installResponder({ profile, delayMs }) {
-  const { services, plan } = window.expfw;
+  const { services, plan } = window.cndlpsych;
   const { bus, stage } = services;
   window.__dryRunResponses = 0;
   const press = (key) => ['keydown', 'keyup'].forEach((type) => document.dispatchEvent(new KeyboardEvent(type, { key, bubbles: true, cancelable: true })));
@@ -163,10 +163,10 @@ export async function dryRun({ dir, profile = 'desktop', scale = 0.1, timeoutS =
     page.on('pageerror', (error) => problems.push(error.message));
     await page.addInitScript(installFakeDevices);
     await page.goto(server.url);
-    await page.waitForFunction(() => window.expfw?.services !== undefined || window.expfw?.finished, null, { timeout: 30_000 }).catch(() => {});
-    await page.waitForFunction(() => window.expfw?.plan !== undefined, null, { timeout: 30_000 });
+    await page.waitForFunction(() => window.cndlpsych?.services !== undefined || window.cndlpsych?.finished, null, { timeout: 30_000 }).catch(() => {});
+    await page.waitForFunction(() => window.cndlpsych?.plan !== undefined, null, { timeout: 30_000 });
     await page.evaluate(installResponder, { profile, delayMs: 40 });
-    await page.evaluate(() => { window.expfw.finished.then((result) => { window.__dryRunResult = result; }); });
+    await page.evaluate(() => { window.cndlpsych.finished.then((result) => { window.__dryRunResult = result; }); });
 
     const deadline = Date.now() + timeoutS * 1000;
     while (Date.now() < deadline && !(await page.evaluate(() => window.__dryRunResult !== undefined))) {
@@ -177,12 +177,12 @@ export async function dryRun({ dir, profile = 'desktop', scale = 0.1, timeoutS =
     }
     const finished = await page.evaluate(() => window.__dryRunResult !== undefined);
     const snapshot = await page.evaluate(async () => ({
-      ...(await window.expfw.store.snapshot()),
+      ...(await window.cndlpsych.store.snapshot()),
       status: window.__dryRunResult?.status ?? 'running',
       devices: window.__dryRunDevices,
       responses: window.__dryRunResponses,
-      lastEvent: window.expfw.services.bus.lastSeq,
-      context: window.expfw.services.bus.context,
+      lastEvent: window.cndlpsych.services.bus.lastSeq,
+      context: window.cndlpsych.services.bus.context,
       text: document.body.innerText.slice(0, 200),
     }));
     const stuck = finished ? undefined : `no progress after ${timeoutS} s at block ${snapshot.context.block ?? '-'}, trial ${snapshot.context.trial ?? '-'}; screen says: ${snapshot.text.replace(/\s+/g, ' ')}`;

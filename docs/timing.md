@@ -45,7 +45,7 @@ trigger line you will really use (the EEG amplifier's trigger input, or a TTL st
 trigger box), and a recorder that samples both on one clock at 1 kHz or faster (the EEG
 amplifier's analog inputs, an oscilloscope, or a DAQ).
 
-1. `expfw init timing-run --template timing`, then `expfw serve timing-run`, and open the page on
+1. `cndlpsych init timing-run --template timing`, then `cndlpsych serve timing-run`, and open the page on
    **the device and browser you will use for the study**, in full screen, at its normal brightness
    and with the same background load you will have in the study.
 2. Edit `timing-run/experiment.yaml` if the trigger goes through a relay (a websocket sink) rather

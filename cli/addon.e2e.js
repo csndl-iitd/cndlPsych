@@ -24,7 +24,7 @@ test.beforeEach(({ isMobile }) => { test.skip(isMobile, 'one run is enough'); })
 test.afterEach(() => { if (dir) rmSync(join(dir, '..'), { recursive: true, force: true }); dir = null; });
 
 function project({ eyetracking }) {
-  dir = join(mkdtempSync(join(tmpdir(), 'expfw-addon-')), 'study');
+  dir = join(mkdtempSync(join(tmpdir(), 'cndlpsych-addon-')), 'study');
   initProject(dir, { eyetracking });
   const file = join(dir, 'experiment.yaml');
   writeFileSync(file, readFileSync(file, 'utf8') + EYE);
@@ -56,10 +56,10 @@ test('without the add-on the session stops at the eye tracking step, says why, a
     await enter(page);
     await continueDeviceScreen(page); // "Start" on the eye tracking intro
     await expect(page.getByText('its software is not installed')).toBeVisible();
-    const events = await page.evaluate(async () => (await window.expfw.store.snapshot()).events);
+    const events = await page.evaluate(async () => (await window.cndlpsych.store.snapshot()).events);
     expect(events.find((e) => e.type === 'system.error')?.data.code).toBe('eyetracking_addon_missing');
     expect(events.at(-1)).toMatchObject({ type: 'session.end', data: { reason: 'aborted' } });
-    expect(requested.filter((path) => path.includes('expfw-eyetracking') && path.endsWith('.js'))).toEqual(['/expfw-eyetracking/webgazer.js']); // it looked, and found nothing
+    expect(requested.filter((path) => path.includes('cndlpsych-eyetracking') && path.endsWith('.js'))).toEqual(['/cndlpsych-eyetracking/webgazer.js']); // it looked, and found nothing
   } finally {
     await served.close();
   }
@@ -73,25 +73,25 @@ test('with the add-on, WebGazer and the face model come from that folder; the co
   try {
     await page.goto(served.url);
     await enter(page);
-    expect(requested.some((path) => path.startsWith('/expfw-eyetracking/'))).toBe(false); // not before it is needed
+    expect(requested.some((path) => path.startsWith('/cndlpsych-eyetracking/'))).toBe(false); // not before it is needed
     await continueDeviceScreen(page);
     await continueDeviceScreen(page); // calibration intro
-    await expect.poll(() => page.evaluate(async () => (await window.expfw.store.snapshot()).events.some((e) => e.type === 'gaze.validation')), { timeout: 150_000 }).toBe(true);
-    expect(requested).toContain('/expfw-eyetracking/webgazer.js');
-    expect(requested.some((path) => path.startsWith('/expfw-eyetracking/mediapipe/'))).toBe(true);
-    expect(requested.filter((path) => path.startsWith('/expfw/') && path.endsWith('.js')).length).toBeGreaterThan(0);
-    expect(requested.some((path) => path.startsWith('/expfw-eyetracking/') && path.includes('/expfw/'))).toBe(false);
+    await expect.poll(() => page.evaluate(async () => (await window.cndlpsych.store.snapshot()).events.some((e) => e.type === 'gaze.validation')), { timeout: 150_000 }).toBe(true);
+    expect(requested).toContain('/cndlpsych-eyetracking/webgazer.js');
+    expect(requested.some((path) => path.startsWith('/cndlpsych-eyetracking/mediapipe/'))).toBe(true);
+    expect(requested.filter((path) => path.startsWith('/cndlpsych/') && path.endsWith('.js')).length).toBeGreaterThan(0);
+    expect(requested.some((path) => path.startsWith('/cndlpsych-eyetracking/') && path.includes('/cndlpsych/'))).toBe(false);
   } finally {
     await served.close();
   }
 });
 
-test('the Firebase SDK file in expfw/vendor loads in a browser and exports the SDK', async ({ page }) => {
+test('the Firebase SDK file in cndlpsych/vendor loads in a browser and exports the SDK', async ({ page }) => {
   project({ eyetracking: false });
   const served = await serveDirectory({ dir });
   try {
     await page.goto(served.url);
-    const names = await page.evaluate(async () => Object.keys(await import('/expfw/vendor/firebase.js')));
+    const names = await page.evaluate(async () => Object.keys(await import('/cndlpsych/vendor/firebase.js')));
     expect(names).toEqual(expect.arrayContaining(['initializeApp', 'getFirestore', 'writeBatch', 'runTransaction', 'getAuth', 'signInAnonymously', 'initializeAppCheck']));
   } finally {
     await served.close();

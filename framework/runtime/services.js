@@ -46,10 +46,10 @@ export function createServices({ root, plan, generators = {}, validate, timeScal
   const mapping = createMapping({ bus, hooks: { applyEffect: (effect, refs) => stage.applyEffect(effect, refs) } });
   input.setConsumer((candidate) => mapping.wouldConsume(candidate));
 
-  injectCss(doc, 'expfw-theme', THEME_CSS); // before the experiment's styles, so those win
-  styles.forEach((css, i) => injectCss(doc, `expfw-style-${i}`, css));
+  injectCss(doc, 'cndlpsych-theme', THEME_CSS); // before the experiment's styles, so those win
+  styles.forEach((css, i) => injectCss(doc, `cndlpsych-style-${i}`, css));
   const display = doc.createElement('div');
-  display.className = 'expfw-display';
+  display.className = 'cndlpsych-display';
   stage.element.append(display);
   const jsPsych = createJsPsych({ display, extensions: [bridge.Extension] });
 
@@ -92,7 +92,7 @@ export function createServices({ root, plan, generators = {}, validate, timeScal
         trial,
       },
     });
-    if (generator) injectCss(doc, `expfw-generator-${definition.type}`, rendered.css);
+    if (generator) injectCss(doc, `cndlpsych-generator-${definition.type}`, rendered.css);
     return rendered;
   }
 
