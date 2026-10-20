@@ -138,12 +138,16 @@ export function subjectElements(form = {}, assigned = {}) {
   ];
 }
 
-/** The questions of the built-in `session` form: session_id, then forms.yaml extras. */
-export function sessionElements(form = {}) {
+/**
+ * The questions of the built-in `session` form: session_id, then forms.yaml extras.
+ * @param {object} [form] forms.yaml `session`
+ * @param {{suggested?: string}} [options] `suggested` is the session ID to fill in ("ses-02" for a participant who already has ses-01)
+ */
+export function sessionElements(form = {}, { suggested } = {}) {
   const { overrides = {}, questions = [] } = form;
   return [
     withOverride({
-      type: 'text', name: 'session_id', title: 'Session', isRequired: true, defaultValue: '01',
+      type: 'text', name: 'session_id', title: 'Session', isRequired: true, defaultValue: suggested ? suggested.replace(/^ses-/, '') : '01',
       validators: [{ type: 'regex', regex: '^(ses-)?[A-Za-z0-9]+$', text: 'Use letters and digits only (for example 01)' }],
     }, overrides.session_id),
     ...questions.map(questionElement),

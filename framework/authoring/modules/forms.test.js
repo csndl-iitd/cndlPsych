@@ -124,6 +124,8 @@ describe('built-in subject form', () => {
 
 describe('built-in session form', () => {
   it('has session_id (default 01) then extras', () => {
+    expect(sessionElements({}, { suggested: 'ses-02' })[0].defaultValue).toBe('02');
+    expect(sessionElements({})[0].defaultValue).toBe('01');
     const elements = sessionElements({ questions: [{ name: 'session_type', prompt: 'Type', type: 'dropdown', options: ['Control', 'Experimental'] }] });
     expect(elements.map((e) => e.name)).toEqual(['session_id', 'session_type']);
     expect(elements[0]).toMatchObject({ defaultValue: '01', isRequired: true });

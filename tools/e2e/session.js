@@ -25,7 +25,7 @@ function fakeConnect({ uid, access }) {
     if (error) throw Object.assign(new Error(error.message), { code: error.code });
     return value;
   };
-  const names = ['claimExists', 'markerNumber', 'listClaimNumbers', 'createPublicClaim', 'createClaim', 'setClaimStatus', 'createSession', 'updateSession', 'putChunk'];
+  const names = ['claimExists', 'markerNumber', 'listClaimNumbers', 'createPublicClaim', 'createClaim', 'findSessions', 'setClaimStatus', 'createSession', 'updateSession', 'putChunk'];
   return async () => {
     await call('signIn');
     return { uid, access, width: 3, ops: Object.fromEntries(names.map((name) => [name, (...args) => call(name, ...args)])) };

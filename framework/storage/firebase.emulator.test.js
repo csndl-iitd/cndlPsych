@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { initializeTestEnvironment } from '@firebase/rules-unit-testing';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { allocateSubject, connectFirebase, createFirebaseStore, loadSdk, suggestSubject } from './firebase.js';
+import { allocateSubject, connectFirebase, createFirebaseStore, loadSdk, subjectSessions, suggestSubject } from './firebase.js';
 import { integrityReport } from './integrity.js';
 
 const ROOT = join(import.meta.dirname, '..', '..');
@@ -223,6 +223,33 @@ describe('controlled mode', () => {
   it('a non-admin cannot allocate or write', async () => {
     const connection = await connect(config, { sub: 'stranger', email: 'x@y.example', email_verified: true });
     await expect(allocateSubject(connection)).rejects.toThrow();
+  });
+
+  it('a number used again: its earlier sessions are found whoever ran them, the claim keeps its state, and the new session is written', async () => {
+    const first = await connect(config, ADMIN);
+    const claim = await allocateSubject(first);
+    const store = createFirebaseStore({ connection: first, claim, config });
+    const record = recordFor(claim.label);
+    store.begin(record);
+    events.slice(0, 12).forEach((event) => store.append(event));
+    await store.finish(finishedRecord(record, events[11].seq));
+
+    const second = await connect(config, { ...ADMIN, sub: 'admin-two' });
+    const earlier = await subjectSessions(second, claim.label);
+    expect(earlier.map((session) => session.session_id)).toEqual(['ses-01']);
+    expect(earlier[0].subject).toEqual(sample.subject);
+
+    const again = await allocateSubject(second, { override: claim.n, reuse: true });
+    expect(again).toMatchObject({ n: claim.n, reused: true });
+    const next = createFirebaseStore({ connection: second, claim: again, config });
+    const nextRecord = recordFor(claim.label, { session_id: 'ses-02' });
+    next.begin(nextRecord);
+    events.slice(0, 12).forEach((event) => next.append(event));
+    await next.finish(finishedRecord(nextRecord, events[11].seq));
+
+    expect((await subjectSessions(first, claim.label)).map((session) => session.session_id).sort()).toEqual(['ses-01', 'ses-02']);
+    expect((await readBack(ACCESS, ADMIN.sub, claim.label)).claims).toEqual([expect.objectContaining({ n: claim.n, status: 'complete' })]);
+    expect(await subjectSessions(first, 'sub-099')).toEqual([]);
   });
 
   it('writes a whole session as the experimenter', async () => {

@@ -101,4 +101,12 @@ describe('controlled allocation', () => {
     await expect(allocateControlled(fakeOps({ claims: [5] }), { override: 5 })).rejects.toThrow('already taken');
     expect((await allocateControlled(fakeOps({ lose: 1 }))).n).toBe(2);
   });
+
+  it('uses a taken number again when told to, and then leaves its claim as it is', async () => {
+    const ops = fakeOps({ claims: [5] });
+    expect(await allocateControlled(ops, { override: 5, reuse: true })).toEqual({ n: 5, label: 'sub-005', reused: true });
+    expect(ops.table.size).toBe(1);
+    expect((await allocateControlled(ops, { override: 9, reuse: true })).reused).toBeUndefined(); // a free number is claimed as usual
+    expect(ops.table.size).toBe(2);
+  });
 });

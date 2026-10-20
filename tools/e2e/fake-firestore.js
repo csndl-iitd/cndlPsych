@@ -19,6 +19,7 @@ export function createFakeFirestore({ uid = 'anon-1', access = 'public', failSig
     claimExists: (n) => state.claims.has(n),
     markerNumber: () => state.markers.get(uid) ?? null,
     listClaimNumbers: () => [...state.claims.keys()],
+    findSessions: (label) => [...state.sessions.values()].filter((session) => session.subject_id === label),
     createPublicClaim(n, label) {
       if (state.claims.has(n) || (n > 1 && !state.claims.has(n - 1)) || state.markers.has(uid)) throw denied();
       state.claims.set(n, { n, label, status: 'reserved' });

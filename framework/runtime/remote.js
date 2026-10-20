@@ -1,7 +1,8 @@
 // The Firebase side of a session, as the lifecycle sees it (ARCHITECTURE.md section 8):
 // sign in, get a subject number, then mirror the local log to Firestore. Everything that
 // touches the SDK lives in storage/firebase.js; this wires it to the session.
-import { allocateSubject, connectFirebase, createFirebaseStore, suggestSubject, subjectNumberTaken } from '../storage/firebase.js';
+import { subjectLabel } from '../storage/allocator.js';
+import { allocateSubject, connectFirebase, createFirebaseStore, suggestSubject, subjectNumberTaken, subjectSessions } from '../storage/firebase.js';
 
 /** The message when the data server cannot be reached. */
 export const remoteFailedMessage = (reason) => `Could not connect to the data server: ${reason}
@@ -82,6 +83,18 @@ export function createRemote(config, { connect = connectFirebase } = {}) {
     /** The number in a subject ID as typed ("007", "sub-7"), or null when it is not one. */
     numberOf: claimNumber,
 
+    /** The subject ID for the number in what was typed ("7" -> "sub-007"). */
+    labelOf: (typed) => subjectLabel(claimNumber(typed), connection?.width ?? 3),
+
+    /** Earlier sessions of this subject ID in this experiment (empty when they cannot be read). */
+    async history(typed) {
+      try {
+        return await subjectSessions(connection, subjectLabel(claimNumber(typed), connection.width));
+      } catch {
+        return [];
+      }
+    },
+
     /** Controlled mode: has the number in this subject ID already been used? */
     async isTaken(typed) {
       const n = claimNumber(typed);
@@ -90,14 +103,15 @@ export function createRemote(config, { connect = connectFirebase } = {}) {
 
     /**
      * Claim a subject number: public mode takes the next free one; controlled mode takes the
-     * number typed in the form (the suggestion unless the experimenter overrode it).
-     * @returns {Promise<{n: number, label: string}>}
+     * number typed in the form (the suggestion unless the experimenter overrode it). `reuse`: the experimenter
+     * confirmed that a number already used is meant (another session of the same participant).
+     * @returns {Promise<{n: number, label: string, reused?: boolean}>}
      */
-    async claim(typed) {
+    async claim(typed, { reuse = false } = {}) {
       if (config.access === 'public') return allocateSubject(connection);
       const n = claimNumber(typed);
       if (n === null) throw new Error('Subject IDs must be numbers (for example 007) when Firebase assigns them.');
-      return allocateSubject(connection, { override: n });
+      return allocateSubject(connection, { override: n, reuse });
     },
 
     /** A mirror store for the claimed number; `onProgress` receives its upload bookkeeping. */

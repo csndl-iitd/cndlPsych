@@ -5,7 +5,7 @@
 // or a failed min_age therefore leaves no trace at all. Each step below returns either its result
 // or `{ended}` with the final result of the session, when the participant cannot go on.
 import { sessionAnswers, sessionElements, subjectAnswers } from '../../authoring/modules/forms.js';
-import { showForm } from '../../authoring/modules/survey.js';
+import { askAction, showForm } from '../../authoring/modules/survey.js';
 import { isoNow } from '../../foundation/clock.js';
 import { admitDevice, inputProfiles, profileConditions } from '../../foundation/device.js';
 import { createConsentGate, hashText, resolveSeed } from '../../foundation/session.js';
@@ -51,9 +51,25 @@ async function agree(run, gate) {
   return { acceptedAt };
 }
 
+/** The session form. For a participant who is used again it suggests the next session number and does not accept one they already have. */
+async function askSessionForm({ forms, screen, reused }) {
+  const taken = reused?.history.sessionIds ?? [];
+  let suggested = reused?.history.nextSession;
+  for (;;) {
+    const sessionForm = await showForm(screen, { title: forms.session?.title ?? 'Session', intro: forms.session?.intro, elements: sessionElements(forms.session, { suggested }) });
+    const { sessionId } = sessionAnswers(sessionForm.values);
+    if (!taken.includes(sessionId)) return sessionForm;
+    await askAction(screen, {
+      message: `## ${sessionId} already exists\n\n**${reused.id}** already has a session **${sessionId}** in this experiment, and it cannot be replaced from here. Choose another session ID.`,
+      choices: [{ value: 'back', text: 'Choose another session ID' }],
+    });
+    suggested = reused.history.nextSession;
+  }
+}
+
 /** The subject form, the age check, and the session form. */
 async function askParticipant(run, gate) {
-  const { project, remote, screen, services } = run;
+  const { project, remote, screen, services, store } = run;
   const { forms } = project.plan;
   let assigned;
   try {
@@ -62,14 +78,14 @@ async function askParticipant(run, gate) {
     showMessage(services.display, remoteFailedMessage(explainRemoteError(error, remote.config)));
     return { ended: { status: 'remote_failed' } };
   }
-  const { subjectForm, overridden } = await askSubjectForm({ forms, screen, remote, assigned });
+  const { subjectForm, overridden, reused } = await askSubjectForm({ forms, screen, remote, assigned, local: store });
   const answered = subjectAnswers(subjectForm.values);
   if (!gate.checkAge(answered.subject.age).eligible) {
     showMessage(services.display, project.plan.consent.decline_message ?? 'Sorry, you are not eligible to take part in this study. Nothing has been stored. You can close this window.');
     return { ended: { status: 'ineligible' } };
   }
-  const sessionForm = await showForm(screen, { title: forms.session?.title ?? 'Session', intro: forms.session?.intro, elements: sessionElements(forms.session) });
-  return { subjectForm, sessionForm, answered, overridden, ...sessionAnswers(sessionForm.values) };
+  const sessionForm = await askSessionForm({ forms, screen, reused });
+  return { subjectForm, sessionForm, answered, overridden, reused, ...sessionAnswers(sessionForm.values) };
 }
 
 /** The device profile, and the trigger sinks for a device that will be admitted. */
@@ -96,11 +112,11 @@ async function checkDevice(run) {
 }
 
 /** The subject number from Firebase, if the session uses it. */
-async function claimSubject(run, typedId) {
+async function claimSubject(run, typedId, reuse) {
   const { remote, services } = run;
   if (!remote) return { claim: null };
   try {
-    return { claim: await remote.claim(typedId) };
+    return { claim: await remote.claim(typedId, { reuse }) };
   } catch (error) {
     await services.sinkSet.closeAll();
     showMessage(services.display, `Could not get a subject number: ${explainRemoteError(error, remote.config)}
@@ -141,7 +157,7 @@ export async function runNewSession(run, search) {
   if (participant.ended) return participant.ended;
   const device = await checkDevice(run);
   if (device.ended) return device.ended;
-  const claimed = await claimSubject(run, participant.subjectForm.values.subject_id);
+  const claimed = await claimSubject(run, participant.subjectForm.values.subject_id, Boolean(participant.reused));
   if (claimed.ended) return claimed.ended;
 
   const { claim } = claimed;
@@ -161,9 +177,13 @@ export async function runNewSession(run, search) {
     search,
   });
   const sessionStore = remote
-    ? mirrored(store, remote.store({ claim, onProgress: (progress) => store.setRemote?.({ claim_n: claim.n, ...progress }) }))
+    ? mirrored(store, remote.store({ claim, onProgress: (progress) => store.setRemote?.({ claim_n: claim.n, ...(claim.reused ? { claim_reused: true } : {}), ...progress }) }))
     : store;
   beginRecording({ run, record, sessionStore, seed, profile, sinkWarnings: device.sinkWarnings });
+  if (participant.reused) {
+    const { id, history } = participant.reused;
+    bus.emit({ source: 'system', type: 'system.warning', data: { code: 'subject_id_reused', message: `The participant ID ${id} was used again (earlier sessions: ${history.sessionIds.join(', ') || 'none found'}).`, detail: { id, earlier_sessions: history.sessionIds } } });
+  }
   if (participant.overridden) {
     const { suggested, used } = participant.overridden;
     bus.emit({ source: 'system', type: 'system.warning', data: { code: 'subject_id_overridden', message: `The experimenter used the participant ID ${used} instead of the suggested ${suggested}.`, detail: { suggested, used } } });

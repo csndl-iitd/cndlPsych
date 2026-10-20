@@ -91,7 +91,7 @@ test('controlled: the experimenter signs in first, and the ID is prefilled and l
   await expect(field).toHaveAttribute('readonly', '');
 });
 
-test('controlled: the experimenter may override the ID; a number in use is refused at once, and a different free one needs a confirmed warning', async ({ context, page }) => {
+test('controlled: the experimenter may override the ID; a different free one needs a confirmed warning', async ({ context, page }) => {
   const fake = createFakeFirestore({ uid: 'admin-1', access: 'controlled' });
   fake.state.claims.set(5, { n: 5, label: 'sub-005', status: 'complete' });
   await context.exposeBinding('fakeFirestore', fake.handle);
@@ -104,15 +104,12 @@ test('controlled: the experimenter may override the ID; a number in use is refus
   await expect(field).not.toHaveAttribute('readonly', '');
   await expect(page.getByText('Suggested: sub-001')).toBeVisible();
 
-  // a number already in use: refused before anything else is asked
-  await answerSubject(page, { id: '5' });
-  await page.getByText('has already been used').waitFor();
+  // a free number that is not the suggestion: a warning, and going back changes nothing
+  await answerSubject(page, { id: '12' });
+  await expect(page.getByText('Use a different participant ID?')).toBeVisible();
   await choose(page, 'action', 'back');
   await clickContinue(page);
-  await expect(field).toHaveValue('5'); // back at the form, answers kept
-  await expect(page.locator('[data-name="age"] input')).toHaveValue('24');
-
-  // a free number that is not the suggestion: a warning, and going back changes nothing
+  await expect(page.locator('[data-name="age"] input')).toHaveValue('24'); // back at the form, answers kept
   await field.fill('12');
   await clickContinue(page);
   await page.getByText('Use a different participant ID?').waitFor();
@@ -131,6 +128,58 @@ test('controlled: the experimenter may override the ID; a number in use is refus
   const log = await page.evaluate(() => window.__log);
   const warning = log.find((e) => e.type === 'system.warning' && e.data.code === 'subject_id_overridden');
   expect(warning.data.detail).toEqual({ suggested: 'sub-001', used: '12' });
+});
+
+test('controlled: a number used before is reused: the details come from the earlier session, the next session number is suggested, and a session they have cannot be repeated', async ({ context, page }) => {
+  const fake = createFakeFirestore({ uid: 'admin-1', access: 'controlled' });
+  fake.state.claims.set(5, { n: 5, label: 'sub-005', status: 'complete' });
+  fake.state.sessions.set('someone-else/sub-005_ses-01', {
+    subject_id: 'sub-005', session_id: 'ses-01', started_at: '2026-10-01T10:00:00Z', status: 'complete', subject: { sex: 'male', age: 41, handedness: 'left' },
+  });
+  await context.exposeBinding('fakeFirestore', fake.handle);
+  await startSession(page, { merge: merge('controlled', { subject_id: { override: true } }), firebase: { uid: 'admin-1', access: 'controlled' } });
+  await captureLog(page);
+  await continueDeviceScreen(page);
+  await answerConsent(page);
+  const field = page.locator('[data-name="subject_id"] input');
+  await answerSubject(page, { id: '5' }); // what the experimenter typed: the ID and some answers
+
+  // the participant is known: told so, and their sessions are listed
+  await page.getByText('5 has been used before').waitFor();
+  await expect(page.getByText('already has one session in this experiment (ses-01)')).toBeVisible();
+  await choose(page, 'action', 'use');
+  await clickContinue(page);
+
+  // the form again, with their details in it (editable) and a note on where they came from
+  await expect(field).toHaveValue('5');
+  await expect(page.locator('[data-name="age"] input')).toHaveValue('41');
+  await expect(page.locator('[data-name="sex"] input[value="male"]')).toBeChecked();
+  await expect(page.locator('[data-name="handedness"] input[value="left"]')).toBeChecked();
+  await expect(page.getByText('filled in from session ses-01 (2026-10-01)')).toBeVisible();
+  await page.locator('[data-name="age"] input').fill('42'); // the experimenter changes what is different
+  await clickContinue(page);
+
+  // the session: ses-02 is suggested, ses-01 is refused
+  const session = page.locator('[data-name="session_id"] input');
+  await expect(session).toHaveValue('02');
+  await session.fill('01');
+  await page.locator('[data-name="session_type"] .sd-dropdown').click();
+  await page.locator('.sv-list__item', { hasText: 'Experimental' }).first().click();
+  await clickContinue(page);
+  await page.getByText('ses-01 already exists').waitFor();
+  await choose(page, 'action', 'back');
+  await clickContinue(page);
+  await expect(session).toHaveValue('02');
+  await page.locator('[data-name="session_type"] .sd-dropdown').click();
+  await page.locator('.sv-list__item', { hasText: 'Experimental' }).first().click();
+  await clickContinue(page);
+
+  await expect.poll(() => fake.state.sessions.has('admin-1/sub-005_ses-02')).toBe(true);
+  expect(fake.state.sessions.get('admin-1/sub-005_ses-02').subject).toMatchObject({ sex: 'male', age: 42, handedness: 'left' });
+  expect(fake.state.claims.get(5).status).toBe('complete'); // the first use keeps its state; no new claim
+  expect([...fake.state.claims.keys()]).toEqual([5]);
+  const warning = (await page.evaluate(() => window.__log)).find((e) => e.type === 'system.warning' && e.data.code === 'subject_id_reused');
+  expect(warning.data.detail).toEqual({ id: '5', earlier_sessions: ['ses-01'] });
 });
 
 test('controlled: the suggested number is used without a warning', async ({ context, page }) => {

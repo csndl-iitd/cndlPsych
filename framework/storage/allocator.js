@@ -80,12 +80,17 @@ export function smallestFree(numbers) {
 
 /**
  * Controlled mode: the experimenter may name a number; otherwise the smallest free one is used.
- * @returns {Promise<{n: number, label: string}>}
+ * A number that is already claimed is refused, unless `reuse` says the experimenter means to use it again
+ * (another session of the same participant): its claim is then left as it is.
+ * @returns {Promise<{n: number, label: string, reused?: boolean}>}
  */
-export async function allocateControlled(ops, { width = 3, override = null, attempts = MAX_ATTEMPTS, wait } = {}) {
+export async function allocateControlled(ops, { width = 3, override = null, reuse = false, attempts = MAX_ATTEMPTS, wait } = {}) {
   if (override !== null) {
-    if ((await ops.listClaimNumbers()).includes(override)) throw new Error(`subject number ${override} is already taken`);
     const label = subjectLabel(override, width);
+    if ((await ops.listClaimNumbers()).includes(override)) {
+      if (reuse) return { n: override, label, reused: true };
+      throw new Error(`subject number ${override} is already taken`);
+    }
     await ops.createClaim(override, label);
     return { n: override, label };
   }
