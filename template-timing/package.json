@@ -1,0 +1,19 @@
+{
+  "name": "my-experiment",
+  "private": true,
+  "type": "module",
+  "description": "A cndlpsych experiment. The scripts run the command line tools that come with the framework (cndlpsych/cli); run them with npm run <name>.",
+  "scripts": {
+    "validate": "node cndlpsych/cli/cndlpsych.js validate .",
+    "serve": "node cndlpsych/cli/cndlpsych.js serve .",
+    "dry-run": "node cndlpsych/cli/cndlpsych.js dry-run .",
+    "listen": "node cndlpsych/cli/cndlpsych.js listen --ack",
+    "relay": "node cndlpsych/cli/cndlpsych.js relay",
+    "deploy": "node cndlpsych/cli/cndlpsych.js deploy .",
+    "export-firestore": "node cndlpsych/cli/cndlpsych.js export-firestore",
+    "migrate": "node cndlpsych/cli/cndlpsych.js migrate ."
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0"
+  }
+}

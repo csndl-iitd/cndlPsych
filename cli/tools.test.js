@@ -25,7 +25,7 @@ describe('template', () => {
   });
 
   it('has only YAML, one consent file and index.html for the user to edit', () => {
-    expect(readdirSync(TEMPLATE).sort()).toEqual(['assets', 'consent.md', 'experiment.yaml', 'forms.yaml', 'index.html', 'stimuli.yaml', 'timeline.yaml']);
+    expect(readdirSync(TEMPLATE).sort()).toEqual(['assets', 'consent.md', 'experiment.yaml', 'forms.yaml', 'index.html', 'package.json', 'stimuli.yaml', 'timeline.yaml']);
     expect(readFileSync(join(TEMPLATE, 'index.html'), 'utf8')).toContain('src="cndlpsych/boot.js"');
   });
 });

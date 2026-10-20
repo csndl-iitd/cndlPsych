@@ -42,7 +42,7 @@ afterAll(() => rmSync(OUT, { recursive: true, force: true }));
 
 describe('cndlpsych/ layout', () => {
   it('has the entry files, the layers, schemas, vendor code and notices, and nothing else at the top', () => {
-    expect(readdirSync(CORE).sort()).toEqual(['LICENSE', 'README.txt', 'THIRD-PARTY-LICENSES.txt', 'VERSION', 'boot.js', 'framework', 'schemas', 'start.js', 'types.d.ts', 'vendor']);
+    expect(readdirSync(CORE).sort()).toEqual(['LICENSE', 'README.txt', 'THIRD-PARTY-LICENSES.txt', 'VERSION', 'boot.js', 'cli', 'firebase', 'framework', 'package.json', 'schemas', 'start.js', 'types.d.ts', 'vendor']);
     expect(readdirSync(join(CORE, 'framework')).sort()).toEqual(['authoring', 'foundation', 'pipeline', 'runtime', 'stage', 'storage']);
   });
 
@@ -93,7 +93,7 @@ describe('import map (boot.js)', () => {
   it('covers every bare module name the shipped code imports', () => {
     const covered = new Set(Object.keys(map()));
     const bare = new Set();
-    for (const name of files(CORE, (n) => n.endsWith('.js') && !n.startsWith('vendor/'))) {
+    for (const name of files(CORE, (n) => n.endsWith('.js') && !n.startsWith('vendor/') && !n.startsWith('cli/'))) {
       for (const spec of specifiers(text(join(CORE, name)))) {
         if (!spec.startsWith('.') && !spec.startsWith('/') && !/^https?:/.test(spec) && !spec.startsWith('node:')) bare.add(spec);
       }

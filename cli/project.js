@@ -4,7 +4,8 @@ import { dirname, join, relative, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const REPO = join(dirname(fileURLToPath(import.meta.url)), '..');
-export const DEFAULT_SCHEMA_DIR = join(REPO, 'spec', 'schema');
+// In the repository the schemas are spec/schema; in a project folder this file is cndlpsych/cli/ and they are cndlpsych/schemas.
+export const DEFAULT_SCHEMA_DIR = existsSync(join(REPO, 'spec', 'schema')) ? join(REPO, 'spec', 'schema') : join(REPO, 'schemas');
 const PROJECT_FILES = ['experiment.yaml', 'forms.yaml', 'stimuli.yaml', 'timeline.yaml'];
 const IGNORED = new Set(['node_modules', '.git', 'cndlpsych']);
 

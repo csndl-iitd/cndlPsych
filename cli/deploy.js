@@ -11,12 +11,14 @@
 import { spawnSync } from 'node:child_process';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
+import { existsSync } from 'node:fs';
 import { parseArgs } from 'node:util';
 import { load } from 'js-yaml';
 
-const RULES = join(import.meta.dirname, '..', 'spec', 'firebase');
-// Everything in the folder is public: keep deployment config and editor files out of it.
-const HOSTING_IGNORE = ['firebase.json', '.firebaserc', 'firebase/**', '**/.*', '**/node_modules/**', '**/*.LEGAL.txt'];
+// The Firestore rules: spec/firebase in the repository, cndlpsych/firebase in a project folder.
+const RULES = existsSync(join(import.meta.dirname, '..', 'spec', 'firebase')) ? join(import.meta.dirname, '..', 'spec', 'firebase') : join(import.meta.dirname, '..', 'firebase');
+// Everything in the folder is public: keep deployment config, the command line tools and editor files out of it.
+const HOSTING_IGNORE = ['firebase.json', '.firebaserc', 'firebase/**', 'package.json', 'package-lock.json', 'cndlpsych/cli/**', 'cndlpsych/firebase/**', 'cndlpsych/package.json', '**/.*', '**/node_modules/**', '**/*.LEGAL.txt'];
 
 /**
  * @param {object} experiment parsed experiment.yaml

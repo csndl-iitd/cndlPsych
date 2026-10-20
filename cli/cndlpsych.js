@@ -11,17 +11,24 @@
 //   cndlpsych relay ...             trigger relay (WebSocket to serial)
 //   cndlpsych listen ...            receive triggers on a WebSocket, show them, optionally write a CSV
 import { spawnSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import { join } from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 const COMMANDS = {
   init: 'init.js', validate: 'validate.js', 'dry-run': 'dry-run.js', serve: 'serve.js', deploy: 'deploy.js', migrate: 'migrate.js',
   'export-firestore': 'export-firestore.js', relay: 'relay.js', listen: 'listen.js',
 };
 
+// In a project folder (cndlpsych/cli/) not every tool is there (init is not), and the few third-party
+// packages the code imports are found through the hook in register.mjs; in the repository they are in node_modules.
+const available = Object.keys(COMMANDS).filter((command) => existsSync(join(import.meta.dirname, COMMANDS[command])));
+const hook = join(import.meta.dirname, 'register.mjs');
+
 const [name, ...args] = process.argv.slice(2);
-if (!COMMANDS[name]) {
-  console.error(`usage: cndlpsych <${Object.keys(COMMANDS).join('|')}> [arguments]`);
+if (!available.includes(name)) {
+  console.error(`usage: cndlpsych <${available.join('|')}> [arguments]`);
   process.exit(name === undefined || name === '--help' ? 0 : 2);
 }
-const run = spawnSync(process.execPath, [join(import.meta.dirname, COMMANDS[name]), ...args], { stdio: 'inherit' });
+const run = spawnSync(process.execPath, [...(existsSync(hook) ? ['--import', pathToFileURL(hook).href] : []), join(import.meta.dirname, COMMANDS[name]), ...args], { stdio: 'inherit' });
 process.exit(run.status ?? 1);
