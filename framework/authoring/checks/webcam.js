@@ -1,4 +1,4 @@
-// The webcam recording is kept on the participant's device and goes out in the export. It is not sent to Firebase.
+// The webcam recording stays on the computer (a file, or the browser until it is downloaded). It is not sent to Firebase.
 import { profileConditions } from '../../foundation/device.js';
 import { FILES } from '../context.js';
 
@@ -11,6 +11,6 @@ export function checkWebcam(ctx) {
     if (!known.includes(id)) report.error('webcam-profile', FILES.experiment, ['webcam', 'profiles', i], `"${id}" is not a device profile (${known.join(', ')})`);
   });
   if (storage?.firebase?.enabled) {
-    report.warn('webcam-not-uploaded', FILES.experiment, ['webcam', 'enabled'], 'the video is kept in the browser and included in the exported zip; it is not uploaded to Firebase, which stores the events only');
+    report.warn('webcam-not-uploaded', FILES.experiment, ['webcam', 'enabled'], 'the video is saved to a file on the computer (or kept in the browser and downloaded as its own file); it is never in the exported zip and is not uploaded to Firebase, which stores the events only');
   }
 }

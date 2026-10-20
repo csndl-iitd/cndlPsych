@@ -172,6 +172,12 @@ describe('deploy', () => {
     expect(plan.config.firestore.rules).toBe('firebase/firestore.rules');
   });
 
+  it('--site names the Hosting site to publish to', () => {
+    const plan = deployPlan({ storage: { local: { enabled: true } } }, { site: 'cndlsearch' });
+    expect(plan.config.hosting.site).toBe('cndlsearch');
+    expect(deployPlan({}).config.hosting).not.toHaveProperty('site');
+  });
+
   it('--hosting-only leaves the Firestore rules and indexes out', () => {
     const plan = deployPlan({ storage: { firebase: { enabled: true, access: 'controlled', web_config: { projectId: 'my-proj' } } } }, { hostingOnly: true });
     expect(plan.services).toEqual(['hosting']);
