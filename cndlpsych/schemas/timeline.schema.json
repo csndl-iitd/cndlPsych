@@ -1,0 +1,157 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://example.org/cndlpsych/1/timeline.schema.json",
+  "title": "timeline.yaml",
+  "description": "The ordered blocks of the experiment, after the built-in consent, subject and session phases. 'module' selects a built-in (response_task, survey, instructions) or a custom task in custom/tasks/<module>.js. Block-level 'input' and 'triggers' are cascade scopes: they override experiment.yaml and task defaults for this block only.\n",
+  "type": "object",
+  "required": [
+    "blocks"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "blocks": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/definitions/block"
+      }
+    }
+  },
+  "definitions": {
+    "block": {
+      "type": "object",
+      "required": [
+        "id",
+        "module"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "common.schema.json#/definitions/id"
+        },
+        "module": {
+          "$ref": "common.schema.json#/definitions/id"
+        },
+        "title": {
+          "type": "string"
+        },
+        "config": {
+          "description": "Module-specific. Built-in modules are validated; custom tasks are validated against their own 'params'.",
+          "type": "object"
+        },
+        "input": {
+          "$ref": "input.schema.json#/definitions/scope"
+        },
+        "triggers": {
+          "$ref": "triggers.schema.json#/definitions/scope"
+        },
+        "profiles": {
+          "description": "Run only on these device profiles (skipped elsewhere).",
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "common.schema.json#/definitions/profile_id"
+          }
+        },
+        "skip_on": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "common.schema.json#/definitions/profile_id"
+          }
+        },
+        "when": {
+          "description": "Run only if this holds over subject.*, session.* and device.profile.",
+          "$ref": "common.schema.json#/definitions/predicate"
+        },
+        "repeat": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 1
+        },
+        "data": {
+          "description": "Extra fields attached to block.start.",
+          "type": "object"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "required": [
+              "module"
+            ],
+            "properties": {
+              "module": {
+                "const": "response_task"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "config"
+            ],
+            "properties": {
+              "config": {
+                "$ref": "module-response-task.schema.json#/definitions/config"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "module"
+            ],
+            "properties": {
+              "module": {
+                "const": "survey"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "config"
+            ],
+            "properties": {
+              "config": {
+                "$ref": "module-survey.schema.json#/definitions/config"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": [
+              "module"
+            ],
+            "properties": {
+              "module": {
+                "const": "instructions"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "config"
+            ],
+            "properties": {
+              "config": {
+                "$ref": "module-instructions.schema.json#/definitions/config"
+              }
+            }
+          }
+        },
+        {
+          "not": {
+            "required": [
+              "profiles",
+              "skip_on"
+            ]
+          }
+        }
+      ]
+    }
+  }
+}

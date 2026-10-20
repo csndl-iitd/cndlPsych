@@ -20,9 +20,5 @@
         ]
       }
     ]
-  },
-  "firestore": {
-    "rules": "firebase/firestore.rules",
-    "indexes": "firebase/firestore.indexes.json"
   }
 }

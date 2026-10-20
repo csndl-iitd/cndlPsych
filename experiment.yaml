@@ -95,7 +95,7 @@ input:
 #     - { id: stimulus_on, on: phase.onset, value: 1 }
 #   disable: []
 
-# ---- eye tracking (needs the expfw-eyetracking folder: expfw init --eyetracking) -----------------
+# ---- eye tracking (needs the cndlpsych-eyetracking folder: cndlpsych init --eyetracking) -----------------
 # eyetracking:
 #   enabled: true
 #   engine: webgazer
