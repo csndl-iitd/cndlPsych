@@ -253,6 +253,10 @@
         "correct": {
           "$ref": "#/definitions/correct_spec"
         },
+        "rt_from": {
+          "description": "Measure response times from the onset of the stimulus matching this predicate (same fields as correct.where: stimulus, phase, occurrence, index, trial, conditions), instead of from the stimulus on screen when the response happened. Use it when the response is to one particular stimulus of a longer sequence (the second Ǝ of an oddball sequence): the time is then from that stimulus even if a later one is already showing. A response before that stimulus has appeared has no response time.\n",
+          "$ref": "common.schema.json#/definitions/predicate"
+        },
         "feedback": {
           "$ref": "#/definitions/feedback_spec"
         },

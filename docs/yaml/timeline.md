@@ -123,6 +123,7 @@ Paths are written as in the YAML: `a.b` is key `b` inside `a`; `items[]` is each
 | `blocks[].config.trials[].on_response` | one of |  | `"end"` | end = a response ends the sequence; continue = keep presenting (multiple responses per trial). values: `"end"`, `"continue"` |
 | `blocks[].config.trials[].timeout` | one of several forms |  |  | Maximum time for a response once the response window opens |
 | `blocks[].config.trials[].correct` | one of several forms |  |  | Expected intent(s), optionally only in a context. 'where' is evaluated at response time over: stimulus, phase, occurrence (nth presentation of that stimulus in this trial), index (position in the sequence), trial, and the trial's conditions. A response outside a matching context is incorrect; no response during a matching context is a miss |
+| `blocks[].config.trials[].rt_from` | object |  |  | Measure response times from the onset of the stimulus matching this predicate (same fields as correct.where: stimulus, phase, occurrence, index, trial, conditions), instead of from the stimulus on screen when the response happened. Use it when the response is to one particular stimulus of a longer sequence (the second Ǝ of an oddball sequence): the time is then from that stimulus even if a later one is already showing. A response before that stimulus has appeared has no response time |
 | `blocks[].config.trials[].feedback` | one of several forms |  |  |  |
 | `blocks[].config.trials[].post` | one of several forms |  |  | Gap after the trial (a [min, max] pair jitters) |
 | `blocks[].config.trials[].repetitions` | integer |  | `1` | min 1 |
@@ -189,6 +190,37 @@ Paths are written as in the YAML: `a.b` is key `b` inside `a`; `items[]` is each
 | `trials[].correct.where.not.all` | list of object |  |  | min items 1 |
 | `trials[].correct.where.not.any` | list of object |  |  | min items 1 |
 | `trials[].correct.where.not.not` | object |  |  | Map of field path -> condition, all of which must hold. Combine with all / any / not. Keys such as target.role are dotted paths |
+| `trials[].rt_from` | object |  |  | Measure response times from the onset of the stimulus matching this predicate (same fields as correct.where: stimulus, phase, occurrence, index, trial, conditions), instead of from the stimulus on screen when the response happened. Use it when the response is to one particular stimulus of a longer sequence (the second Ǝ of an oddball sequence): the time is then from that stimulus even if a later one is already showing. A response before that stimulus has appeared has no response time |
+| `trials[].rt_from.all` | list of object |  |  | min items 1 |
+| `trials[].rt_from.all[].all` | list of object |  |  | min items 1 |
+| `trials[].rt_from.all[].any` | list of object |  |  | min items 1 |
+| `trials[].rt_from.all[].not` | object |  |  | Map of field path -> condition, all of which must hold. Combine with all / any / not. Keys such as target.role are dotted paths |
+| `trials[].rt_from.all[].not.all` | list of object |  |  | min items 1 |
+| `trials[].rt_from.all[].not.any` | list of object |  |  | min items 1 |
+| `trials[].rt_from.all[].not.not` | object |  |  | Map of field path -> condition, all of which must hold. Combine with all / any / not. Keys such as target.role are dotted paths |
+| `trials[].rt_from.any` | list of object |  |  | min items 1 |
+| `trials[].rt_from.any[].all` | list of object |  |  | min items 1 |
+| `trials[].rt_from.any[].any` | list of object |  |  | min items 1 |
+| `trials[].rt_from.any[].not` | object |  |  | Map of field path -> condition, all of which must hold. Combine with all / any / not. Keys such as target.role are dotted paths |
+| `trials[].rt_from.any[].not.all` | list of object |  |  | min items 1 |
+| `trials[].rt_from.any[].not.any` | list of object |  |  | min items 1 |
+| `trials[].rt_from.any[].not.not` | object |  |  | Map of field path -> condition, all of which must hold. Combine with all / any / not. Keys such as target.role are dotted paths |
+| `trials[].rt_from.not` | object |  |  | Map of field path -> condition, all of which must hold. Combine with all / any / not. Keys such as target.role are dotted paths |
+| `trials[].rt_from.not.all` | list of object |  |  | min items 1 |
+| `trials[].rt_from.not.all[].all` | list of object |  |  | min items 1 |
+| `trials[].rt_from.not.all[].any` | list of object |  |  | min items 1 |
+| `trials[].rt_from.not.all[].not` | object |  |  | Map of field path -> condition, all of which must hold. Combine with all / any / not. Keys such as target.role are dotted paths |
+| `trials[].rt_from.not.any` | list of object |  |  | min items 1 |
+| `trials[].rt_from.not.any[].all` | list of object |  |  | min items 1 |
+| `trials[].rt_from.not.any[].any` | list of object |  |  | min items 1 |
+| `trials[].rt_from.not.any[].not` | object |  |  | Map of field path -> condition, all of which must hold. Combine with all / any / not. Keys such as target.role are dotted paths |
+| `trials[].rt_from.not.not` | object |  |  | Map of field path -> condition, all of which must hold. Combine with all / any / not. Keys such as target.role are dotted paths |
+| `trials[].rt_from.not.not.all` | list of object |  |  | min items 1 |
+| `trials[].rt_from.not.not.any` | list of object |  |  | min items 1 |
+| `trials[].rt_from.not.not.not` | object |  |  | Map of field path -> condition, all of which must hold. Combine with all / any / not. Keys such as target.role are dotted paths |
+| `trials[].rt_from.not.not.not.all` | list of object |  |  | min items 1 |
+| `trials[].rt_from.not.not.not.any` | list of object |  |  | min items 1 |
+| `trials[].rt_from.not.not.not.not` | object |  |  | Map of field path -> condition, all of which must hold. Combine with all / any / not. Keys such as target.role are dotted paths |
 | `trials[].feedback` | one of several forms |  |  |  |
 | `trials[].feedback.correct` | string |  |  | min length 1 |
 | `trials[].feedback.incorrect` | string |  |  | min length 1 |

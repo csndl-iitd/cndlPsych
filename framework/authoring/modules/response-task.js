@@ -22,18 +22,32 @@ function instanceNode(ctx, planBlock, instance) {
   const items = sequenceItems(def, rng);
   const timeoutMs = def.timeout === undefined ? null : ctx.scale(drawDuration(def.timeout, rng.fork('timeout'), ctx.frameMs));
 
-  const state = { responses: [], occurrences: {}, ended: false, timedOut: false, phase: null, cancelTimer: null, unsubscribe: null, stimulusData: {} };
+  const targetMode = Boolean(def.rt_from); // the response is to one particular stimulus of the sequence (see rt_from in the schema)
+  const state = { origin: null, responses: [], occurrences: {}, ended: false, timedOut: false, phase: null, cancelTimer: null, unsubscribe: null, stimulusData: {} };
   const outcome = () => trialOutcome({ hasRule: Boolean(rule), responses: state.responses, timedOut: state.timedOut });
 
   // ---- responses -----------------------------------------------------------------
   const context = (phase) => ({ stimulus: phase.stimulus, phase: phase.name, occurrence: state.occurrences[phase.stimulus], index: phase.index, trial: number, ...conditions });
-  const inContext = (phase) => !rule?.where || matchesPredicate(rule.where, context(phase));
+  const inContextOf = (about) => !rule?.where || matchesPredicate(rule.where, about);
+  const inContext = (phase) => inContextOf(context(phase));
+
+  /**
+   * What a response is to. Normally the stimulus showing when it happens. With `rt_from`, once the matching stimulus
+   * has appeared, every response from then on is to that stimulus: it is timed from its onset and `correct.where` is
+   * evaluated for it, whichever later stimulus (or gap) is showing. Before it has appeared the response is to what is
+   * showing, and has no response time.
+   */
+  function aboutResponse(phase) {
+    if (targetMode && state.origin) return { about: state.origin.context, t0: state.origin.t };
+    return { about: context(phase), t0: targetMode ? null : (phase.onsetT ?? phase.loadedAt) };
+  }
 
   function evaluate(event) {
     const { phase } = state;
-    const correct = rule ? inContext(phase) && rule.intents.includes(event.data.intent) : null;
-    const rt = event.t - (phase.onsetT ?? phase.loadedAt);
-    state.responses.push({ correct, rt, phase: phase.name });
+    const { about, t0 } = aboutResponse(phase);
+    const correct = rule ? inContextOf(about) && rule.intents.includes(event.data.intent) : null;
+    const rt = t0 === null ? null : event.t - t0;
+    state.responses.push({ correct, rt, phase: about.phase });
     phase.responded = true;
     state.cancelTimer?.();
     ctx.bus.emit({
@@ -42,8 +56,8 @@ function instanceNode(ctx, planBlock, instance) {
       t: event.t,
       caused_by: event.seq,
       data: {
-        intent: event.data.intent, correct, rt_ms: rt, phase: phase.name, stimulus: phase.stimulus,
-        ...(rule ? { expected: rule.intents } : {}), occurrence: state.occurrences[phase.stimulus], rule: event.data.rule,
+        intent: event.data.intent, correct, rt_ms: rt, phase: about.phase, stimulus: about.stimulus,
+        ...(rule ? { expected: rule.intents } : {}), occurrence: about.occurrence, rule: event.data.rule,
       },
     });
     if (endOnResponse) state.ended = true;
@@ -51,17 +65,30 @@ function instanceNode(ctx, planBlock, instance) {
 
   function onSemantic(event) {
     const { phase } = state;
-    if (phase?.accepts && event.data.intent && accepted.includes(event.data.intent) && event.t >= phase.loadedAt) evaluate(event);
+    if (!state.ended && phase?.accepts && event.data.intent && accepted.includes(event.data.intent) && event.t >= phase.loadedAt) evaluate(event);
   }
 
   /** No response during a phase that matches the correct rule's context is a miss. */
   function missIfNeeded(phase) {
-    if (!rule || !phase.accepts || state.ended || phase.responded || !inContext(phase)) return;
+    if (targetMode || !rule || !phase.accepts || state.ended || phase.responded || !inContext(phase)) return;
     state.responses.push({ correct: false, rt: null, phase: phase.name });
     ctx.bus.emit({
       source: 'task',
       type: 'response.evaluated',
       data: { intent: null, correct: false, rt_ms: null, phase: phase.name, stimulus: phase.stimulus, expected: rule.intents, occurrence: state.occurrences[phase.stimulus] },
+    });
+  }
+
+  /** With `rt_from`: the target appeared and there was no response to it at all, which is a miss (reported once, at the end of the trial). */
+  function missTarget() {
+    if (!targetMode || !rule || state.responses.length || !state.origin || state.timedOut) return;
+    const { about } = aboutResponse(null);
+    if (!inContextOf(about)) return;
+    state.responses.push({ correct: false, rt: null, phase: about.phase });
+    ctx.bus.emit({
+      source: 'task',
+      type: 'response.evaluated',
+      data: { intent: null, correct: false, rt_ms: null, phase: about.phase, stimulus: about.stimulus, expected: rule.intents, occurrence: about.occurrence },
     });
   }
 
@@ -100,7 +127,7 @@ function instanceNode(ctx, planBlock, instance) {
       throw new Error(`phase "${name}" of trial "${def.name}" has no duration and nothing can end it; give the stimulus a duration or let the trial accept a response`);
     }
     const phase = { name, stimulus, index, accepts, onsetT: null, loadedAt: 0, responded: false };
-    return phaseTrial(ctx, {
+    const node = phaseTrial(ctx, {
       name,
       stimulus,
       html: render(stimulus),
@@ -115,6 +142,7 @@ function instanceNode(ctx, planBlock, instance) {
       },
       onOnset(t) {
         phase.onsetT = t;
+        if (targetMode && !state.origin && matchesPredicate(def.rt_from, context(phase))) state.origin = { t, context: context(phase) };
         if (accepts) startTimeout(phase, t);
       },
       onEnd() {
@@ -123,35 +151,58 @@ function instanceNode(ctx, planBlock, instance) {
       },
       reason: () => (state.timedOut ? 'task' : phase.responded && endOnResponse ? 'response' : 'duration'),
     });
+    return { node, phase };
   }
 
-  /** A blank screen of the given length (the gap after a stimulus or a trial); none for a gap of 0, which would still cost a frame. */
-  function gapPhase(after, spec, skip) {
-    const durationMs = ctx.scale(drawDuration(spec, rng.fork(`gap:${after}`), ctx.frameMs));
-    return durationMs > 0 ? phaseTrial(ctx, { name: `${after}_post`, html: () => '', durationMs, skip }) : null;
+  /**
+   * A blank screen of the given length (the gap after a stimulus or a trial); none for a gap of 0, which would still
+   * cost a frame. `after` is the phase of the stimulus before it when responses are still accepted during the gap
+   * (a response is then still a response to the sequence, as with `rt_from`).
+   */
+  function gapPhase(name, spec, skip, after = null) {
+    const durationMs = ctx.scale(drawDuration(spec, rng.fork(`gap:${name}`), ctx.frameMs));
+    if (durationMs <= 0) return null;
+    const gap = { ...after, accepts: after !== null, onsetT: null, loadedAt: 0, responded: false };
+    return phaseTrial(ctx, {
+      name: `${name}_post`,
+      html: () => '',
+      durationMs,
+      skip,
+      ...(after ? { accepted, endOnResponse } : {}),
+      onStart() {
+        state.phase = gap;
+        gap.loadedAt = ctx.clock.now();
+      },
+      onOnset(t) { gap.onsetT = t; },
+      onEnd() { state.phase = null; },
+      reason: () => (gap.responded && endOnResponse ? 'response' : 'duration'),
+    });
   }
 
   const skipWhenEnded = () => state.ended;
   const timeline = [];
-  if (def.start) timeline.push(stimulusPhase({ name: 'start', stimulusName: def.start }));
+  let lastStimulus = null; // the phase of the last stimulus of the sequence, when it accepts responses
+  if (def.start) timeline.push(stimulusPhase({ name: 'start', stimulusName: def.start }).node);
 
   items.forEach((item, i) => {
     const { name: stimulus, definition } = stimulusFor(item.stimulus);
     const name = item.phase ?? stimulus;
     const accepts = accepted.length > 0 && (def.response_window === 'any' || i === items.length - 1);
-    timeline.push(stimulusPhase({ name, stimulusName: item.stimulus, duration: item.duration, accepts, index: i + 1, skip: skipWhenEnded }));
+    const shown = stimulusPhase({ name, stimulusName: item.stimulus, duration: item.duration, accepts, index: i + 1, skip: skipWhenEnded });
+    timeline.push(shown.node);
+    lastStimulus = accepts ? shown.phase : null;
     const post = item.post ?? definition.post;
-    const gap = post === undefined ? null : gapPhase(name, post, skipWhenEnded);
+    const gap = post === undefined ? null : gapPhase(name, post, skipWhenEnded, targetMode ? lastStimulus : null);
     if (gap) timeline.push(gap);
   });
 
   // Feedback: every branch is built up front and shown only for its outcome.
   const feedback = typeof def.feedback === 'string' ? { always: def.feedback } : (def.feedback ?? {});
   for (const [when, name] of Object.entries(feedback)) {
-    timeline.push(stimulusPhase({ name: 'feedback', stimulusName: name, skip: () => when !== 'always' && outcome() !== when }));
+    timeline.push(stimulusPhase({ name: 'feedback', stimulusName: name, skip: () => when !== 'always' && outcome() !== when }).node);
   }
-  if (def.end) timeline.push(stimulusPhase({ name: 'end', stimulusName: def.end }));
-  const trialGap = def.post === undefined ? null : gapPhase('trial', def.post);
+  if (def.end) timeline.push(stimulusPhase({ name: 'end', stimulusName: def.end }).node);
+  const trialGap = def.post === undefined ? null : gapPhase('trial', def.post, skipWhenEnded, targetMode && !def.end && !def.feedback ? lastStimulus : null);
   if (trialGap) timeline.push(trialGap);
 
   return {
@@ -166,6 +217,7 @@ function instanceNode(ctx, planBlock, instance) {
     on_timeline_finish() {
       state.cancelTimer?.();
       state.unsubscribe?.();
+      missTarget();
       const first = state.responses.find((r) => r.rt !== null);
       ctx.bus.emit({ source: 'task', type: 'trial.end', data: { trial: number, outcome: outcome(), rt_ms: first ? first.rt : null } });
       ctx.mapping.reset('trial');

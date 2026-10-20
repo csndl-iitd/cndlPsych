@@ -46,6 +46,7 @@ function checkStimulusReferences(ctx) {
     block.config.trials.forEach((trial, t) => {
       const where = trial.correct?.where?.stimulus;
       checkStimulusNames(ctx, literalNames(where), FILES.timeline, [...path, 'config', 'trials', t, 'correct', 'where', 'stimulus']);
+      checkStimulusNames(ctx, literalNames(trial.rt_from?.stimulus), FILES.timeline, [...path, 'config', 'trials', t, 'rt_from', 'stimulus']);
     });
   });
   for (const { file, path, triggers } of writtenScopes(ctx)) {
