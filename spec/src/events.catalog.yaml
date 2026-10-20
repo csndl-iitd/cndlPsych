@@ -145,6 +145,13 @@ events:
       trial: {type: integer, minimum: 1}
       outcome: {enum: [correct, incorrect, timeout, none, completed]}
       rt_ms: {type: [number, "null"]}
+  overlay.photodiode:
+    source: system
+    doc: The photodiode patch changed (turned light or dark). t is when the page changed it; the screen shows it a frame or so later.
+    required: [lit]
+    data:
+      lit: {type: boolean}
+      mode: {enum: [toggle, pulse]}
   page.visibility:
     source: system
     required: [state]

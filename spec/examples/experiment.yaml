@@ -35,6 +35,10 @@ input:
     tablet: { hit_padding: 10mm }
 
 triggers:
+  # This example keeps its own trigger codes (stimuli 1-11, responses 21-23, search 30-33), which overlap the
+  # universal (1-10) and semantic (11 and up) codes every experiment gets by default, so they are switched off here.
+  universal: false
+  semantic: false
   sinks:
     - id: eeg_serial
       type: serial

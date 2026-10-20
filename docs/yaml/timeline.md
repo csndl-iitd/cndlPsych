@@ -65,7 +65,7 @@ Paths are written as in the YAML: `a.b` is key `b` inside `a`; `items[]` is each
 | `blocks[].triggers.enabled` | boolean |  | `true` | false silences all triggers in this scope (e.g. practice) |
 | `blocks[].triggers.reset` | boolean |  | `false` |  |
 | `blocks[].triggers.rules` | list of object |  |  |  |
-| `blocks[].triggers.rules[].id` | string | yes |  | Trigger rule id. Inline 'trigger:' values in stimuli.yaml compile to rules with the reserved id stim:<stimulus name>, so blocks can override them. pattern `"^(stim:)?[\\p{L}_][\\p{L}\\p{N}_.-]*$"` |
+| `blocks[].triggers.rules[].id` | string | yes |  | Trigger rule id. Inline 'trigger:' values in stimuli.yaml compile to rules with the reserved id stim:<stimulus name>, so blocks can override them. The built-in universal and semantic triggers have the ids universal:<name> and semantic:<intent> (a block can disable or change them). pattern `"^((stim\|universal\|semantic):)?[\\p{L}_][\\p{L}\\p{N}_.-]*$"` |
 | `blocks[].triggers.rules[].on` | string |  |  | Namespaced event name. A trailing '*' segment is a glob (input.*). pattern `"^[a-z][a-z0-9_]*(\\.([a-z0-9_]+\|\\*))*$"` |
 | `blocks[].triggers.rules[].where` | object |  |  | Map of field path -> condition, all of which must hold. Combine with all / any / not. Keys such as target.role are dotted paths |
 | `blocks[].triggers.rules[].where.all` | list of object |  |  | min items 1 |
@@ -314,7 +314,7 @@ Paths are written as in the YAML: `a.b` is key `b` inside `a`; `items[]` is each
 | `trials[].triggers.enabled` | boolean |  | `true` | false silences all triggers in this scope (e.g. practice) |
 | `trials[].triggers.reset` | boolean |  | `false` |  |
 | `trials[].triggers.rules` | list of object |  |  |  |
-| `trials[].triggers.rules[].id` | string | yes |  | Trigger rule id. Inline 'trigger:' values in stimuli.yaml compile to rules with the reserved id stim:<stimulus name>, so blocks can override them. pattern `"^(stim:)?[\\p{L}_][\\p{L}\\p{N}_.-]*$"` |
+| `trials[].triggers.rules[].id` | string | yes |  | Trigger rule id. Inline 'trigger:' values in stimuli.yaml compile to rules with the reserved id stim:<stimulus name>, so blocks can override them. The built-in universal and semantic triggers have the ids universal:<name> and semantic:<intent> (a block can disable or change them). pattern `"^((stim\|universal\|semantic):)?[\\p{L}_][\\p{L}\\p{N}_.-]*$"` |
 | `trials[].triggers.rules[].on` | string |  |  | Namespaced event name. A trailing '*' segment is a glob (input.*). pattern `"^[a-z][a-z0-9_]*(\\.([a-z0-9_]+\|\\*))*$"` |
 | `trials[].triggers.rules[].where` | object |  |  | Map of field path -> condition, all of which must hold. Combine with all / any / not. Keys such as target.role are dotted paths |
 | `trials[].triggers.rules[].where.all` | list of object |  |  | min items 1 |

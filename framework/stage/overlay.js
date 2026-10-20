@@ -97,7 +97,11 @@ export function createOverlay({ root, bus, spec = {}, calibration = {}, viewport
     watcher = new doc.defaultView.ResizeObserver(place);
     watcher.observe(root);
     const triggers = (m.diode.on ?? [{ on: 'phase.onset' }]).map(compileStep);
-    const show = (on) => { lit = on; patch.style.background = on ? '#fff' : '#000'; };
+    const show = (on) => {
+      lit = on;
+      patch.style.background = on ? '#fff' : '#000';
+      bus.emit({ source: 'system', type: 'overlay.photodiode', data: { lit: on, mode: m.diode.mode ?? 'toggle' } });
+    };
     bus.on('*', (event) => {
       if (!triggers.some((matches) => matches(event))) return;
       if (m.diode.mode === 'pulse') {

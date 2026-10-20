@@ -82,6 +82,19 @@ input:
 # ---- triggers to external equipment (EEG, eye tracker, ...) ---------------------------------------
 # triggers:
 #   enabled: true
+#   # Sent without writing rules (a block or trial can disable them: ids universal:<name>, semantic:<intent>):
+#   universal:                # everything physical, values 1-10 (false for a name drops it; false for all switches them off)
+#     key_down: 1
+#     pointer_down: 2         # mouse or touch press
+#     tap: 3
+#     longpress: 4
+#     swipe: 5
+#     drag: 6
+#     key_up: 7
+#     pointer_up: 8
+#     photodiode_on: 9
+#     photodiode_off: 10
+#   semantic: auto            # auto: each intent of the experiment gets its own value from 11 up; or { go: 11, next: 12 }; false: none
 #   sinks:
 #     - { id: eeg, type: serial, format: raw, template: "{value:02x}", baud: 115200, required: true }
 #     # - { id: lab, type: websocket, format: ndjson, url: "ws://localhost:8765", fields: [seq, value, event, t_event, t_sent], reconnect: { enabled: true, max_delay_ms: 5000 } }

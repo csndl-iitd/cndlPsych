@@ -669,6 +669,164 @@
           },
           "additionalProperties": false
         },
+        "universal": {
+          "description": "Triggers for everything physical, one value from 1 to 10 each, sent without writing rules: key_down, pointer_down (mouse or touch), tap, longpress, swipe, drag, key_up, pointer_up, and the photodiode patch turning on and off. Give values by name to change them (false drops one); false switches all of them off. Keep your own codes at 11 and above. They are ordinary rules (id universal:<name>), so a block or trial can disable them.\n",
+          "anyOf": [
+            {
+              "const": false
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "key_down": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 10
+                    },
+                    {
+                      "const": false
+                    }
+                  ]
+                },
+                "pointer_down": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 10
+                    },
+                    {
+                      "const": false
+                    }
+                  ]
+                },
+                "tap": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 10
+                    },
+                    {
+                      "const": false
+                    }
+                  ]
+                },
+                "longpress": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 10
+                    },
+                    {
+                      "const": false
+                    }
+                  ]
+                },
+                "swipe": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 10
+                    },
+                    {
+                      "const": false
+                    }
+                  ]
+                },
+                "drag": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 10
+                    },
+                    {
+                      "const": false
+                    }
+                  ]
+                },
+                "key_up": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 10
+                    },
+                    {
+                      "const": false
+                    }
+                  ]
+                },
+                "pointer_up": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 10
+                    },
+                    {
+                      "const": false
+                    }
+                  ]
+                },
+                "photodiode_on": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 10
+                    },
+                    {
+                      "const": false
+                    }
+                  ]
+                },
+                "photodiode_off": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 10
+                    },
+                    {
+                      "const": false
+                    }
+                  ]
+                }
+              }
+            }
+          ],
+          "default": {}
+        },
+        "semantic": {
+          "description": "Triggers for the intents the experiment responds to (go, next, ...), sent when an intent is handed to the response window. auto = every intent gets its own value, counting up from 11 in name order; or give the values by intent name (11 and above); false = none. They are ordinary rules (id semantic:<intent>).\n",
+          "anyOf": [
+            {
+              "const": "auto"
+            },
+            {
+              "const": false
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "$ref": "common.schema.json#/definitions/intent_name"
+              },
+              "additionalProperties": {
+                "type": "integer",
+                "minimum": 11,
+                "maximum": 255
+              }
+            }
+          ],
+          "default": "auto"
+        },
         "rules": {
           "$ref": "#/definitions/rules"
         },

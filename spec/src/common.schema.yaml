@@ -18,9 +18,10 @@ definitions:
   rule_id:
     description: >
       Trigger rule id. Inline 'trigger:' values in stimuli.yaml compile to rules
-      with the reserved id stim:<stimulus name>, so blocks can override them.
+      with the reserved id stim:<stimulus name>, so blocks can override them. The built-in universal and semantic
+      triggers have the ids universal:<name> and semantic:<intent> (a block can disable or change them).
     type: string
-    pattern: "^(stim:)?[\\p{L}_][\\p{L}\\p{N}_.-]*$"
+    pattern: "^((stim|universal|semantic):)?[\\p{L}_][\\p{L}\\p{N}_.-]*$"
     maxLength: 70
 
   ident:

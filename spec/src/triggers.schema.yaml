@@ -195,6 +195,40 @@ definitions:
         properties:
           min_gap_ms: {type: number, minimum: 0, default: 0}
         additionalProperties: false
+      universal:
+        description: >
+          Triggers for everything physical, one value from 1 to 10 each, sent without writing rules: key_down, pointer_down
+          (mouse or touch), tap, longpress, swipe, drag, key_up, pointer_up, and the photodiode patch turning on and off.
+          Give values by name to change them (false drops one); false switches all of them off. Keep your own codes
+          at 11 and above. They are ordinary rules (id universal:<name>), so a block or trial can disable them.
+        anyOf:
+          - {const: false}
+          - type: object
+            additionalProperties: false
+            properties:
+              key_down: &universal_value {anyOf: [{type: integer, minimum: 1, maximum: 10}, {const: false}]}
+              pointer_down: *universal_value
+              tap: *universal_value
+              longpress: *universal_value
+              swipe: *universal_value
+              drag: *universal_value
+              key_up: *universal_value
+              pointer_up: *universal_value
+              photodiode_on: *universal_value
+              photodiode_off: *universal_value
+        default: {}
+      semantic:
+        description: >
+          Triggers for the intents the experiment responds to (go, next, ...), sent when an intent is handed to the
+          response window. auto = every intent gets its own value, counting up from 11 in name order; or give the values by
+          intent name (11 and above); false = none. They are ordinary rules (id semantic:<intent>).
+        anyOf:
+          - {const: auto}
+          - {const: false}
+          - type: object
+            propertyNames: {$ref: "common.schema.json#/definitions/intent_name"}
+            additionalProperties: {type: integer, minimum: 11, maximum: 255}
+        default: auto
       rules: {$ref: "#/definitions/rules"}
       disable: {$ref: "#/definitions/disable"}
     additionalProperties: false

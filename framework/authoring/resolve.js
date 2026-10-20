@@ -6,6 +6,7 @@ import { blockProfiles, FILES, taskManifest } from './context.js';
 import { INPUT_DEFAULTS } from './defaults.js';
 import { resolveInput } from './cascade-input.js';
 import { resolveTriggers } from './cascade-triggers.js';
+import { intentNames, semanticRules, universalRules } from './universal-triggers.js';
 
 const TIMELINE = FILES.timeline;
 
@@ -18,6 +19,12 @@ function stimulusTriggerScope(ctx, block, blockPath) {
     rules.push({ id: `stim:${name}`, on: 'phase.onset', where: { stimulus: name }, value: entry.stimulus.trigger });
   }
   return { rules };
+}
+
+/** The universal (physical events) and semantic (intents) triggers every experiment gets; see universal-triggers.js. */
+function builtInTriggerScope(ctx) {
+  const { universal, semantic } = ctx.experiment.triggers ?? {};
+  return { rules: [...universalRules(universal), ...semanticRules(semantic, intentNames(ctx.experiment, ctx.timeline))] };
 }
 
 function reportUnknownDisables(report, unknown) {
@@ -72,6 +79,7 @@ function resolveBlock(ctx, block, index, scopes) {
     { scope: ctx.experiment.input, file: FILES.experiment, path: ['input'] },
   ];
   const baseTriggers = [
+    { scope: builtInTriggerScope(ctx), file: 'framework defaults', path: [] },
     { scope: stimulusTriggerScope(ctx, block, path), file: FILES.stimuli, path: [] },
     { scope: ctx.experiment.triggers, file: FILES.experiment, path: ['triggers'] },
   ];

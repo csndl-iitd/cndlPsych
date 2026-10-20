@@ -125,8 +125,20 @@ Paths are written as in the YAML: `a.b` is key `b` inside `a`; `items[]` is each
 | `triggers.sinks` | list of one of several forms |  |  |  |
 | `triggers.defaults` | object |  |  |  |
 | `triggers.defaults.min_gap_ms` | number |  | `0` | min 0 |
+| `triggers.universal` | one of several forms |  | `{}` | Triggers for everything physical, one value from 1 to 10 each, sent without writing rules: key_down, pointer_down (mouse or touch), tap, longpress, swipe, drag, key_up, pointer_up, and the photodiode patch turning on and off. Give values by name to change them (false drops one); false switches all of them off. Keep your own codes at 11 and above. They are ordinary rules (id universal:<name>), so a block or trial can disable them |
+| `triggers.universal.key_down` | one of several forms |  |  |  |
+| `triggers.universal.pointer_down` | one of several forms |  |  |  |
+| `triggers.universal.tap` | one of several forms |  |  |  |
+| `triggers.universal.longpress` | one of several forms |  |  |  |
+| `triggers.universal.swipe` | one of several forms |  |  |  |
+| `triggers.universal.drag` | one of several forms |  |  |  |
+| `triggers.universal.key_up` | one of several forms |  |  |  |
+| `triggers.universal.pointer_up` | one of several forms |  |  |  |
+| `triggers.universal.photodiode_on` | one of several forms |  |  |  |
+| `triggers.universal.photodiode_off` | one of several forms |  |  |  |
+| `triggers.semantic` | one of several forms |  | `"auto"` | Triggers for the intents the experiment responds to (go, next, ...), sent when an intent is handed to the response window. auto = every intent gets its own value, counting up from 11 in name order; or give the values by intent name (11 and above); false = none. They are ordinary rules (id semantic:<intent>) |
 | `triggers.rules` | list of object |  |  |  |
-| `triggers.rules[].id` | string | yes |  | Trigger rule id. Inline 'trigger:' values in stimuli.yaml compile to rules with the reserved id stim:<stimulus name>, so blocks can override them. pattern `"^(stim:)?[\\p{L}_][\\p{L}\\p{N}_.-]*$"` |
+| `triggers.rules[].id` | string | yes |  | Trigger rule id. Inline 'trigger:' values in stimuli.yaml compile to rules with the reserved id stim:<stimulus name>, so blocks can override them. The built-in universal and semantic triggers have the ids universal:<name> and semantic:<intent> (a block can disable or change them). pattern `"^((stim\|universal\|semantic):)?[\\p{L}_][\\p{L}\\p{N}_.-]*$"` |
 | `triggers.rules[].on` | string |  |  | Namespaced event name. A trailing '*' segment is a glob (input.*). pattern `"^[a-z][a-z0-9_]*(\\.([a-z0-9_]+\|\\*))*$"` |
 | `triggers.rules[].where` | object |  |  | Map of field path -> condition, all of which must hold. Combine with all / any / not. Keys such as target.role are dotted paths |
 | `triggers.rules[].where.all` | list of object |  |  | min items 1 |

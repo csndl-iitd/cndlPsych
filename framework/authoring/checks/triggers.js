@@ -2,6 +2,7 @@
 // sinks, and no value carries two meanings or fires twice by accident.
 import { FILES, writtenScopes } from '../context.js';
 import { sinkProblems } from '../../foundation/format.js';
+import { isGenerated } from '../universal-triggers.js';
 
 const ENVELOPE_FIELDS = new Set(['block', 'trial', 'phase']);
 const COMBINATORS = ['all', 'any', 'not'];
@@ -122,7 +123,7 @@ function checkResolved(ctx, scope, reported) {
     const key = `${code}|${message}`;
     if (reported.has(key)) return;
     reported.add(key);
-    (code === 'double-fire' ? ctx.report.warn : ctx.report.error)(code, scope.file, scope.path, message);
+    (['double-fire', 'trigger-value-reserved'].includes(code) ? ctx.report.warn : ctx.report.error)(code, scope.file, scope.path, message);
   };
 
   rules.forEach((a, i) => {
@@ -130,7 +131,9 @@ function checkResolved(ctx, scope, reported) {
       if (!shareSink(a, b, allSinks)) continue;
       const values = Number.isInteger(a.value) && Number.isInteger(b.value);
       if (values && a.value === b.value && !sameMeaning(a, b)) {
-        once('value-collision', `trigger value ${a.value} is used by rules "${a.id}" and "${b.id}" for different events`);
+        if (isGenerated(a) && isGenerated(b)) once('value-collision', `trigger value ${a.value} is used by rules "${a.id}" and "${b.id}" for different events`);
+        else if (isGenerated(a) || isGenerated(b)) once('trigger-value-reserved', `trigger value ${a.value} is used by rule "${(isGenerated(a) ? b : a).id}" and also by the built-in rule "${(isGenerated(a) ? a : b).id}"; use another value (1-10 are for universal triggers, semantic triggers count up from 11)`);
+        else once('value-collision', `trigger value ${a.value} is used by rules "${a.id}" and "${b.id}" for different events`);
       }
       const compatible = !a.where || !b.where || JSON.stringify(a.where) === JSON.stringify(b.where);
       if (eventsOverlap(a.on, b.on) && compatible && !a.allow_multiple && !b.allow_multiple) {

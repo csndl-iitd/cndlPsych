@@ -189,6 +189,7 @@
             "block.end",
             "trial.start",
             "trial.end",
+            "overlay.photodiode",
             "page.visibility",
             "page.focus",
             "page.fullscreen",
@@ -727,6 +728,43 @@
             "required": [
               "trial",
               "outcome"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "overlay.photodiode"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "source": {
+            "const": "system"
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "lit": {
+                "type": "boolean"
+              },
+              "mode": {
+                "enum": [
+                  "toggle",
+                  "pulse"
+                ]
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "lit"
             ]
           }
         }
