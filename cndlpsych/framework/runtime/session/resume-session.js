@@ -75,7 +75,8 @@ export async function resumeSession(run, item) {
   let store = local;
   if (mirror.mirrorable) {
     const claimNumber = saved.remote.claim_n;
-    const remoteStore = remote.store({ claim: { n: claimNumber }, onProgress: (progress) => local.setRemote({ claim_n: claimNumber, ...progress }) });
+    const reused = saved.remote.claim_reused === true;
+    const remoteStore = remote.store({ claim: { n: claimNumber, ...(reused ? { reused } : {}) }, onProgress: (progress) => local.setRemote({ claim_n: claimNumber, ...(reused ? { claim_reused: true } : {}), ...progress }) });
     remoteStore.resume(record, saved.remote, saved.events);
     store = mirrored(local, remoteStore);
   }

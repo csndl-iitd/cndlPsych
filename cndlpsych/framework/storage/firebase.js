@@ -65,6 +65,11 @@ function createOps({ fs, db, experimentId, uid }) {
     },
     async listClaimNumbers() { return (await fs.getDocs(fs.collection(db, `${base}/claims`))).docs.map((d) => d.data().n); },
     createClaim: (n, label) => fs.setDoc(claimRef(n), claimData(n, label)),
+    /** The sessions of a subject ID in this experiment, whoever ran them (needs the collection group index and an admin). */
+    async findSessions(label) {
+      const found = fs.query(fs.collectionGroup(db, 'sessions'), fs.where('experiment_id', '==', experimentId), fs.where('subject_id', '==', label));
+      return (await fs.getDocs(found)).docs.map((d) => d.data());
+    },
     setClaimStatus: (n, status) => fs.updateDoc(claimRef(n), { status }),
     createSession: (key, doc) => fs.setDoc(sessionRef(key), doc),
     updateSession: (key, fields) => fs.updateDoc(sessionRef(key), fields),
@@ -96,17 +101,20 @@ export async function connectFirebase({ config, sdk, emulator, appName = '[DEFAU
 }
 
 /** The subject number this connection will use. Public: assigned now. Controlled: see suggestSubject. */
-export async function allocateSubject(connection, { override = null } = {}) {
+export async function allocateSubject(connection, { override = null, reuse = false } = {}) {
   // Random-looking but reproducible per user: lost races are retried after different pauses.
   const rng = createRng(0).fork(connection.uid);
   const options = { width: connection.width, wait: (attempt) => pause(rng.int(0, Math.min(400, 15 * 2 ** attempt))) };
   return connection.access === 'public'
     ? allocatePublic(connection.ops, options)
-    : allocateControlled(connection.ops, { ...options, override });
+    : allocateControlled(connection.ops, { ...options, override, reuse });
 }
 
 /** Controlled mode: the number to prefill in the subject form. */
 export const suggestSubject = (connection) => suggestControlled(connection.ops, { width: connection.width });
+
+/** Earlier sessions of a subject ID (`label` like "sub-007"): their answers and ids, for filling in the form. */
+export const subjectSessions = (connection, label) => connection.ops.findSessions(label);
 
 /** Has this subject number been claimed already (whatever its state)? */
 export const subjectNumberTaken = async (connection, n) => (await connection.ops.listClaimNumbers()).includes(n);
@@ -216,7 +224,7 @@ export function createFirebaseStore({ connection, claim, config, onProgress = ()
       chain = chain.then(async () => {
         try {
           await ops.createSession(key, doc);
-          await ops.setClaimStatus(claim.n, 'active');
+          if (!claim.reused) await ops.setClaimStatus(claim.n, 'active'); // a number used again keeps the state of its first use
           setStatus('ready');
         } catch (error) {
           fail(error);
@@ -268,8 +276,10 @@ export function createFirebaseStore({ connection, claim, config, onProgress = ()
         const fields = plain(Object.fromEntries(SESSION_END_KEYS.filter((name) => record[name] !== undefined).map((name) => [name, record[name]])));
         try {
           await ops.updateSession(key, { ...fields, n_chunks: nextChunk, last_seq: record.last_seq ?? lastSeq });
-          if (record.status === 'complete') await ops.setClaimStatus(claim.n, 'complete');
-          else if (record.status === 'device_rejected') await ops.setClaimStatus(claim.n, 'void');
+          if (!claim.reused) { // a number used again keeps the state its first use gave it
+            if (record.status === 'complete') await ops.setClaimStatus(claim.n, 'complete');
+            else if (record.status === 'device_rejected') await ops.setClaimStatus(claim.n, 'void');
+          }
         } catch (error) {
           fail(error);
         }
