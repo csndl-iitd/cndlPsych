@@ -9,12 +9,13 @@
 //   cndlpsych migrate <dir>         upgrade spec_version
 //   cndlpsych export-firestore ...  export Firestore sessions as BIDS
 //   cndlpsych relay ...             trigger relay (WebSocket to serial)
+//   cndlpsych listen ...            receive triggers on a WebSocket, show them, optionally write a CSV
 import { spawnSync } from 'node:child_process';
 import { join } from 'node:path';
 
 const COMMANDS = {
   init: 'init.js', validate: 'validate.js', 'dry-run': 'dry-run.js', serve: 'serve.js', deploy: 'deploy.js', migrate: 'migrate.js',
-  'export-firestore': 'export-firestore.js', relay: 'relay.js',
+  'export-firestore': 'export-firestore.js', relay: 'relay.js', listen: 'listen.js',
 };
 
 const [name, ...args] = process.argv.slice(2);

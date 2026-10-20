@@ -15,7 +15,7 @@ Browser experiment framework (cndlpsych). Experimenters write four YAML files an
 
 Edit `experiment.yaml`, `stimuli.yaml`, `timeline.yaml`, `forms.yaml`, `consent.md`; `cndlpsych/` is the bundled framework and is never edited. Every setting is documented in `docs/yaml/` (generated from the schemas). The same commands are available as `cndlpsych <command>` once the package is installed (`bin`).
 
-Other commands: `cndlpsych migrate <dir>` (spec_version), `cndlpsych export-firestore ...` (BIDS from Firestore), `cndlpsych relay ...` (WebSocket to serial; see `docs/triggers.md`).
+Other commands: `cndlpsych migrate <dir>` (spec_version), `cndlpsych export-firestore ...` (BIDS from Firestore), `cndlpsych relay ...` (WebSocket to serial; see `docs/triggers.md`), `cndlpsych listen ...` (receive triggers on a WebSocket and show them; see `docs/triggers.md`).
 
 Webcam recording is a setting (`webcam:` in experiment.yaml, commented out in the template): the video is written to a file on disk (Chrome, Edge) or downloaded separately, never into the exported zip and not to Firebase.
 

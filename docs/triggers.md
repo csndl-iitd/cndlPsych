@@ -30,6 +30,22 @@
 | `usb` (WebUSB) | Chrome / Edge, including Android | No acknowledgements. |
 | `websocket` | every browser | Use it with the relay for phones and other browsers. |
 
+## Listening without a device
+
+To see what an experiment sends before a device is connected, or to keep a log next to a recording, run the listener and point a websocket sink at it:
+
+```
+node cli/cndlpsych.js listen --ack --csv triggers.csv       # ws://127.0.0.1:8765
+```
+
+```yaml
+triggers:
+  sinks:
+    - { id: lab, type: websocket, url: "ws://localhost:8765", format: ndjson, fields: [seq, value, event, rule, t_event, t_sent], ack: true }
+```
+
+Each trigger is shown on one line (time received, value, the event that caused it, the other fields the sink sends); text and binary (format `raw`, `template`) are shown as they are. `--ack` answers every trigger so the browser measures the round trip, pings are always answered, `--csv` writes a row per trigger, and Ctrl+C prints how many of each value arrived. Nothing is written to a device; use the relay for that.
+
 ## The relay
 
 ```
