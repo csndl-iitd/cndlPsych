@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { expect, test } from '@playwright/test';
 import { answerConsent, answerSubject, clickContinue, continueDeviceScreen } from '../tools/e2e/session-helpers.js';
+import { quietMode } from '../tools/e2e/project.js';
 import { initProject } from './init.js';
 import { serveDirectory } from './serve.js';
 import { validateProject } from './validate.js';
@@ -26,6 +27,7 @@ test.afterEach(() => { if (dir) rmSync(join(dir, '..'), { recursive: true, force
 function project({ eyetracking }) {
   dir = join(mkdtempSync(join(tmpdir(), 'cndlpsych-addon-')), 'study');
   initProject(dir, { eyetracking });
+  quietMode(dir);
   const file = join(dir, 'experiment.yaml');
   writeFileSync(file, readFileSync(file, 'utf8') + EYE);
 }

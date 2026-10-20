@@ -65,6 +65,7 @@ events:
       framework_version: {type: string}
       seed: {type: integer}
       profile: {type: string}
+      mode: {enum: [live, test]}
   session.clock_anchor:
     source: system
     doc: Maps page time to wall time. wall = time_origin_ms + t.

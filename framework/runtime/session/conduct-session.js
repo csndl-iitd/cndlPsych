@@ -17,9 +17,9 @@ export async function conductSession({ run, store, profile, inputProfiles, seed,
   const measured = await refresh;
   if (measured) services.setFrameMs(measured.frameMs);
   try {
-    await runBlocks({ services, plan: project.plan, profile, seed, answers, resume, beforeBlock: eye.beforeBlock });
+    await runBlocks({ services, plan: project.plan, profile, seed, answers, resume, beforeBlock: eye.beforeBlock, trialLimit: run.mode?.trialLimit });
   } catch (error) {
     return stopSession({ services, finish, eye, error });
   }
-  return completeSession({ services, project, store, finish, eye });
+  return completeSession({ services, project, store, finish, eye, mode: run.mode });
 }

@@ -1,6 +1,6 @@
 // Play a whole experiment with a synthetic participant and print what happened.
 //
-//   node cli/dry-run.js <project-dir> [--profile desktop|phone|tablet] [--scale 0.1]
+//   node cli/dry-run.js <project-dir> [--profile desktop|phone|tablet] [--mode live|test] [--scale 0.1]
 //                       [--events] [--json out.json] [--timeout 300]
 //
 // It opens your project in headless Chromium (Playwright; `npx playwright install chromium`
@@ -142,12 +142,13 @@ export function summarise({ events, record, status, devices, responses, stuck })
  * @param {{dir: string, profile?: string, scale?: number, timeoutS?: number, log?: (text: string) => void}} options
  * @returns {Promise<{status: string, events: object[], record: object|null, devices: object[], responses: number, stuck?: string}>}
  */
-export async function dryRun({ dir, profile = 'desktop', scale = 0.1, timeoutS = 300 }) {
+export async function dryRun({ dir, profile = 'desktop', scale = 0.1, timeoutS = 300, mode = 'live' }) {
   const { chromium, devices } = await import('@playwright/test');
   const rewrite = (path, body) => {
     if (path !== '/experiment.yaml') return body;
     const doc = parseYaml(body.toString('utf8'));
     doc.debug = { ...doc.debug, enabled: true, time_scale: scale, simulate_profile: profile };
+    doc.modes = { ...doc.modes, enabled: false, default: mode }; // no first screen: the mode is the one asked for (--mode)
     doc.storage = { ...doc.storage, local: { ...doc.storage?.local, enabled: false, export_on_finish: [] } };
     if (doc.storage.firebase) doc.storage.firebase.enabled = false;
     if (doc.eyetracking) doc.eyetracking.enabled = false;
@@ -195,12 +196,12 @@ export async function dryRun({ dir, profile = 'desktop', scale = 0.1, timeoutS =
 
 async function main() {
   const { values, positionals } = parseArgs({ allowPositionals: true, options: {
-    profile: { type: 'string', default: 'desktop' }, scale: { type: 'string', default: '0.1' }, events: { type: 'boolean', default: false }, json: { type: 'string' }, timeout: { type: 'string', default: '300' },
+    profile: { type: 'string', default: 'desktop' }, mode: { type: 'string', default: 'live' }, scale: { type: 'string', default: '0.1' }, events: { type: 'boolean', default: false }, json: { type: 'string' }, timeout: { type: 'string', default: '300' },
   } });
   if (!PROFILES.includes(values.profile)) throw new Error(`--profile must be one of ${PROFILES.join(', ')}`);
   const dir = resolve(positionals[0] ?? '.');
   readFileSync(join(dir, 'experiment.yaml')); // fail early with a clear error when this is not a project
-  const result = await dryRun({ dir, profile: values.profile, scale: Number(values.scale), timeoutS: Number(values.timeout) });
+  const result = await dryRun({ dir, profile: values.profile, scale: Number(values.scale), timeoutS: Number(values.timeout), mode: values.mode });
   if (values.events) console.log(result.events.map(line).join('\n'), '\n');
   console.log(summarise(result));
   if (result.problems?.length) console.log('\npage errors:', ...result.problems.map((p) => `\n  ${p}`));

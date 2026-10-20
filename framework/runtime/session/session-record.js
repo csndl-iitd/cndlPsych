@@ -27,7 +27,7 @@ export function buildSessionRecord({ run, ids, answers, gate, consent, device, s
   const { services, project, remote, env } = run;
   const { plan } = project;
   const { rect } = services.stage;
-  return createSessionRecord({
+  const record = createSessionRecord({
     subjectId: ids.subjectId,
     sessionId: ids.sessionId,
     startedAt: isoNow(),
@@ -49,4 +49,5 @@ export function buildSessionRecord({ run, ids, answers, gate, consent, device, s
     sinks: sinkRecord(services.sinkSet, remote),
     overlays: services.overlay.record(),
   });
+  return run.mode?.test ? { ...record, mode: 'test' } : record;
 }

@@ -34,6 +34,42 @@ properties:
     uniqueItems: true
     items: {type: string, minLength: 1}
 
+  # ---- modes ------------------------------------------------------------------
+  modes:
+    description: >
+      Live and test mode. The first screen of a session asks which one to run (an experiment with public
+      Firebase access never asks: it is live; ?mode=test or ?mode=live in the address chooses without asking).
+      Live is the real thing: participant numbers are kept and every trial runs. Test is for trying the experiment
+      out: at most trials_per_block trials in each block of trials (block_trials gives a number for a block), a
+      throwaway participant ID that is not claimed or sent to Firebase, and the session is marked as a test in its
+      record and in the name of its download.
+    type: object
+    additionalProperties: false
+    properties:
+      enabled: {type: boolean, default: true, description: "false: no first screen, the mode in 'default' is used"}
+      default: {enum: [live, test], default: live, description: "the mode selected on the first screen"}
+      test:
+        type: object
+        additionalProperties: false
+        properties:
+          trials_per_block: {type: integer, minimum: 1, default: 3, description: "at most this many trials in each block of trials"}
+          block_trials:
+            description: Trials for particular blocks (by block id); wins over trials_per_block.
+            type: object
+            propertyNames: {$ref: "common.schema.json#/definitions/id"}
+            additionalProperties: {type: integer, minimum: 1}
+          subject_id: {type: string, pattern: "^(sub-)?[A-Za-z0-9]+$", default: sub-test, description: "the participant ID filled in (not claimed or stored anywhere)"}
+      live:
+        type: object
+        additionalProperties: false
+        properties:
+          trials_per_block: {type: integer, minimum: 1, description: "at most this many trials in each block of trials; leave out for all of them"}
+          block_trials:
+            description: Trials for particular blocks (by block id); wins over trials_per_block.
+            type: object
+            propertyNames: {$ref: "common.schema.json#/definitions/id"}
+            additionalProperties: {type: integer, minimum: 1}
+
   # ---- presentation -------------------------------------------------------
   stage:
     description: The fixed-aspect container all stimuli and hit regions are laid out in.

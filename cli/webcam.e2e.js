@@ -9,6 +9,7 @@ import { join } from 'node:path';
 import { expect, test } from '@playwright/test';
 import { clickContinue } from '../tools/e2e/session-helpers.js';
 import { unzipBytes } from '../tools/unzip.js';
+import { quietMode } from '../tools/e2e/project.js';
 import { initProject } from './init.js';
 import { serveDirectory } from './serve.js';
 
@@ -38,6 +39,7 @@ test.afterEach(async () => {
 async function project(webcamYaml = '  enabled: true\n  chunk_s: 1\n') {
   dir = join(mkdtempSync(join(tmpdir(), 'cndlpsych-webcam-')), 'study');
   initProject(dir);
+  quietMode(dir);
   const experiment = join(dir, 'experiment.yaml');
   writeFileSync(experiment, `${readFileSync(experiment, 'utf8')}\nwebcam:\n${webcamYaml}`);
   const timeline = join(dir, 'timeline.yaml');

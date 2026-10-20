@@ -80,6 +80,7 @@ window.runSession = (options = {}) => {
     connectFirebase: options.firebase ? fakeConnect({ uid: options.firebase.uid, access: options.firebase.access }) : undefined,
     patchExperiment: (doc) => {
       if (!options.firebase) doc.storage.firebase.enabled = false; // the example enables it; only Firebase tests want it
+      merge(doc, { modes: { enabled: false } }); // the tests start at consent; the mode screen has its own tests
       merge(doc, options.merge ?? {});
     },
     onReady: (services, store) => { window.sessionServices = services; window.sessionStore = store; },

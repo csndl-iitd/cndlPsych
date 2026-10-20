@@ -135,6 +135,19 @@ input:
 #   on_denied: abort          # abort | continue_without: when recording cannot start (camera refused, no file chosen)
 #   The video is never in the exported zip and is not uploaded to Firebase.
 
+# ---- live and test mode: the first screen of a session asks which ------------------------------------------------
+# modes:
+#   enabled: true             # false: no first screen, the mode in "default" is used. A public experiment never asks (it is live);
+#                             # ?mode=test or ?mode=live in the address chooses without asking
+#   default: live             # the mode selected on the first screen: live | test
+#   test:                     # to try the experiment out: a short run, a throwaway ID, nothing sent to Firebase, marked as a test
+#     trials_per_block: 3     # at most this many trials in each block of trials
+#     block_trials: {}        # trials for particular blocks by id, which wins, e.g. { oddball_task: 2 }
+#     subject_id: sub-test    # the participant ID filled in (not claimed or stored anywhere)
+#   live:                     # the real thing: every trial, participant numbers kept (and sent to Firebase when it is on)
+#     trials_per_block: 40    # leave out for all of them
+#     block_trials: {}
+
 # ---- marks for cameras and photodiodes ------------------------------------------------------------
 # overlay:
 #   apriltags:

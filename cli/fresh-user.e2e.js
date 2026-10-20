@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { expect, test } from '@playwright/test';
 import { dryRun } from './dry-run.js';
+import { quietMode } from '../tools/e2e/project.js';
 import { initProject } from './init.js';
 import { serveDirectory } from './serve.js';
 import { validateProject } from './validate.js';
@@ -14,7 +15,7 @@ test.setTimeout(240_000);
 let dir;
 test.beforeEach(({ isMobile }) => {
   test.skip(isMobile, 'the dry run emulates the devices itself; run once');
-  dir = join(mkdtempSync(join(tmpdir(), 'cndlpsych-fresh-')), 'study'); initProject(dir);
+  dir = join(mkdtempSync(join(tmpdir(), 'cndlpsych-fresh-')), 'study'); initProject(dir); quietMode(dir);
 });
 test.afterEach(() => { if (dir) rmSync(join(dir, '..'), { recursive: true, force: true }); });
 

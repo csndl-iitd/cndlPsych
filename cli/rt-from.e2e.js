@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { expect, test } from '@playwright/test';
 import { clickContinue } from '../tools/e2e/session-helpers.js';
+import { quietMode } from '../tools/e2e/project.js';
 import { initProject } from './init.js';
 import { serveDirectory } from './serve.js';
 
@@ -49,6 +50,7 @@ const choose = (page, name, value) => page.locator(`[data-name="${name}"] label:
 test('the response time is from the second T, in the gap or while a later letter shows; a response before it has none; no response is a miss', async ({ page }) => {
   dir = join(mkdtempSync(join(tmpdir(), 'cndlpsych-rtfrom-')), 'study');
   initProject(dir);
+  quietMode(dir);
   writeFileSync(join(dir, 'stimuli.yaml'), STIMULI);
   writeFileSync(join(dir, 'timeline.yaml'), TIMELINE);
   served = await serveDirectory({ dir });

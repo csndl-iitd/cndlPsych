@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { expect, test } from '@playwright/test';
 import { answerConsent, clickContinue } from '../tools/e2e/session-helpers.js';
+import { quietMode } from '../tools/e2e/project.js';
 import { initProject } from './init.js';
 import { serveDirectory } from './serve.js';
 
@@ -24,6 +25,7 @@ test.afterEach(async () => {
 async function project({ forms } = {}) {
   dir = join(mkdtempSync(join(tmpdir(), 'cndlpsych-screens-')), 'study');
   initProject(dir);
+  quietMode(dir);
   if (forms) writeFileSync(join(dir, 'forms.yaml'), forms);
   served = await serveDirectory({ dir });
   return served.url;

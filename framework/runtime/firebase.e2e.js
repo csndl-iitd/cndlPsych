@@ -182,6 +182,43 @@ test('controlled: a number used before is reused: the details come from the earl
   expect(warning.data.detail).toEqual({ id: '5', earlier_sessions: ['ses-01'] });
 });
 
+test('test mode: no sign-in, no subject number and nothing uploaded; the ID is a throwaway', async ({ context, page, isMobile }) => {
+  test.skip(isMobile, 'a full session; the device kind is irrelevant to storage');
+  const fake = createFakeFirestore({ uid: 'admin-1', access: 'controlled' });
+  fake.state.claims.set(1, { n: 1, label: 'sub-001', status: 'complete' });
+  await context.exposeBinding('fakeFirestore', fake.handle);
+  await startSession(page, { merge: { ...merge('controlled'), modes: { enabled: true, test: { trials_per_block: 1 } } }, firebase: { uid: 'admin-1', access: 'controlled' } });
+  await captureLog(page);
+  await page.getByText('Which mode do you want to run?').waitFor();
+  await expect(page.getByText('nothing is sent to Firebase')).toBeVisible();
+  await choose(page, 'action', 'test');
+  await clickContinue(page);
+  await expect(page.getByText('Sign in with your lab account')).toHaveCount(0); // no sign-in
+  await installAutopilot(page, { touch: false });
+  await answerConsent(page);
+  await expect(page.locator('[data-name="subject_id"] input')).toHaveValue('sub-test');
+  await answerSubject(page, { id: 'sub-test' });
+  await answerSession(page);
+  await page.locator('[data-name="difficulty"]').waitFor({ timeout: 120_000 });
+  await answerPostTask(page);
+  expect(await finished(page)).toBe('complete');
+  const { record } = await recorded(page);
+  expect(record).toMatchObject({ subject_id: 'sub-test', mode: 'test' });
+  expect(record.sinks.storage).toEqual(['local']);
+  expect(fake.state.signIns).toBe(0);
+  expect([...fake.state.claims.keys()]).toEqual([1]); // nothing claimed
+  expect(fake.state.sessions.size).toBe(0);
+  expect(fake.state.chunks.size).toBe(0);
+});
+
+test('a public experiment never asks which mode: participants go straight to the consent', async ({ context, page }) => {
+  const fake = createFakeFirestore({ access: 'public' });
+  await context.exposeBinding('fakeFirestore', fake.handle);
+  await startSession(page, { merge: { ...merge('public'), modes: { enabled: true } }, firebase: { uid: 'anon-1', access: 'public' } });
+  await page.locator('[data-name="decision"]').waitFor();
+  await expect(page.getByText('Which mode do you want to run?')).toHaveCount(0);
+});
+
 test('controlled: the suggested number is used without a warning', async ({ context, page }) => {
   const fake = createFakeFirestore({ uid: 'admin-1', access: 'controlled' });
   fake.state.claims.set(1, { n: 1, label: 'sub-001', status: 'complete' });

@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { expect, test } from '@playwright/test';
 import { clickContinue } from '../tools/e2e/session-helpers.js';
+import { quietMode } from '../tools/e2e/project.js';
 import { initProject } from './init.js';
 import { startListener } from './listen.js';
 import { serveDirectory } from './serve.js';
@@ -19,6 +20,7 @@ test('a session sends its triggers to the listener, with the event that caused e
   const listener = await startListener({ port: 0, ack: true, onTrigger: (record) => received.push(record) });
   const dir = join(mkdtempSync(join(tmpdir(), 'cndlpsych-listen-')), 'study');
   initProject(dir);
+  quietMode(dir);
   appendFileSync(join(dir, 'experiment.yaml'), `
 triggers:
   sinks:

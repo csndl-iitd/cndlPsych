@@ -11,9 +11,10 @@ const BUILDERS = { response_task: buildResponseTask, instructions: buildInstruct
 /**
  * Run the blocks in order. When resuming, `resume` says where to carry on: earlier blocks are
  * skipped, the interrupted run skips its finished trials, and its block.start (already in the
- * log) is not written again. `beforeBlock` may stop the session by resolving to false.
+ * log) is not written again. `beforeBlock` may stop the session by resolving to false. `trialLimit(blockId)` is
+ * the most trials a block of trials runs (test mode), or null.
  */
-export async function runBlocks({ services, plan, profile, seed, answers, resume, beforeBlock }) {
+export async function runBlocks({ services, plan, profile, seed, answers, resume, beforeBlock, trialLimit = () => null }) {
   const { bus, jsPsych } = services;
   const master = createRng(seed);
   let lostSink = null;
@@ -34,7 +35,7 @@ export async function runBlocks({ services, plan, profile, seed, answers, resume
     for (let run = resumedBlock ? resume.run : 1; run <= planBlock.repeat; run += 1) {
       const resumedRun = resumedBlock && run === resume.run;
       const ctx = services.moduleContext({ rng: master.fork(`block:${planBlock.id}:${run}`), profile });
-      const { nodes, nTrials } = build(ctx, planBlock, { skipTrials: resumedRun ? resume.completedTrials : 0 });
+      const { nodes, nTrials } = build(ctx, planBlock, { skipTrials: resumedRun ? resume.completedTrials : 0, limit: trialLimit(planBlock.id) });
       ctx.applyTriggers(planBlock.triggers);
       bus.setContext({ block: planBlock.id, trial: null, phase: null });
       if (!(resumedRun && resume.started)) {

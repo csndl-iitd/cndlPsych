@@ -6,6 +6,7 @@ import { checkResumable, resumedRecord } from '../resume.js';
 import { conductSession } from './conduct-session.js';
 import { prepareEyeTracking } from './eye-tracking-step.js';
 import { alongsideWebcam, prepareWebcam } from './webcam-step.js';
+import { createMode, resolveModes } from '../../foundation/modes.js';
 import { createFinisher, deviceExtras } from './finish.js';
 import { showMessage } from './messages.js';
 import { connectStore, emitStartNotices, logStorageStatus } from './recording.js';
@@ -106,5 +107,8 @@ export async function resumeSession(run, item) {
     await recorded.webcam?.stop('error');
     return prepared.result;
   }
-  return conductSession({ run, store, profile, inputProfiles: record.device.input_profiles ?? [profile], seed, answers, resume: verdict.point, finish, eye: alongsideWebcam(prepared.eye, recorded.webcam) });
+  // the session carries on in the mode it started in
+  const modeName = record.mode ?? 'live';
+  const mode = createMode(modeName, resolveModes(plan.modes).settings(modeName));
+  return conductSession({ run: { ...run, mode }, store, profile, inputProfiles: record.device.input_profiles ?? [profile], seed, answers, resume: verdict.point, finish, eye: alongsideWebcam(prepared.eye, recorded.webcam) });
 }

@@ -265,6 +265,27 @@ describe('webcam recording', () => {
   });
 });
 
+describe('modes', () => {
+  it('accepts numbers for blocks of trials, refuses a block that does not exist, and warns about one without trials', async () => {
+    const good = await compileVariant((s) => { s.experiment.modes = { test: { trials_per_block: 2, block_trials: { flash_task: 1 } }, live: { trials_per_block: 30 } }; });
+    expect(good.errors).toEqual([]);
+    expect(good.plan.modes).toEqual({ test: { trials_per_block: 2, block_trials: { flash_task: 1 } }, live: { trials_per_block: 30 } });
+
+    const unknown = await compileVariant((s) => { s.experiment.modes = { test: { block_trials: { nothing: 1 } } }; });
+    expect(unknown.errors).toContainEqual(expect.objectContaining({ code: 'mode-block-unknown', path: 'modes.test.block_trials.nothing' }));
+
+    const survey = await compileVariant((s) => { s.experiment.modes = { test: { block_trials: { post_task: 1 } } }; });
+    expect(survey.errors).toEqual([]);
+    expect(survey.warnings).toContainEqual(expect.objectContaining({ code: 'mode-block-no-trials' }));
+  });
+
+  it('refuses what is not a mode setting', async () => {
+    expect((await compileVariant((s) => { s.experiment.modes = { test: { trials_per_block: 0 } }; })).plan).toBeNull();
+    expect((await compileVariant((s) => { s.experiment.modes = { default: 'demo' }; })).plan).toBeNull();
+    expect((await compileVariant((s) => { s.experiment.modes = { live: { subject_id: 'x' } }; })).plan).toBeNull();
+  });
+});
+
 describe('warnings', () => {
   it('warns when two rules can fire on the same event, unless allow_multiple is set', async () => {
     const dup = { id: 'dup', on: 'response.evaluated', where: { correct: true }, value: 40 };

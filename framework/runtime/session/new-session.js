@@ -21,6 +21,7 @@ import { connectStore, emitStartNotices, logStorageStatus } from './recording.js
 import { signInRemote } from './remote-sign-in.js';
 import { buildSessionRecord } from './session-record.js';
 import { askSubjectForm } from './subject-id.js';
+import { chooseMode } from './mode-screen.js';
 import { connectSinks } from './trigger-devices.js';
 import { FRAMEWORK_VERSION } from './version.js';
 
@@ -69,11 +70,12 @@ async function askSessionForm({ forms, screen, reused }) {
 
 /** The subject form, the age check, and the session form. */
 async function askParticipant(run, gate) {
-  const { project, remote, screen, services, store } = run;
+  const { project, remote, screen, services, store, mode } = run;
   const { forms } = project.plan;
   let assigned;
   try {
     assigned = await assignedSubject(remote);
+    if (!remote && mode?.subjectId) assigned = { defaultValue: mode.subjectId }; // test mode: a throwaway ID, not claimed
   } catch (error) {
     showMessage(services.display, remoteFailedMessage(explainRemoteError(error, remote.config)));
     return { ended: { status: 'remote_failed' } };
@@ -134,7 +136,7 @@ function beginRecording({ run, record, sessionStore, seed, profile, sinkWarnings
   sessionStore.begin(record);
   connectStore({ services, store: sessionStore });
   bus.startRecording();
-  bus.emit({ source: 'system', type: 'session.start', data: { experiment: plan.name, spec_version: plan.spec_version, spec_hash: project.specHash, framework_version: FRAMEWORK_VERSION, seed, profile } });
+  bus.emit({ source: 'system', type: 'session.start', data: { experiment: plan.name, spec_version: plan.spec_version, spec_hash: project.specHash, framework_version: FRAMEWORK_VERSION, seed, profile, ...(run.mode ? { mode: run.mode.name } : {}) } });
   bus.emit({ source: 'system', type: 'session.clock_anchor', data: { time_origin_ms: record.clock.time_origin_ms, wall_iso: record.clock.wall_iso } });
   logStorageStatus({ bus, store: sessionStore }); // after session.start: the log must begin with it
   emitStartNotices({ bus, debug, sinkSet: services.sinkSet, sinkWarnings });
@@ -145,7 +147,10 @@ function beginRecording({ run, record, sessionStore, seed, profile, sinkWarnings
  * @param {string} search the page's query string (URL parameters to capture)
  * @returns {Promise<{status: string, record?: object}>}
  */
-export async function runNewSession(run, search) {
+export async function runNewSession(shared, search) {
+  const mode = await chooseMode({ run: shared, search });
+  // A test session never touches Firebase: no sign-in, no subject number, nothing uploaded.
+  const run = { ...shared, mode, remote: mode.test ? null : shared.remote };
   const { services, project, store, remote, env, debug, refresh } = run;
   const { plan } = project;
   const { bus, display } = services;

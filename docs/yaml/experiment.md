@@ -15,6 +15,18 @@ Paths are written as in the YAML: `a.b` is key `b` inside `a`; `items[]` is each
 | `language` | string |  | `"en"` | pattern `"^[a-z]{2}(-[A-Z]{2})?$"` |
 | `seed` | one of several forms |  | `"auto"` | Master seed for all randomization. 'auto' draws one per session and stores it |
 | `capture_url_params` | list of string |  |  | URL query parameters copied into the session record (e.g. PROLIFIC_PID) |
+| `modes` | object |  |  | Live and test mode. The first screen of a session asks which one to run (an experiment with public Firebase access never asks: it is live; ?mode=test or ?mode=live in the address chooses without asking). Live is the real thing: participant numbers are kept and every trial runs. Test is for trying the experiment out: at most trials_per_block trials in each block of trials (block_trials gives a number for a block), a throwaway participant ID that is not claimed or sent to Firebase, and the session is marked as a test in its record and in the name of its download |
+| `modes.enabled` | boolean |  | `true` | false: no first screen, the mode in 'default' is used |
+| `modes.default` | one of |  | `"live"` | the mode selected on the first screen. values: `"live"`, `"test"` |
+| `modes.test` | object |  |  |  |
+| `modes.test.trials_per_block` | integer |  | `3` | at most this many trials in each block of trials. min 1 |
+| `modes.test.block_trials` | object |  |  | Trials for particular blocks (by block id); wins over trials_per_block |
+| `modes.test.block_trials.<name>` | integer |  |  | min 1 |
+| `modes.test.subject_id` | string |  | `"sub-test"` | the participant ID filled in (not claimed or stored anywhere). pattern `"^(sub-)?[A-Za-z0-9]+$"` |
+| `modes.live` | object |  |  |  |
+| `modes.live.trials_per_block` | integer |  |  | at most this many trials in each block of trials; leave out for all of them. min 1 |
+| `modes.live.block_trials` | object |  |  | Trials for particular blocks (by block id); wins over trials_per_block |
+| `modes.live.block_trials.<name>` | integer |  |  | min 1 |
 | `stage` | object |  |  | The fixed-aspect container all stimuli and hit regions are laid out in |
 | `stage.aspect` | one of several forms |  | `"fill"` | Width:height of the letterboxed stage, or 'fill' to use the whole viewport |
 | `stage.margin` | one of several forms |  |  | Extra reserved border around the stage (in addition to overlays) |
