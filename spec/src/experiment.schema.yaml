@@ -302,6 +302,9 @@ properties:
             items: {type: integer, minimum: 0}
             default: [0, 1, 2, 3]
           size: {$ref: "common.schema.json#/definitions/length"}
+          phone_size:
+            description: Tag size on a phone (a screen whose shorter side is under 600 px). 60% of size when left out, so the tags leave more of a small screen to the experiment.
+            $ref: "common.schema.json#/definitions/length"
           margin: {$ref: "common.schema.json#/definitions/length"}
           quiet_zone: {type: number, minimum: 1, default: 1, description: "white border, in tag modules"}
       photodiode:

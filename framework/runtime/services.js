@@ -38,8 +38,11 @@ export function createServices({ root, plan, generators = {}, validate, timeScal
   const clock = createClock();
   const bus = createBus({ clock, validate, recording: false });
   const calibration = plan.device?.calibration;
-  const stage = createStage({ root, bus, spec: plan.stage, calibration, reserve: overlayReserve(plan.overlay, calibration) });
-  const overlay = createOverlay({ root, bus, spec: plan.overlay, calibration, viewport: () => ({ w: root.clientWidth, h: root.clientHeight }), schedule: defaultSchedule });
+  const { screen } = doc.defaultView;
+  const shortSide = Math.min(screen?.width ?? Infinity, screen?.height ?? Infinity); // the device's, so it does not change when the window is resized
+  const reserve = overlayReserve(plan.overlay, calibration, shortSide);
+  const stage = createStage({ root, bus, spec: plan.stage, calibration, reserve });
+  const overlay = createOverlay({ root, bus, spec: plan.overlay, calibration, viewport: () => ({ w: root.clientWidth, h: root.clientHeight }), schedule: defaultSchedule, shortSide });
   const input = createInput({ bus, stage });
   const cursor = createCursor({ element: stage.root });
   input.onActivity((move) => cursor.moved(move));
@@ -52,7 +55,7 @@ export function createServices({ root, plan, generators = {}, validate, timeScal
   const display = doc.createElement('div');
   display.className = 'cndlpsych-display';
   stage.element.append(display);
-  const displayFit = createDisplayFit({ display, root: stage.root, stage, border: overlayReserve(plan.overlay, calibration) });
+  const displayFit = createDisplayFit({ display, root: stage.root, stage, border: reserve });
   const jsPsych = createJsPsych({ display, extensions: [bridge.Extension] });
 
   const state = { profile: null, scope: null, session: {}, onRequiredLost: () => {}, frameMs: DEFAULT_FRAME_MS, inputProfiles: [] };

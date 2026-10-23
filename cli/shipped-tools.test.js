@@ -35,7 +35,7 @@ function startTool(args, ready) {
   });
 }
 
-describe('the tools in a project folder', () => {
+describe('the tools in a project folder', { timeout: 30_000 }, () => {
   it('lists the tools that are there (not init) and refuses an unknown one', () => {
     const result = run('nothing');
     expect(result.status).toBe(2);

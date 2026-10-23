@@ -155,6 +155,7 @@ input:
 #     family: tag36h11
 #     ids: [0, 1, 2, 3]       # top-left, top-right, bottom-right, bottom-left
 #     size: 12mm
+#     phone_size: 8mm        # on a phone; 60% of size when left out
 #     margin: 4mm
 #     quiet_zone: 1
 #   photodiode:

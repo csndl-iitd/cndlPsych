@@ -658,6 +658,10 @@
             "size": {
               "$ref": "common.schema.json#/definitions/length"
             },
+            "phone_size": {
+              "description": "Tag size on a phone (a screen whose shorter side is under 600 px). 60% of size when left out, so the tags leave more of a small screen to the experiment.",
+              "$ref": "common.schema.json#/definitions/length"
+            },
             "margin": {
               "$ref": "common.schema.json#/definitions/length"
             },

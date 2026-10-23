@@ -14,7 +14,7 @@ async function begin(page, overlay, extra = {}) {
 }
 
 test('apriltags sit in the four corners with a white quiet zone, and the stage keeps clear of them', async ({ page }) => {
-  await begin(page, { apriltags: { enabled: true, family: 'tag36h11', ids: [0, 1, 2, 3], size: '40px', margin: '4px' }, photodiode: { enabled: false } });
+  await begin(page, { apriltags: { enabled: true, family: 'tag36h11', ids: [0, 1, 2, 3], size: '40px', phone_size: '40px', margin: '4px' }, photodiode: { enabled: false } }); // phone_size: the same on a phone, which gets smaller tags by default
   const tags = await page.locator('.cndlpsych-apriltag').evaluateAll((els) => els.map((el) => {
     const r = el.getBoundingClientRect();
     return { x: r.x, y: r.y, right: r.right, bottom: r.bottom, w: r.width, src: el.querySelector('img').src.slice(0, 22), bg: getComputedStyle(el).backgroundColor };

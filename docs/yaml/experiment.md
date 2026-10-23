@@ -221,6 +221,7 @@ Paths are written as in the YAML: `a.b` is key `b` inside `a`; `items[]` is each
 | `overlay.apriltags.family` | one of |  | `"tag36h11"` | values: `"tag36h11"`, `"tag25h9"`, `"tag16h5"`, `"tagStandard41h12"`, `"tagStandard52h13"`, `"tagCircle21h7"` |
 | `overlay.apriltags.ids` | list of integer |  | `[0,1,2,3]` | Tag ids for the corners in order top-left, top-right, bottom-right, bottom-left. min items 4. max items 4 |
 | `overlay.apriltags.size` | one of several forms |  |  | Bare number = fraction of the stage's shorter side. Strings carry a unit: mm and deg need calibration, px is CSS pixels, % is of the stage width |
+| `overlay.apriltags.phone_size` | one of several forms |  |  | Tag size on a phone (a screen whose shorter side is under 600 px). 60% of size when left out, so the tags leave more of a small screen to the experiment |
 | `overlay.apriltags.margin` | one of several forms |  |  | Bare number = fraction of the stage's shorter side. Strings carry a unit: mm and deg need calibration, px is CSS pixels, % is of the stage width |
 | `overlay.apriltags.quiet_zone` | number |  | `1` | white border, in tag modules. min 1 |
 | `overlay.photodiode` | object |  |  |  |

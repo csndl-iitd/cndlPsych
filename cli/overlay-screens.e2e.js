@@ -75,6 +75,21 @@ test('on every device the consent, the forms and the instructions fit between th
   await expectClearOfTags(page, 'instructions');
 });
 
+test('the tags are smaller on a phone (60% of the size) than on a tablet or a computer, and the experiment gets the room', async ({ page, isMobile }) => {
+  await page.goto(await project());
+  await page.locator('[data-name="decision"]').waitFor();
+  const { tag, stage, view } = await page.evaluate(() => ({
+    tag: document.querySelector('.cndlpsych-apriltag').getBoundingClientRect().width,
+    stage: window.cndlpsych.services.stage.rect,
+    view: { w: innerWidth, h: innerHeight },
+  }));
+  const phone = Math.min(view.w, view.h) < 600;
+  expect(tag).toBeCloseTo(phone ? 38 + 2 * (38 / 8) : 64 + 16, 0); // the tag and its quiet zone
+  const border = Math.min(stage.x, stage.y);
+  expect(border).toBeCloseTo(phone ? 38 + 2 * (38 / 8) + 4 : 84, 0);
+  expect(isMobile || !phone).toBe(true);
+});
+
 test('while stimuli run the display is exactly the stage, so positions are stage positions; text screens reach past it', async ({ page }) => {
   await page.goto(await project());
   await page.locator('[data-name="decision"]').waitFor();
