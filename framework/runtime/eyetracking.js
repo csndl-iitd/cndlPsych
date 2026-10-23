@@ -4,6 +4,7 @@
 // pipeline/gaze.js; this wires them to the screens and the session.
 import { askAction } from '../authoring/modules/survey.js';
 import { createGaze } from '../pipeline/gaze.js';
+import { askWhenUnavailable } from './session/continue-without.js';
 
 const DOT_SIZE_PX = 28;
 
@@ -52,7 +53,7 @@ The average error was about **${Math.round(validation.mean_error_px)} px** (need
  * @returns {Promise<{status: 'off'|'ready'|'continue_without'|'aborted', reason?: string, summary: () => (object|undefined), beforeBlock: (block: object) => Promise<boolean>, stop: () => Promise<void>}>}
  *   `beforeBlock` returns false when the session must stop (a failed re-validation); `stop` releases the camera
  */
-export async function setupEyeTracking({ services, screen, plan, profile, rng, loadEngine }) {
+export async function setupEyeTracking({ services, screen, plan, profile, rng, loadEngine, experimenter = false }) {
   const nothing = { status: 'off', summary: () => undefined, beforeBlock: async () => true, stop: async () => {} };
   if (!plan.eyetracking?.enabled) return nothing;
   if (!eyetrackingApplies(plan, profile)) return { ...nothing, summary: () => ({ enabled: false }) };
@@ -103,14 +104,19 @@ export async function setupEyeTracking({ services, screen, plan, profile, rng, l
   }
 
   await askAction(screen, { message: intro(plan.webcam?.enabled === true), choices: [{ value: 'start', text: 'Start' }], submitLabel: 'Continue' });
-  const started = await gaze.start();
-  if (!started.ok) {
-    if (started.reason === 'no_addon') {
-      bus.emit({ source: 'system', type: 'system.error', data: { code: 'eyetracking_addon_missing', message: started.message, fatal: true } });
-      return result('aborted', { reason: 'no_addon' });
+  let started = await gaze.start();
+  while (!started.ok) {
+    const missingAddon = started.reason === 'no_addon';
+    const detail = { reason: started.reason };
+    if (!missingAddon) bus.emit({ source: 'system', type: 'system.warning', data: { code: 'camera_unavailable', message: `the camera could not be used: ${started.message}`, detail } });
+    if (!missingAddon && camera.on_denied === 'continue_without') return result('continue_without', detail);
+    const choice = experimenter ? await askWhenUnavailable(screen, { feature: 'eye tracking', why: started.message, retry: !missingAddon }) : 'stop';
+    if (choice === 'continue') return result('continue_without', detail);
+    if (choice === 'stop') {
+      if (missingAddon) bus.emit({ source: 'system', type: 'system.error', data: { code: 'eyetracking_addon_missing', message: started.message, fatal: true } });
+      return result('aborted', detail);
     }
-    bus.emit({ source: 'system', type: 'system.warning', data: { code: 'camera_unavailable', message: `the camera could not be used: ${started.message}`, detail: { reason: started.reason } } });
-    return camera.on_denied === 'continue_without' ? result('continue_without', { reason: started.reason }) : result('aborted', { reason: started.reason });
+    started = await gaze.start();
   }
   gaze.setPreview(camera.preview !== 'never');
   const ok = await procedure({ calibrate: true });

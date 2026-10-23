@@ -4,6 +4,7 @@
 import { askAction } from '../../authoring/modules/survey.js';
 import { pickMime, createWebcam } from '../../pipeline/webcam.js';
 import { canPickFile, openVideoSink, pickVideoFile } from '../../storage/video-file.js';
+import { askWhenUnavailable } from './continue-without.js';
 import { showMessage } from './messages.js';
 
 /** Does the webcam recording run for this device profile? (No `profiles` list means every device.) */
@@ -59,8 +60,18 @@ export async function prepareWebcam({ run, store, profile, record, finish, held,
 
   // The file picker needs the click that answers this screen, so it is the first thing done after it.
   await askAction(screen, { message: intro(settings.audio, settings.save !== 'browser' && canPickFile(win)), choices: [{ value: 'go', text: 'Start' }], submitLabel: 'Continue' });
-  const target = await chooseTarget({ settings, names: { subject: record.subject_id, session: record.session_id, segment }, store, win });
-  const started = target.failure ? camera.fail(target.failure.code, target.failure.message) : await camera.start(target);
+  let target;
+  let started;
+  let continued = false; // the experimenter chose to go on without the recording
+  for (;;) {
+    target = await chooseTarget({ settings, names: { subject: record.subject_id, session: record.session_id, segment }, store, win });
+    started = target.failure ? camera.fail(target.failure.code, target.failure.message) : await camera.start(target);
+    if (started.ok || settings.on_denied === 'continue_without' || !run.experimenter) break;
+    await target.close?.().catch(() => {});
+    const choice = await askWhenUnavailable(screen, { feature: 'the camera recording', why: started.message });
+    if (choice === 'continue') continued = true;
+    if (choice !== 'retry') break;
+  }
 
   const recording = {
     summary: () => camera.summary(),
@@ -72,7 +83,7 @@ export async function prepareWebcam({ run, store, profile, record, finish, held,
   };
   held.webcam = recording;
   services.input.onLeave(() => recording.flush());
-  if (started.ok || settings.on_denied === 'continue_without') {
+  if (started.ok || continued || settings.on_denied === 'continue_without') {
     if (!started.ok) await recording.stop();
     return { webcam: started.ok ? recording : undefined };
   }

@@ -180,6 +180,7 @@ properties:
             format: {enum: [raw, ndjson, template]}
             required: {type: boolean}
             connected: {type: boolean}
+            skipped: {type: boolean, description: "left out: not used on this device (Web Serial on a phone), or the experimenter went on without it"}
           additionalProperties: false
       storage:
         type: array

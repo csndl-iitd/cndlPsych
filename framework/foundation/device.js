@@ -28,6 +28,12 @@ function runsDesktopSystem(navigator = {}) {
   return DESKTOP_PLATFORM.test(platform) && !MOBILE_AGENT.test(navigator.userAgent ?? '') && !iPadAsMac;
 }
 
+/** A phone or tablet (Android, iOS, or an iPad that asks for the desktop site): the systems on which Web Serial is often missing. */
+export function isMobileSystem(navigator = {}) {
+  const iPadAsMac = /^Mac/i.test(navigator.platform ?? '') && (navigator.maxTouchPoints ?? 0) > 1;
+  return MOBILE_AGENT.test(navigator.userAgent ?? '') || iPadAsMac;
+}
+
 export function readEnvironment(win = globalThis) {
   const query = (text) => win.matchMedia?.(text).matches ?? false;
   const pointer = query('(pointer: fine)') ? 'fine' : query('(pointer: coarse)') ? 'coarse' : 'none';
@@ -42,6 +48,7 @@ export function readEnvironment(win = globalThis) {
     any_coarse: query('(any-pointer: coarse)') || pointer === 'coarse',
     any_hover: query('(any-hover: hover)') || query('(hover: hover)'),
     keyboard: pointer === 'fine' || runsDesktopSystem(win.navigator),
+    mobile: isMobileSystem(win.navigator),
     touch: touchPoints > 0,
     touch_points: touchPoints,
     short_side_px: Math.min(screen.width ?? width, screen.height ?? height),

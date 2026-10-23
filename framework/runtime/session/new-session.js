@@ -100,7 +100,7 @@ async function checkDevice(run) {
   const permitted = plan.device?.allowed ?? Object.keys(profileConditions(plan.device ?? {}));
   let sinkWarnings = [];
   if (resolved.profile !== null && permitted.includes(profile) && sinkSet.configs.length) {
-    const connected = await connectSinks(screen, sinkSet);
+    const connected = await connectSinks(screen, sinkSet, { experimenter: run.experimenter, mobile: env.mobile });
     if (!connected.ok) {
       await sinkSet.closeAll();
       showMessage(services.display, `The required trigger device **${connected.blocked.id}** is not connected, so the session cannot start. Nothing has been stored.`);

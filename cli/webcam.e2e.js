@@ -7,7 +7,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { expect, test } from '@playwright/test';
-import { clickContinue } from '../tools/e2e/session-helpers.js';
+import { clickContinue, continueDeviceScreen } from '../tools/e2e/session-helpers.js';
 import { unzipBytes } from '../tools/unzip.js';
 import { quietMode } from '../tools/e2e/project.js';
 import { initProject } from './init.js';
@@ -176,6 +176,7 @@ test('save: file without a save dialog in the browser ends the session as aborte
   await page.addInitScript(() => { window.showSaveFilePicker = undefined; });
   await toCameraScreen(page, await project('  enabled: true\n  save: file\n'));
   await startRecording(page);
+  await continueDeviceScreen(page, 'stop'); // an experimenter is asked: try again, continue without, or stop
   await expect(page.getByText('needs to record with your camera')).toBeVisible();
   const log = await events(page);
   expect(ofType(log, 'webcam.error').map((e) => e.data.code)).toEqual(['unsupported']);
@@ -188,6 +189,7 @@ test('a cancelled save dialog is a refused recording: the session ends as aborte
   });
   await toCameraScreen(page, await project());
   await startRecording(page);
+  await continueDeviceScreen(page, 'stop'); // an experimenter is asked: try again, continue without, or stop
   await expect(page.getByText('needs to record with your camera')).toBeVisible();
   expect(ofType(await events(page), 'webcam.error').map((e) => e.data.code)).toEqual(['file_declined']);
 });
@@ -220,10 +222,23 @@ test('a refused camera ends the session as aborted, and says so', async ({ page 
   });
   await toCameraScreen(page, await project());
   await startRecording(page);
+  await continueDeviceScreen(page, 'stop'); // an experimenter is asked: try again, continue without, or stop
   await expect(page.getByText('needs to record with your camera')).toBeVisible();
   const log = await events(page);
   expect(ofType(log, 'webcam.error').map((e) => e.data.code)).toEqual(['denied']);
   expect(ofType(log, 'session.end')[0].data.reason).toBe('aborted');
+});
+
+test('an experimenter can choose to continue without a camera that is refused, and the record says it was not used', async ({ page }) => {
+  await page.addInitScript(() => {
+    navigator.mediaDevices.getUserMedia = async () => { throw Object.assign(new Error('Permission denied'), { name: 'NotAllowedError' }); };
+  });
+  await toCameraScreen(page, await project());
+  await startRecording(page);
+  await expect(page.getByText('could not be used')).toBeVisible();
+  await continueDeviceScreen(page, 'continue');
+  await page.getByText('Reaction time').waitFor();
+  expect(ofType(await events(page), 'webcam.error').map((e) => e.data.code)).toEqual(['denied']);
 });
 
 test('with on_denied: continue_without the session goes on and the record says the camera was not used', async ({ page }) => {

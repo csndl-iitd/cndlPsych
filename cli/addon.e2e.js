@@ -57,6 +57,7 @@ test('without the add-on the session stops at the eye tracking step, says why, a
     await page.goto(served.url);
     await enter(page);
     await continueDeviceScreen(page); // "Start" on the eye tracking intro
+    await continueDeviceScreen(page, 'stop'); // the add-on is missing: an experimenter may continue without eye tracking or stop
     await expect(page.getByText('its software is not installed')).toBeVisible();
     const events = await page.evaluate(async () => (await window.cndlpsych.store.snapshot()).events);
     expect(events.find((e) => e.type === 'system.error')?.data.code).toBe('eyetracking_addon_missing');
