@@ -288,6 +288,12 @@
               },
               "profile": {
                 "type": "string"
+              },
+              "mode": {
+                "enum": [
+                  "live",
+                  "test"
+                ]
               }
             },
             "additionalProperties": false,

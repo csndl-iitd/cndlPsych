@@ -16,6 +16,7 @@ export const NEEDS_GESTURE = new Set(['serial', 'usb']);
 export function createSinks({ plan, bus, clock, schedule = defaultSchedule, apis = {}, onRequiredLost }) {
   const backlog = [];
   const sinks = new Map();
+  const skipped = new Set(); // sinks the experimenter went on without, or that are not used on this device
   const configs = plan.triggers?.sinks ?? [];
 
   const emit = (event) => {
@@ -53,7 +54,16 @@ export function createSinks({ plan, bus, clock, schedule = defaultSchedule, apis
     sinks,
     configs,
     /** The `sinks.trigger` block of the session record. */
-    record: () => configs.map((config) => ({ id: config.id, type: config.type, format: config.format, required: config.required !== false, connected: sinks.get(config.id).connected })),
+    record: () => configs.map((config) => ({
+      id: config.id, type: config.type, format: config.format, required: config.required !== false, connected: sinks.get(config.id)?.connected ?? false,
+      ...(skipped.has(config.id) ? { skipped: true } : {}),
+    })),
+    /** Go on without this sink: it is closed and takes no more triggers (rules that name it simply have nowhere to send). */
+    async skip(id) {
+      await sinks.get(id)?.close?.();
+      sinks.delete(id);
+      skipped.add(id);
+    },
     /** Emit what was reported before recording started (call right after startRecording). */
     flushBacklog() {
       for (const event of backlog.splice(0)) bus.emit(event);

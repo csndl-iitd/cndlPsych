@@ -19,7 +19,7 @@ const CAMERA_STOPPED = 'This experiment needs your camera for eye tracking, and 
  */
 export async function prepareEyeTracking({ run, profile, seed, finish, held }) {
   const { services, project, screen, loadEngine } = run;
-  const eye = await setupEyeTracking({ services, screen, plan: project.plan, profile, rng: createRng(seed), loadEngine });
+  const eye = await setupEyeTracking({ services, screen, plan: project.plan, profile, rng: createRng(seed), loadEngine, experimenter: run.experimenter });
   held.eye = eye;
   if (eye.status !== 'aborted') return { eye };
   const { bus, display, sinkSet } = services;

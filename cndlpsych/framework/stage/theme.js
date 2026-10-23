@@ -51,7 +51,8 @@ const PALETTE_CSS = Object.entries(PALETTE).map(([name, value]) => `  ${name}: $
 
 export const THEME_CSS = `
 /* ---- the page: one font for stimuli, instructions and forms ---- */
-.cndlpsych-stage {
+.cndlpsych-stage,
+.cndlpsych-display {
   font-family: ${FONT};
   line-height: 1.5;
 }
@@ -88,9 +89,9 @@ ${PALETTE_CSS}
 .cndlpsych-display .jspsych-content:has(.jspsych-survey-container) { width: 100%; max-width: none; }
 /* The plugin gives its container an inline min-width of 800px; a form is a narrow column. */
 .cndlpsych-display .jspsych-survey-container {
-  width: min(100vw, 36rem);
+  width: min(100%, 36rem);
   min-width: 0 !important;
-  max-width: 100vw;
+  max-width: 100%;
   margin: 0 auto;
 }
 .cndlpsych-display .sd-root-modern {

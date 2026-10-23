@@ -31,10 +31,10 @@ export function showForm(ctx, { title, intro, elements, submitLabel }) {
  * @param {{message: string, choices: {value: string, text: string}[], submitLabel?: string}} options markdown message
  * @returns {Promise<string>} the chosen value
  */
-export async function askAction(ctx, { message, choices, submitLabel = 'Continue' }) {
+export async function askAction(ctx, { message, choices, submitLabel = 'Continue', defaultValue = choices[0].value }) {
   const elements = [
     html(markdownToHtml(message)),
-    { type: 'radiogroup', name: 'action', title: 'Choose', showTitle: false, isRequired: true, defaultValue: choices[0].value, choices },
+    { type: 'radiogroup', name: 'action', title: 'Choose', showTitle: false, isRequired: true, defaultValue, choices },
   ];
   const { values } = await showSurvey(ctx, surveyJson({ questions: elements, submitLabel }));
   return values.action;

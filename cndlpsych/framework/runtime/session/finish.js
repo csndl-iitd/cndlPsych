@@ -25,10 +25,11 @@ export const deviceExtras = (held) => () => ({
   ...(held.webcam ? { webcam: held.webcam.summary() } : {}),
 });
 
-function finishScreen(display, plan, record) {
+function finishScreen(display, plan, record, mode) {
   const { finish = {} } = plan;
   const code = finish.show_session_code ? `\n\nSession code: **${record.subject_id}_${record.session_id}**` : '';
-  showMessage(display, `${finish.message ?? 'Thank you. You can close this window.'}${code}`);
+  const test = mode?.test ? '\n\n**This was a test session.** Nothing was sent to the database and the participant ID was not kept.' : '';
+  showMessage(display, `${finish.message ?? 'Thank you. You can close this window.'}${code}${test}`);
   if (finish.redirect_url) {
     const delay = finish.redirect_delay === undefined ? 3000 : Number.parseFloat(finish.redirect_delay) * (String(finish.redirect_delay).endsWith('ms') ? 1 : 1000);
     setTimeout(() => globalThis.location.assign(finish.redirect_url), delay);
@@ -51,7 +52,7 @@ async function exportSession(doc, store, formats) {
  * All blocks ran: let queued triggers go out, write session.end, close the record, export, say goodbye.
  * @returns {Promise<{status: 'complete', record: object}>}
  */
-export async function completeSession({ services, project, store, finish, eye }) {
+export async function completeSession({ services, project, store, finish, eye, mode }) {
   const { plan } = project;
   const { bus, display, sinkSet } = services;
   const exportFormats = plan.storage?.local?.export_on_finish ?? [];
@@ -66,7 +67,7 @@ export async function completeSession({ services, project, store, finish, eye })
   const done = await finish('complete');
   await sinkSet.closeAll();
   await exportSession(display.ownerDocument, store, exportFormats);
-  finishScreen(display, plan, done);
+  finishScreen(display, plan, done, mode);
   return { status: 'complete', record: done };
 }
 

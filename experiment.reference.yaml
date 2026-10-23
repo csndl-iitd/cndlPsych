@@ -1,0 +1,156 @@
+# The experiment: who can take part, what is stored, and how responses work.
+# Every setting is documented in docs/yaml/experiment.md.
+#
+# Lines starting with "#" are switched off. Every setting there is shown with its default (or an
+# example): remove the "#" and change the value to use it. Settings you leave out keep their defaults.
+spec_version: 1
+name: My first experiment
+# description: ""
+# authors: []
+# language: en
+seed: auto                    # a number makes every session use the same random order
+# capture_url_params: []      # URL parameters to keep in the record, e.g. [PROLIFIC_PID, STUDY_ID]
+
+# ---- what the screen looks like ----------------------------------------------------------------
+stage:
+  aspect: fill                # fill, a ratio such as "16:9", or a number
+  background: "#000000"
+  fullscreen: preferred       # required | preferred | off
+  # margin: 0
+  # color: "#ffffff"
+  # font: ""
+  # orientation: any          # any | landscape | portrait
+  # wake_lock: true           # keep the screen on
+
+# ---- which devices can take part ---------------------------------------------------------------
+device:
+  select: auto                # auto | prompt | fixed
+  allowed: [desktop, phone, tablet]
+  # fixed: desktop            # the profile to use when select is "fixed"
+  # rejected_message: ""      # shown to a device that is not allowed
+  # profiles:                 # change or add what makes a device a desktop, phone, tablet or your own
+  #   kiosk:
+  #     when: { pointer: coarse, hover: none, keyboard: false, touch: true, min_width_px: 1000, max_width_px: 2000, orientation: landscape }
+  # calibration:              # needed only if lengths are given in mm or degrees
+  #   mode: none              # none | card | manual
+  #   viewing_distance_mm: 600
+  #   profiles: []
+
+# ---- consent (required) --------------------------------------------------------------------------
+consent:
+  file: consent.md
+  # text: ""                  # the consent text here instead of in a file
+  # mode: on_screen           # on_screen | attested (the experimenter confirms consent was obtained)
+  statements:
+    - { id: read, text: "I have read the information above." }
+    - { id: voluntary, text: "I understand that taking part is voluntary and I can stop at any time." }
+  # min_age: 18               # stops younger participants (adds the age check to the subject form)
+  # require_scroll: false     # the participant must scroll to the end of the text first
+  # decline_message: ""
+
+# ---- responses ----------------------------------------------------------------------------------
+# "go" is the one response in this experiment: SPACE on a computer, a tap on a phone or tablet.
+# A device with several inputs (a touch laptop) accepts all of them.
+input:
+  intents:
+    go:
+      hint: { desktop: "Press SPACE", phone: "Tap the screen", tablet: "Tap the screen" }
+      desktop: { key: " " }
+      phone: { tap: true }
+      tablet: { tap: true }
+      # doc: ""               # a note for yourself
+      # plugin_key: F13        # only for custom tasks that need a particular key
+  # reset: false              # true forgets all built-in settings first
+  # disable: []               # built-in intents to remove
+  # gestures: [tap]           # tap | longpress | swipe | drag: the ones a response can use
+  # gesture_thresholds:
+  #   tap: { max_duration: 500, slop: 10px }
+  #   longpress: { min_duration: 500, slop: 10px }
+  #   swipe: { min_distance: 40px, min_velocity: 0.2, max_duration: 1000 }
+  #   drag: { slop: 10px }
+  # fire_on: up               # up | down: when a tap counts
+  # pointer_path: false       # true, or { hz: 60 }: record where the finger or mouse went
+  # hit_padding: 0
+  # show_zones: false
+  # cursor: { autohide_ms: 1000, show_on_move_px: 3 }
+  # profiles:                 # the same settings for one kind of device only; "rules" are patterns of events that produce responses (docs/yaml/input.md)
+  #   tablet: { rules: [], disable: [], gestures: [tap], fire_on: up }
+
+# Everything the participant does (every key press, touch and gesture) is recorded whether or not a
+# response uses it.
+
+# ---- triggers to external equipment (EEG, eye tracker, ...) ---------------------------------------
+# triggers:
+#   enabled: true
+#   sinks:
+#     - { id: eeg, type: serial, format: raw, template: "{value:02x}", baud: 115200, required: true }
+#     # - { id: lab, type: websocket, format: ndjson, url: "ws://localhost:8765", fields: [seq, value, event, t_event, t_sent], reconnect: { enabled: true, max_delay_ms: 5000 } }
+#     # - { id: usb, type: usb, format: raw, template: "{value:02x}", vendor_id: 0, product_id: 0, endpoint: 1, configuration: 1, interface: 0 }
+#     # Settings every sink has (shown with their defaults):
+#     #   required: true, newline: lf, ack: false, max_queue: 256, min_gap_ms: 0, reset_after_ms: 0, reset_value: 0,
+#     #   sync: { pings: 10, interval_s: 60 }
+#     # More for serial: data_bits: 8, stop_bits: 1, parity: none, flow_control: none, usb_filters: [{ usb_vendor_id: 0, usb_product_id: 0 }]
+#   defaults: { min_gap_ms: 0 }
+#   rules:                    # when to send what (docs/yaml/triggers.md)
+#     - { id: stimulus_on, on: phase.onset, value: 1 }
+#   disable: []
+
+# ---- eye tracking (needs the expfw-eyetracking folder: expfw init --eyetracking) -----------------
+# eyetracking:
+#   enabled: true
+#   engine: webgazer
+#   profiles: [desktop]
+#   sample_hz: 30
+#   calibration: { points: 9, repeats: 2 }
+#   validation: { points: 5, max_error_px: 150, max_retries: 3, on_fail: retry }   # retry | continue_flagged | abort
+#   revalidate: { every_trials: 50, every_minutes: 10 }
+#   dwell: { radius: 50px, min_ms: 100 }
+#   learn_from_clicks: false
+#   camera: { preview: setup_only, on_denied: abort }   # preview: setup_only | always | never; on_denied: abort | continue_without
+
+# ---- marks for cameras and photodiodes ------------------------------------------------------------
+# overlay:
+#   apriltags:
+#     enabled: true
+#     family: tag36h11
+#     ids: [0, 1, 2, 3]       # top-left, top-right, bottom-right, bottom-left
+#     size: 12mm
+#     margin: 4mm
+#     quiet_zone: 1
+#   photodiode:
+#     enabled: true
+#     corner: bl              # tl | tr | br | bl
+#     size: 10mm
+#     mode: toggle            # toggle | pulse
+#     pulse_ms: 50
+#     on: [{ on: phase.onset }]
+
+# ---- where the data goes ----------------------------------------------------------------------------
+storage:
+  local: { enabled: true, recovery: offer, export_on_finish: [jsonl, csv, bids] }
+  # local:                    # more settings of the same
+  #   flush_ms: 2000
+  #   file_access: false      # also write to a folder the experimenter chooses (Chrome, Edge)
+  # firebase:                 # also send the data to your Firebase project
+  #   enabled: true
+  #   experiment_id: my-experiment
+  #   access: controlled      # controlled: the experimenter starts sessions | public: an open link
+  #   web_config: { apiKey: "", projectId: "", appId: "", authDomain: "", storageBucket: "", messagingSenderId: "" }
+  #   subject_id: { width: 3, override: false, claim_timeout_min: 60 }
+  #   chunk: { max_events: 400, max_bytes: 600000, flush_ms: 10000 }
+  #   app_check: { provider: recaptcha_v3, site_key: "" }
+
+# ---- the end ------------------------------------------------------------------------------------------
+finish:
+  message: "Thank you - you can close this window."
+  show_session_code: true
+  # redirect_url: "https://example.org/done"
+  # redirect_delay: 3000
+
+# ---- while you build the experiment -------------------------------------------------------------------
+# debug:
+#   enabled: false
+#   log_level: warn           # error | warn | info | debug
+#   show_events: false
+#   simulate_profile: desktop
+#   time_scale: 1             # 0.2 runs everything five times faster; such data is never valid
