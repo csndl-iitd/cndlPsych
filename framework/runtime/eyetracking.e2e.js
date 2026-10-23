@@ -159,6 +159,7 @@ test.describe('camera denied', () => {
     await begin(page, { gazeFail: 'NotAllowedError' });
     await passEntryScreens(page, { camera: true });
     await continueDeviceScreen(page);
+    await continueDeviceScreen(page, 'stop'); // an experimenter chooses: try again, continue without, or stop
     expect(await finished(page)).toBe('aborted');
     const { record, events } = await recorded(page);
     expect(record.eyetracking).toEqual({ enabled: true, engine: 'webgazer', camera_denied: true, validations: [] });
@@ -166,6 +167,20 @@ test.describe('camera denied', () => {
     expect(ofType(events, 'block.start')).toEqual([]);
     await expect(page.getByText('needs your camera')).toBeVisible();
     expect(sessionProblems(record)).toEqual([]);
+  });
+
+  test('an experimenter can choose to continue without eye tracking', async ({ page, isMobile }) => {
+    test.skip(isMobile, 'a full session');
+    await begin(page, { gazeFail: 'NotAllowedError' });
+    await installAutopilot(page, { touch: false });
+    await passEntryScreens(page, { camera: true });
+    await continueDeviceScreen(page);
+    await continueDeviceScreen(page, 'continue');
+    await page.locator('[data-name="difficulty"]').waitFor({ timeout: 120_000 });
+    await answerPostTask(page);
+    expect(await finished(page)).toBe('complete');
+    const { events } = await recorded(page);
+    expect(events.filter((e) => e.source === 'gaze')).toEqual([]);
   });
 
   test('on_denied continue_without runs the blocks with no gaze data', async ({ page, isMobile }) => {
