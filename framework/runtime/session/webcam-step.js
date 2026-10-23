@@ -59,11 +59,16 @@ export async function prepareWebcam({ run, store, profile, record, finish, held,
   const { settings } = camera;
 
   // The file picker needs the click that answers this screen, so it is the first thing done after it.
-  await askAction(screen, { message: intro(settings.audio, settings.save !== 'browser' && canPickFile(win)), choices: [{ value: 'go', text: 'Start' }], submitLabel: 'Continue' });
+  const first = await askAction(screen, {
+    message: intro(settings.audio, settings.save !== 'browser' && canPickFile(win)),
+    choices: [{ value: 'go', text: 'Start' }, ...(run.experimenter ? [{ value: 'skip', text: 'Continue without the camera recording' }] : [])],
+    submitLabel: 'Continue',
+  });
   let target;
-  let started;
-  let continued = false; // the experimenter chose to go on without the recording
-  for (;;) {
+  let started = { ok: false, message: 'The experimenter chose to continue without the camera recording.' };
+  let continued = first === 'skip'; // the experimenter chose to go on without the recording
+  if (continued) bus.emit({ source: 'system', type: 'system.warning', data: { code: 'webcam_skipped', message: started.message } });
+  while (!continued) {
     target = await chooseTarget({ settings, names: { subject: record.subject_id, session: record.session_id, segment }, store, win });
     started = target.failure ? camera.fail(target.failure.code, target.failure.message) : await camera.start(target);
     if (started.ok || settings.on_denied === 'continue_without' || !run.experimenter) break;
@@ -78,7 +83,7 @@ export async function prepareWebcam({ run, store, profile, record, finish, held,
     flush: () => camera.flush(),
     async stop(reason) {
       await camera.stop(reason);
-      await target.close?.().catch((error) => bus.emit({ source: 'system', type: 'webcam.error', data: { code: 'storage_failed', message: `The video file could not be finished: ${error?.message ?? error}` } }));
+      await target?.close?.().catch((error) => bus.emit({ source: 'system', type: 'webcam.error', data: { code: 'storage_failed', message: `The video file could not be finished: ${error?.message ?? error}` } }));
     },
   };
   held.webcam = recording;

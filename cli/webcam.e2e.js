@@ -67,7 +67,7 @@ async function toCameraScreen(page, url) {
 }
 
 const startRecording = async (page) => {
-  await expect(page.getByText('Camera recording')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Camera recording' })).toBeVisible();
   await choose(page, 'action', 'go');
   await clickContinue(page);
 };
@@ -239,6 +239,18 @@ test('an experimenter can choose to continue without a camera that is refused, a
   await continueDeviceScreen(page, 'continue');
   await page.getByText('Reaction time').waitFor();
   expect(ofType(await events(page), 'webcam.error').map((e) => e.data.code)).toEqual(['denied']);
+});
+
+test('an experimenter can skip the camera recording on the first screen, and nothing is recorded', async ({ page }) => {
+  await toCameraScreen(page, await project());
+  await expect(page.getByRole('heading', { name: 'Camera recording' })).toBeVisible();
+  await choose(page, 'action', 'skip');
+  await clickContinue(page);
+  await page.getByText('Reaction time').waitFor();
+  const log = await events(page);
+  expect(ofType(log, 'webcam.start')).toEqual([]);
+  expect(ofType(log, 'system.warning').map((e) => e.data.code)).toContain('webcam_skipped');
+  expect(await page.evaluate(() => window.__pickerCalls)).toEqual([]);
 });
 
 test('with on_denied: continue_without the session goes on and the record says the camera was not used', async ({ page }) => {
