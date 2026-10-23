@@ -19,6 +19,7 @@ export async function conductSession({ run, store, profile, inputProfiles, seed,
   try {
     await runBlocks({ services, plan: project.plan, profile, seed, answers, resume, beforeBlock: eye.beforeBlock, trialLimit: run.mode?.trialLimit });
   } catch (error) {
+    services.setDisplayMode('text');
     return stopSession({ services, finish, eye, error });
   }
   return completeSession({ services, project, store, finish, eye, mode: run.mode });

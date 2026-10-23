@@ -13,6 +13,7 @@ import { createMapping } from '../pipeline/mapping.js';
 import { createTriggers } from '../pipeline/triggers.js';
 import { createSinks } from './sinks.js';
 import { createCursor } from '../stage/cursor.js';
+import { createDisplayFit } from '../stage/display-fit.js';
 import { createLayout } from '../stage/layout.js';
 import { createOverlay, overlayReserve } from '../stage/overlay.js';
 import { createStage } from '../stage/stage.js';
@@ -51,6 +52,7 @@ export function createServices({ root, plan, generators = {}, validate, timeScal
   const display = doc.createElement('div');
   display.className = 'cndlpsych-display';
   stage.element.append(display);
+  const displayFit = createDisplayFit({ display, root: stage.root, stage, border: overlayReserve(plan.overlay, calibration) });
   const jsPsych = createJsPsych({ display, extensions: [bridge.Extension] });
 
   const state = { profile: null, scope: null, session: {}, onRequiredLost: () => {}, frameMs: DEFAULT_FRAME_MS, inputProfiles: [] };
@@ -124,6 +126,8 @@ export function createServices({ root, plan, generators = {}, validate, timeScal
 
   return {
     clock, bus, stage, input, cursor, bridge, mapping, jsPsych, display, moduleContext, defaultParams, triggers, sinkSet, scale, overlay, frames,
+    /** 'stage' while a block of stimuli runs (the display is the stage), 'text' for forms and messages (it reaches past the overlay border). */
+    setDisplayMode: displayFit.mode,
     /** Session answers that trigger values and fields can read ({subject, session, device}). */
     setSessionContext(context) { state.session = context; },
     /** Called when a required sink is lost while recording. */

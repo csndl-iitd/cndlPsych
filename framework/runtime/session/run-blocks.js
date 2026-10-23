@@ -7,6 +7,7 @@ import { buildSurvey } from '../../authoring/modules/survey.js';
 import { createRng } from '../../foundation/rng.js';
 
 const BUILDERS = { response_task: buildResponseTask, instructions: buildInstructions, survey: buildSurvey };
+const TEXT_MODULES = ['instructions', 'survey']; // blocks of text and forms, which do not use stage positions
 
 /**
  * Run the blocks in order. When resuming, `resume` says where to carry on: earlier blocks are
@@ -30,7 +31,9 @@ export async function runBlocks({ services, plan, profile, seed, answers, resume
     }
     const build = BUILDERS[planBlock.module];
     if (!build) throw new Error(`module "${planBlock.module}" is not available (custom tasks are not supported yet)`);
+    services.setDisplayMode('text'); // what the steps between blocks show (eye tracking set-up) is text
     if (!(await beforeBlock())) throw Object.assign(new Error('eye tracking could not be validated'), { endReason: 'aborted' });
+    services.setDisplayMode(TEXT_MODULES.includes(planBlock.module) ? 'text' : 'stage');
     const resumedBlock = resume && index === resume.blockIndex;
     for (let run = resumedBlock ? resume.run : 1; run <= planBlock.repeat; run += 1) {
       const resumedRun = resumedBlock && run === resume.run;
@@ -48,4 +51,5 @@ export async function runBlocks({ services, plan, profile, seed, answers, resume
       bus.setContext({ block: null, trial: null, phase: null });
     }
   }
+  services.setDisplayMode('text'); // the end of the session is a message
 }
