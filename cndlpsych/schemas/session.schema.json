@@ -485,6 +485,10 @@
               },
               "connected": {
                 "type": "boolean"
+              },
+              "skipped": {
+                "type": "boolean",
+                "description": "left out: not used on this device (Web Serial on a phone), or the experimenter went on without it"
               }
             },
             "additionalProperties": false
@@ -547,6 +551,10 @@
           }
         }
       }
+    },
+    "mode": {
+      "description": "Present only for a test session (a live session has no mode field). Test sessions are never sent to Firebase.",
+      "const": "test"
     },
     "webcam": {
       "description": "What the webcam recording did. The video is in the export, stamped on the session clock by the webcam.* events.",

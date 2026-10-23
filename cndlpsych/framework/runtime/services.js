@@ -13,6 +13,7 @@ import { createMapping } from '../pipeline/mapping.js';
 import { createTriggers } from '../pipeline/triggers.js';
 import { createSinks } from './sinks.js';
 import { createCursor } from '../stage/cursor.js';
+import { createDisplayFit } from '../stage/display-fit.js';
 import { createLayout } from '../stage/layout.js';
 import { createOverlay, overlayReserve } from '../stage/overlay.js';
 import { createStage } from '../stage/stage.js';
@@ -37,8 +38,11 @@ export function createServices({ root, plan, generators = {}, validate, timeScal
   const clock = createClock();
   const bus = createBus({ clock, validate, recording: false });
   const calibration = plan.device?.calibration;
-  const stage = createStage({ root, bus, spec: plan.stage, calibration, reserve: overlayReserve(plan.overlay, calibration) });
-  const overlay = createOverlay({ root, bus, spec: plan.overlay, calibration, viewport: () => ({ w: root.clientWidth, h: root.clientHeight }), schedule: defaultSchedule });
+  const { screen } = doc.defaultView;
+  const shortSide = Math.min(screen?.width ?? Infinity, screen?.height ?? Infinity); // the device's, so it does not change when the window is resized
+  const reserve = overlayReserve(plan.overlay, calibration, shortSide);
+  const stage = createStage({ root, bus, spec: plan.stage, calibration, reserve });
+  const overlay = createOverlay({ root, bus, spec: plan.overlay, calibration, viewport: () => ({ w: root.clientWidth, h: root.clientHeight }), schedule: defaultSchedule, shortSide });
   const input = createInput({ bus, stage });
   const cursor = createCursor({ element: stage.root });
   input.onActivity((move) => cursor.moved(move));
@@ -51,6 +55,7 @@ export function createServices({ root, plan, generators = {}, validate, timeScal
   const display = doc.createElement('div');
   display.className = 'cndlpsych-display';
   stage.element.append(display);
+  const displayFit = createDisplayFit({ display, root: stage.root, stage, border: reserve });
   const jsPsych = createJsPsych({ display, extensions: [bridge.Extension] });
 
   const state = { profile: null, scope: null, session: {}, onRequiredLost: () => {}, frameMs: DEFAULT_FRAME_MS, inputProfiles: [] };
@@ -124,6 +129,8 @@ export function createServices({ root, plan, generators = {}, validate, timeScal
 
   return {
     clock, bus, stage, input, cursor, bridge, mapping, jsPsych, display, moduleContext, defaultParams, triggers, sinkSet, scale, overlay, frames,
+    /** 'stage' while a block of stimuli runs (the display is the stage), 'text' for forms and messages (it reaches past the overlay border). */
+    setDisplayMode: displayFit.mode,
     /** Session answers that trigger values and fields can read ({subject, session, device}). */
     setSessionContext(context) { state.session = context; },
     /** Called when a required sink is lost while recording. */

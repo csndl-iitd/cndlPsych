@@ -25,8 +25,8 @@ blocks:
           response_window: any
           correct: { intent: go, where: { stimulus: "oddball_Ǝ", occurrence: 2 } }
           rt_from: { stimulus: "oddball_Ǝ", occurrence: 2 }   # response times are from the second Ǝ, not from the letter showing
-          post: 1500
-          repetitions: 5
+          post: 500
+          repetitions: 100
 
   # ---- 2. visual search: top-down trials with some bottom-up (pop-out) trials ---------------------------
   - id: search_intro
@@ -87,15 +87,15 @@ blocks:
           sequence: [search_array]
           response: next
           timeout: 10s
-          post: 1250
-          repetitions: 12
+          post: 1000
+          repetitions: 90
         - name: search_bottomup
           start: fixation_plus
           sequence: [search_array_popout]
           response: next
           timeout: 10s
-          post: 1250
-          repetitions: 4
+          post: 1000
+          repetitions: 10
 
   # ---- questionnaire (only for the experimental group) ---------------------------------------------------
   - id: post_task

@@ -231,12 +231,14 @@ function instanceNode(ctx, planBlock, instance) {
  * Build the jsPsych nodes of a response_task block.
  * @param {import('./phase.js').ModuleContext} ctx
  * @param {object} planBlock block of the compiled plan (config, trials with resolved scopes)
- * @param {{skipTrials?: number}} [options] when resuming: the first n trials already ran and are not built again.
+ * @param {{skipTrials?: number, limit?: number|null}} [options] when resuming: the first n trials already ran and are not built again.
  *   The full list is still expanded (same seed, same order), so trial numbers and stimuli match the first attempt.
+ *   `limit` (test mode): only the first n trials of the block, in the order they would run.
  * @returns {{nodes: object[], nTrials: number}} nTrials is the whole block, including skipped trials
  */
-export function buildResponseTask(ctx, planBlock, { skipTrials = 0 } = {}) {
-  const instances = expandInstances(planBlock.config, ctx.rng.fork('order'));
+export function buildResponseTask(ctx, planBlock, { skipTrials = 0, limit = null } = {}) {
+  const all = expandInstances(planBlock.config, ctx.rng.fork('order'));
+  const instances = limit ? all.slice(0, limit) : all;
   const remaining = instances.filter((instance) => instance.number > skipTrials);
   return { nodes: remaining.map((instance) => instanceNode(ctx, planBlock, instance)), nTrials: instances.length };
 }

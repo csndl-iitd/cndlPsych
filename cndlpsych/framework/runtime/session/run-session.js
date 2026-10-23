@@ -7,6 +7,7 @@
 //   conduct-session.js    what both share: run the blocks, then end the session
 //   run-blocks.js, finish.js, recording.js, session-record.js, eye-tracking-step.js, ...
 import { readEnvironment } from '../../foundation/device.js';
+import { experimenterPresent } from './continue-without.js';
 import { chooseEarlierSession } from './earlier-sessions.js';
 import { runNewSession } from './new-session.js';
 import { measureRefresh } from './refresh.js';
@@ -29,6 +30,7 @@ export async function runSession({ services, project, store, remote = null, load
     loadEngine: loadGazeEngine,
     screen: { jsPsych: services.jsPsych },
     env: readEnvironment(globalThis),
+    experimenter: experimenterPresent(plan), // someone is there to choose to go on without a feature that cannot be used
     debug: plan.debug?.enabled ? plan.debug : {},
     refresh: measureRefresh(), // started now, finished long before it is needed
   };

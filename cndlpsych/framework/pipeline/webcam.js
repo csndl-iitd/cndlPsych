@@ -130,6 +130,7 @@ export function createWebcam({
       recorder.start(settings.chunk_s * 1000);
       await started;
       current.startedAt = clock.now();
+      denied = false; // it worked (an earlier try may not have)
       bus.emit({
         source: 'system',
         type: 'webcam.start',

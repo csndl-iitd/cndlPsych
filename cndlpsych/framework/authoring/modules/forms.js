@@ -130,6 +130,7 @@ export function subjectElements(form = {}, assigned = {}) {
       : { type: 'regex', regex: '^(sub-)?[A-Za-z0-9]+$', text: 'Use letters and digits only (for example 007)' }],
   }, overrides.subject_id);
   if (assigned.value !== undefined) Object.assign(subjectId, { defaultValue: assigned.value, readOnly: assigned.locked === true });
+  else if (assigned.defaultValue !== undefined) subjectId.defaultValue = assigned.defaultValue; // an ID filled in, not claimed (test mode)
   return [
     ...(assigned.hidden ? [] : [subjectId]),
     withOverride({ type: 'radiogroup', name: 'sex', title: 'Sex', isRequired: true, choices: SEX_OPTIONS, ...inline(SEX_OPTIONS) }, overrides.sex),

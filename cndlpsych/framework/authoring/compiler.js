@@ -9,6 +9,7 @@
 import { checkIntents } from './checks/intents.js';
 import { checkNames } from './checks/names.js';
 import { checkOverlay } from './checks/overlay.js';
+import { checkModes } from './checks/modes.js';
 import { checkWebcam } from './checks/webcam.js';
 import { checkParams } from './checks/params.js';
 import { checkReferences } from './checks/references.js';
@@ -82,6 +83,7 @@ export function compile(project) {
   checkNames(ctx);
   checkOverlay(ctx);
   checkWebcam(ctx);
+  checkModes(ctx);
   checkReferences(ctx);
   checkParams(ctx);
   const { blocks, scopes } = resolveBlocks(ctx);

@@ -21,7 +21,7 @@ stimuli:
     duration: null
     trigger: 19
 
-  - { name: fixation_plus, type: text, text: "+", size: 72px, duration: 1500, trigger: 20, post: [200, 500] }
+  - { name: fixation_plus, type: text, text: "+", size: 72px, duration: 1000, trigger: 20, post: 300 }
 
   # One entry makes oddball_A ... oddball_Ǝ, with triggers 100 ... 109.
   - name: "oddball_{value}"

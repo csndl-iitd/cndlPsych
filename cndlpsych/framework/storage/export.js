@@ -110,5 +110,5 @@ export function webcamFiles(record, pieces) {
 export function sessionArchive(record, events, formats = ['jsonl']) {
   const wanted = formats.filter((format) => format in EXPORTERS);
   const files = [{ name: 'session.json', data: `${JSON.stringify(record, null, 2)}\n` }, ...wanted.flatMap((format) => EXPORTERS[format](record, events))];
-  return { name: `${record.subject_id}_${record.session_id}.zip`, data: zip(files), skipped: formats.filter((format) => !(format in EXPORTERS)) };
+  return { name: `${record.mode === 'test' ? 'test_' : ''}${record.subject_id}_${record.session_id}.zip`, data: zip(files), skipped: formats.filter((format) => !(format in EXPORTERS)) };
 }

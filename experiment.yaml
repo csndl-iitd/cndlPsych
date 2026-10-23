@@ -172,3 +172,12 @@ finish:
 #   show_events: false
 #   simulate_profile: desktop
 #   time_scale: 1             # 0.2 runs everything five times faster; such data is never valid
+
+# ---- live and test mode: the first screen of a session asks which ------------------------------------------------
+modes:
+  default: live
+  test:                       # to try the experiment out: a short run, a throwaway ID, nothing sent to Firebase, marked as a test
+    trials_per_block: 3       # at most this many trials in each block of trials
+    block_trials: { oddball_task: 2 }   # trials for particular blocks by id, which wins
+    subject_id: sub-test
+  live: {}                    # the real thing: every trial
