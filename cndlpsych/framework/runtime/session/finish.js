@@ -3,7 +3,7 @@
 // device check (that one is handled where the check happens).
 import { isoNow } from '../../foundation/clock.js';
 import { finishSessionRecord } from '../../foundation/session.js';
-import { sessionArchive, SUPPORTED_FORMATS } from '../../storage/export.js';
+import { deviceCaptureFiles, sessionArchive, SUPPORTED_FORMATS } from '../../storage/export.js';
 import { downloadFile, downloadWebcamVideo } from '../download.js';
 import { showMessage } from './messages.js';
 
@@ -42,7 +42,7 @@ async function exportSession(doc, store, formats) {
   if (!wantsZip && typeof store.readMedia !== 'function') return;
   const { record, events } = await store.snapshot();
   if (wantsZip) {
-    const archive = sessionArchive(record, events, formats);
+    const archive = sessionArchive(record, events, formats, deviceCaptureFiles((await store.readStreams?.()) ?? []));
     downloadFile(doc, { name: archive.name, data: archive.data });
   }
   await downloadWebcamVideo(doc, store, record);

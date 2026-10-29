@@ -6,6 +6,7 @@ export function createMemoryStore() {
     record: null,
     events: [],
     media: [],
+    streams: [],
     finished: false,
     begin(record) { store.record = record; },
     flush() {},
@@ -15,6 +16,10 @@ export function createMemoryStore() {
     /** Webcam video pieces, kept in memory like the events. */
     async addMedia(piece) { store.media.push({ segment: piece.segment, index: piece.index, blob: piece.blob }); },
     async readMedia() { return [...store.media].sort((a, b) => a.segment - b.segment || a.index - b.index); },
+    /** Raw device data, in batches (see pipeline/capture.js). */
+    async addStream(piece) { store.streams.push(piece); },
+    async readStreams() { return [...store.streams].sort((a, b) => a.segment - b.segment || a.index - b.index); },
+    async nextStreamSegment() { return store.streams.reduce((highest, piece) => Math.max(highest, piece.segment), 0) + 1; },
     finish(record) {
       store.record = record;
       store.finished = true;

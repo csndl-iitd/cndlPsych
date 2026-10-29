@@ -30,7 +30,7 @@ async function reconnectSinks(run) {
   const { screen, services } = run;
   const { sinkSet, display } = services;
   if (!sinkSet.configs.length) return { sinkWarnings: [] };
-  const connected = await connectSinks(screen, sinkSet, { experimenter: run.experimenter, mobile: run.env.mobile });
+  const connected = await connectSinks(screen, sinkSet, { experimenter: run.experimenter });
   if (connected.ok) return { sinkWarnings: connected.warnings };
   await sinkSet.closeAll();
   showMessage(display, `The required trigger device **${connected.blocked.id}** is not connected, so the session cannot be resumed. The saved data is unchanged.`);

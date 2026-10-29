@@ -6,18 +6,13 @@ import { NEEDS_GESTURE } from '../sinks.js';
 /**
  * Each sink connects in turn. A required sink that cannot connect blocks the session unless the
  * user retries successfully or, when an experimenter is present, goes on without it; an optional one is skipped
- * with a warning. A serial sink is not tried on a phone or tablet, where Web Serial is often missing.
- * @param {{experimenter?: boolean, mobile?: boolean}} [options]
+ * with a warning.
+ * @param {{experimenter?: boolean}} [options]
  * @returns {Promise<{ok: boolean, blocked?: {id: string, error: string}, warnings: {id: string, error: string}[]}>}
  */
-export async function connectSinks(screen, sinkSet, { experimenter = false, mobile = false } = {}) {
+export async function connectSinks(screen, sinkSet, { experimenter = false } = {}) {
   const warnings = [];
   for (const config of sinkSet.configs) {
-    if (config.type === 'serial' && mobile) {
-      await sinkSet.skip(config.id);
-      warnings.push({ id: config.id, error: 'Web Serial is not used on phones and tablets' });
-      continue;
-    }
     const outcome = await connectOne(screen, config, sinkSet.sinks.get(config.id), experimenter);
     if (outcome.skipped) await sinkSet.skip(config.id); // the experimenter went on without it
     if (outcome.blocked) return { ok: false, blocked: outcome.blocked, warnings };
