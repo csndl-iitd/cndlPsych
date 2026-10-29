@@ -12,10 +12,11 @@ export const exampleSinks = () => load(readFileSync(EXAMPLE, 'utf8')).triggers.s
 /**
  * Replace navigator.serial before the page loads. requestPort rejects `rejectPicks` times
  * first (the user closed the picker); writes are recorded in window.__serial.writes and
- * start failing after `failAfter` writes (the cable was pulled).
+ * start failing after `failAfter` writes (the cable was pulled). With `stream` the device also sends a text line every
+ * 20 ms and answers each byte written with a line "ECHO <hex>".
  */
-export function installFakeSerial(page, { rejectPicks = 0, failAfter = null } = {}) {
-  return page.addInitScript(({ rejects, fail }) => {
+export function installFakeSerial(page, { rejectPicks = 0, failAfter = null, stream = false } = {}) {
+  return page.addInitScript(({ rejects, fail, streaming }) => {
     const state = { writes: [], picks: 0, opened: null, rejects, fail };
     window.__serial = state;
     const port = {
@@ -24,16 +25,29 @@ export function installFakeSerial(page, { rejectPicks = 0, failAfter = null } = 
         write: async (data) => {
           if (state.fail !== null && state.writes.length >= state.fail) throw new Error('device unplugged');
           state.writes.push([...data]);
+          if (streaming) deliver(new TextEncoder().encode(`ECHO ${[...data].map((byte) => byte.toString(16).padStart(2, '0')).join('')}\n`));
         },
+        releaseLock() {},
+      }) },
+      readable: { getReader: () => ({
+        read: () => new Promise((resolve) => { if (queued.length) resolve({ value: queued.shift(), done: false }); else waiting.push(resolve); }),
+        cancel: async () => { waiting.splice(0).forEach((resolve) => resolve({ done: true })); },
         releaseLock() {},
       }) },
       close: async () => {},
     };
+    const waiting = [];
+    const queued = [];
+    function deliver(bytes) { if (waiting.length) waiting.shift()({ value: bytes, done: false }); else queued.push(bytes); }
+    if (streaming) {
+      let count = 0;
+      setInterval(() => { count += 1; deliver(new TextEncoder().encode(`${(count & 0xffff).toString(16).toUpperCase().padStart(4, '0')}7FF\n`)); }, 20);
+    }
     Object.defineProperty(navigator, 'serial', {
       configurable: true,
       value: { requestPort: async () => { state.picks += 1; if (state.picks <= state.rejects) throw new Error('No port selected by the user.'); return port; } },
     });
-  }, { rejects: rejectPicks, fail: failAfter });
+  }, { rejects: rejectPicks, fail: failAfter, streaming: stream });
 }
 
 export const serialWrites = (page) => page.evaluate(() => window.__serial.writes);

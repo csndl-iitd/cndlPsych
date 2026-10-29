@@ -14,6 +14,7 @@ function fakeSerial({ failOpen = false } = {}) {
       getReader: () => ({
         read: () => (incoming.length ? Promise.resolve({ value: incoming.shift(), done: false }) : new Promise((resolve) => { wake = resolve; })),
         cancel: async () => { wake?.({ done: true }); },
+        releaseLock() {},
       }),
     },
     close: async () => { log.closed = true; },
@@ -26,6 +27,46 @@ function fakeSerial({ failOpen = false } = {}) {
 }
 
 describe('serial transport', () => {
+  it('asks for a large read buffer when it streams (the default 255 bytes overruns), and not otherwise', async () => {
+    const streaming = fakeSerial();
+    const transport = createSerialTransport({}, { serial: streaming.api });
+    transport.onData(() => {});
+    await transport.connect();
+    expect(streaming.log.opened.bufferSize).toBe(1 << 20);
+    const quiet = fakeSerial();
+    await createSerialTransport({}, { serial: quiet.api }).connect();
+    expect(quiet.log.opened.bufferSize).toBeUndefined();
+  });
+
+  it('reads on after a recoverable error, and reports a port that ended, but not its own close', async () => {
+    const closes = [];
+    let reads = 0;
+    const port = {
+      open: async () => {},
+      writable: { getWriter: () => ({ write: async () => {}, releaseLock() {} }) },
+      readable: { getReader: () => ({ read: async () => { reads += 1; if (reads === 1) throw new Error('buffer overrun'); if (reads === 2) return { value: Uint8Array.of(7), done: false }; return { done: true }; }, cancel: async () => {}, releaseLock() {} }) },
+      close: async () => {},
+    };
+    const transport = createSerialTransport({}, { serial: { requestPort: async () => port } });
+    const chunks = [];
+    transport.onData((chunk) => chunks.push([...chunk]));
+    transport.onClose((detail) => closes.push(detail));
+    await transport.connect();
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(chunks).toEqual([[7]]);
+    expect(closes).toEqual(['the port was closed']);
+
+    const own = fakeSerial();
+    const owned = createSerialTransport({}, { serial: own.api });
+    const ownCloses = [];
+    owned.onData(() => {});
+    owned.onClose((detail) => ownCloses.push(detail));
+    await owned.connect();
+    await owned.close();
+    expect(ownCloses).toEqual([]);
+    expect(own.log.closed).toBe(true);
+  });
+
   it('reads and hands on every chunk when a data handler is set, without ack', async () => {
     const fake = fakeSerial();
     const transport = createSerialTransport({}, { serial: fake.api });

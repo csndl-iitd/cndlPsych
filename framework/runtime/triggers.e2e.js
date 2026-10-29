@@ -91,12 +91,13 @@ test('on a phone the same triggers go through a websocket sink and the relay', a
   expect(pair.b.received).toEqual(sentValues);
 });
 
-test('on a phone a serial sink talks to the device over WebUSB, and the raw traffic is kept with times', async ({ page, isMobile }) => {
-  test.skip(!isMobile, 'Android Chrome has WebUSB and no Web Serial; the desktop uses Web Serial');
-  await installFakeUsb(page);
+test('a serial sink keeps the raw traffic of the device with times: over Web Serial on a computer, over WebUSB on Android', async ({ page, isMobile }) => {
+  if (isMobile) await installFakeUsb(page);
+  else await installFakeSerial(page, { stream: true });
+  const device = isMobile ? '__usb' : '__serial';
   const sink = { id: 'rx', type: 'serial', format: 'raw', template: '{value:02x}', required: true, capture: { raw: true } };
-  await startSession(page, { merge: { ...FAST, triggers: { sinks: [sink] }, device: { allowed: ['phone', 'tablet'] } } });
-  await installAutopilot(page, { touch: true });
+  await startSession(page, { merge: { ...FAST, triggers: { sinks: [sink] }, ...(isMobile ? { device: { allowed: ['phone', 'tablet'] } } : {}) } });
+  await installAutopilot(page, { touch: isMobile });
   await passEntryScreens(page, { connect: true });
   await page.locator('[data-name="difficulty"]').waitFor({ timeout: 120_000 });
   await answerPostTask(page);
@@ -105,8 +106,10 @@ test('on a phone a serial sink talks to the device over WebUSB, and the raw traf
 
   const sent = ofType(events, 'trigger.sent').map((e) => e.data.value);
   expect(sent.length).toBeGreaterThan(50);
-  expect((await page.evaluate(() => window.__usb.writes)).map((bytes) => bytes[0])).toEqual(expect.arrayContaining(sent.slice(0, 3)));
-  expect(await page.evaluate(() => window.__usb.control)).toEqual([0x20, 0x22]); // line coding, then DTR and RTS
+  const writes = await page.evaluate((name) => window[name].writes, device);
+  expect(writes.map((bytes) => bytes[0])).toEqual(expect.arrayContaining(sent.slice(0, 3)));
+  if (isMobile) expect(await page.evaluate(() => window.__usb.control)).toEqual([0x20, 0x22]); // line coding, then DTR and RTS
+  else expect((await page.evaluate(() => window.__serial.opened)).bufferSize).toBeGreaterThan(255); // a streaming device overruns the default buffer
 
   const pieces = await page.evaluate(async () => (await window.sessionStore.readStreams()).map((piece) => ({ segment: piece.segment, chunks: piece.chunks, data: [...piece.data] })));
   const chunks = pieces.flatMap((piece) => piece.chunks);
@@ -114,9 +117,9 @@ test('on a phone a serial sink talks to the device over WebUSB, and the raw traf
   expect(pieces.every((piece) => piece.segment === 1)).toBe(true);
   expect(text('rx')).toMatch(/^[0-9A-F]{4}7FF\n/); // the device's lines, as they came
   expect(text('rx')).toContain('ECHO ');
-  expect(chunks.filter((chunk) => chunk.dir === 'tx').length).toBe(await page.evaluate(() => window.__usb.writes.length)); // every write, the reset bytes too
+  expect(chunks.filter((chunk) => chunk.dir === 'tx').length).toBe(writes.length); // every write, the reset bytes too
   expect(chunks.every((chunk, i) => i === 0 || chunk.t >= chunks[i - 1].t - 50)).toBe(true); // in capture order; a write is stamped when it begins, so it can trail a read that arrived while it was in progress
-  expect(record.sinks.trigger[0]).toMatchObject({ id: 'rx', transport: 'webusb', connected: true });
+  expect(record.sinks.trigger[0]).toMatchObject({ id: 'rx', transport: isMobile ? 'webusb' : 'serial', connected: true });
   expect(record.sinks.trigger[0].capture.rx_bytes).toBeGreaterThan(100);
   expect(sessionProblems(record)).toEqual([]);
 });

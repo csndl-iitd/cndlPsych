@@ -6,6 +6,11 @@ import { schedule as defaultSchedule } from '../foundation/clock.js';
 const encoder = new TextEncoder();
 const toBytes = (data) => (typeof data === 'string' ? encoder.encode(data) : data);
 
+// Web Serial keeps 255 bytes unread by default; a device that streams (a photodiode at 1 kHz) overruns that in a few
+// milliseconds of a busy page.
+const READ_BUFFER_BYTES = 1 << 20;
+const MAX_READ_ERRORS = 50;
+
 // ---- Web Serial (desktop Chromium) -----------------------------------------------------
 /**
  * @param {object} config serial sink (baud, data_bits, stop_bits, parity, flow_control, usb_filters)
@@ -18,19 +23,32 @@ export function createSerialTransport(config, { serial = globalThis.navigator?.s
   let messageHandler = null;
   let dataHandler = null;
   let closeHandler = null;
+  let closing = false;
+  let loop = null;
 
+  /** Read until the port ends. A recoverable error (a buffer overrun, a framing error) leaves the port readable: read on. */
   async function readLoop() {
-    reader = port.readable.getReader();
-    try {
-      for (;;) {
-        const { value, done } = await reader.read();
-        if (done) break;
-        messageHandler?.(value);
-        dataHandler?.(value);
+    let errors = 0;
+    let lastError = null;
+    while (port.readable && !closing && errors < MAX_READ_ERRORS) {
+      reader = port.readable.getReader();
+      try {
+        for (;;) {
+          const { value, done } = await reader.read();
+          lastError = null;
+          if (done) { errors = MAX_READ_ERRORS; break; }
+          errors = 0;
+          messageHandler?.(value);
+          dataHandler?.(value);
+        }
+      } catch (error) {
+        errors += 1;
+        lastError = error;
+      } finally {
+        reader.releaseLock();
       }
-    } catch (error) {
-      closeHandler?.(error.message);
     }
+    if (!closing) closeHandler?.(lastError?.message ?? 'the port was closed');
   }
 
   return {
@@ -51,9 +69,10 @@ export function createSerialTransport(config, { serial = globalThis.navigator?.s
         stopBits: config.stop_bits ?? 1,
         parity: config.parity ?? 'none',
         flowControl: config.flow_control ?? 'none',
+        ...(dataHandler ? { bufferSize: READ_BUFFER_BYTES } : {}),
       });
       writer = port.writable.getWriter();
-      if ((config.ack && messageHandler) || dataHandler) readLoop();
+      if ((config.ack && messageHandler) || dataHandler) loop = readLoop();
     },
 
     async write(data) {
@@ -61,7 +80,9 @@ export function createSerialTransport(config, { serial = globalThis.navigator?.s
     },
 
     async close() {
+      closing = true;
       try { await reader?.cancel(); } catch { /* already closed */ }
+      await loop; // the reader's lock is released, so the port can close
       try { writer?.releaseLock(); } catch { /* already released */ }
       try { await port?.close(); } catch { /* already closed */ }
     },
