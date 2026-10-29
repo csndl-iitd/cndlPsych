@@ -16,6 +16,7 @@ export function createSerialTransport(config, { serial = globalThis.navigator?.s
   let writer = null;
   let reader = null;
   let messageHandler = null;
+  let dataHandler = null;
   let closeHandler = null;
 
   async function readLoop() {
@@ -25,6 +26,7 @@ export function createSerialTransport(config, { serial = globalThis.navigator?.s
         const { value, done } = await reader.read();
         if (done) break;
         messageHandler?.(value);
+        dataHandler?.(value);
       }
     } catch (error) {
       closeHandler?.(error.message);
@@ -32,12 +34,15 @@ export function createSerialTransport(config, { serial = globalThis.navigator?.s
   }
 
   return {
+    kind: 'serial',
     onMessage(handler) { messageHandler = handler; },
+    /** Every chunk of bytes that arrives, as it arrives (the sink's raw capture). */
+    onData(handler) { dataHandler = handler; },
     onClose(handler) { closeHandler = handler; },
 
     /** Needs a user gesture (the browser's port picker). */
     async connect() {
-      if (!serial) throw new Error('Web Serial is not available in this browser (use desktop Chrome or Edge, or a websocket sink with the relay)');
+      if (!serial) throw new Error('Web Serial is not available in this browser (use Chrome or Edge on a computer, Chrome on Android, or a websocket sink with the relay)');
       const filters = (config.usb_filters ?? []).map((f) => ({ usbVendorId: f.usb_vendor_id, ...(f.usb_product_id === undefined ? {} : { usbProductId: f.usb_product_id }) }));
       port = await serial.requestPort(filters.length ? { filters } : {});
       await port.open({
@@ -48,7 +53,7 @@ export function createSerialTransport(config, { serial = globalThis.navigator?.s
         flowControl: config.flow_control ?? 'none',
       });
       writer = port.writable.getWriter();
-      if (config.ack && messageHandler) readLoop();
+      if ((config.ack && messageHandler) || dataHandler) readLoop();
     },
 
     async write(data) {

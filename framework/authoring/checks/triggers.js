@@ -150,6 +150,7 @@ function checkSinkSettings(ctx) {
     for (const message of sinkProblems(sink)) ctx.report.error('bad-sink-template', FILES.experiment, at('template'), `sink "${sink.id}": ${message}`);
     if (sink.sync && sink.type !== 'websocket') ctx.report.error('sink-sync-unsupported', FILES.experiment, at('sync'), `sink "${sink.id}": ping sync needs a websocket receiver that replies`);
     if (sink.ack && sink.type === 'usb') ctx.report.error('sink-ack-unsupported', FILES.experiment, at('ack'), `sink "${sink.id}": USB sinks cannot receive acknowledgements`);
+    if (sink.capture?.raw && ctx.experiment.storage?.firebase?.enabled) ctx.report.warn('capture-not-uploaded', FILES.experiment, at('capture'), `sink "${sink.id}": the raw device data is kept in the browser and added to the downloaded zip; it is not uploaded to Firebase, which stores the events only`);
     if (sink.reset_after_ms !== undefined && sink.format !== 'raw') ctx.report.error('sink-reset-needs-raw', FILES.experiment, at('reset_after_ms'), `sink "${sink.id}": reset_after_ms only applies to format raw`);
   });
 }

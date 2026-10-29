@@ -26,6 +26,18 @@ function fakeSerial({ failOpen = false } = {}) {
 }
 
 describe('serial transport', () => {
+  it('reads and hands on every chunk when a data handler is set, without ack', async () => {
+    const fake = fakeSerial();
+    const transport = createSerialTransport({}, { serial: fake.api });
+    const chunks = [];
+    transport.onData((chunk) => chunks.push([...chunk]));
+    await transport.connect();
+    fake.push(Uint8Array.from([1, 2]));
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(chunks).toEqual([[1, 2]]);
+  });
+
   it('opens the chosen port with the configured line settings (defaults 115200 8N1)', async () => {
     const fake = fakeSerial();
     await createSerialTransport({}, { serial: fake.api }).connect();

@@ -50,3 +50,37 @@ export async function startTestRelay(testInfo, options = {}) {
 export function sinksMerge(port) {
   return { triggers: { sinks: exampleSinks().map((sink) => (sink.type === 'websocket' ? { ...sink, url: `ws://127.0.0.1:${port}` } : sink)) } };
 }
+
+/**
+ * Replace navigator.usb before the page loads with a CDC-ACM serial device that streams a text line every 20 ms and
+ * answers each byte written with a line "ECHO <hex>". Writes are recorded in window.__usb.writes.
+ */
+export function installFakeUsb(page) {
+  return page.addInitScript(() => {
+    const state = { writes: [], line: [], control: [] };
+    window.__usb = state;
+    const waiting = [];
+    const queued = [];
+    const bytesOf = (text) => new TextEncoder().encode(text);
+    const deliver = (bytes) => (waiting.length ? waiting.shift()({ status: 'ok', data: new DataView(bytes.buffer) }) : queued.push(bytes));
+    let count = 0;
+    setInterval(() => { count += 1; deliver(bytesOf(`${(count & 0xffff).toString(16).toUpperCase().padStart(4, '0')}7FF\n`)); }, 20);
+    const device = {
+      configuration: { interfaces: [
+        { interfaceNumber: 0, alternates: [{ interfaceClass: 0x02, endpoints: [] }] },
+        { interfaceNumber: 1, alternates: [{ interfaceClass: 0x0a, endpoints: [{ endpointNumber: 1, direction: 'out', type: 'bulk' }, { endpointNumber: 2, direction: 'in', type: 'bulk' }] }] },
+      ] },
+      open: async () => {},
+      claimInterface: async () => {},
+      controlTransferOut: async (setup) => { state.control.push(setup.request); return { status: 'ok' }; },
+      transferIn: () => new Promise((resolve) => { if (queued.length) resolve({ status: 'ok', data: new DataView(queued.shift().buffer) }); else waiting.push(resolve); }),
+      transferOut: async (endpoint, data) => {
+        state.writes.push([...data]);
+        deliver(bytesOf(`ECHO ${[...data].map((byte) => byte.toString(16).padStart(2, '0')).join('')}\n`));
+        return { status: 'ok' };
+      },
+      close: async () => {},
+    };
+    Object.defineProperty(navigator, 'usb', { configurable: true, value: { requestDevice: async () => device } });
+  });
+}

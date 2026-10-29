@@ -103,6 +103,8 @@ input:
 #     #   required: true, newline: lf, ack: false, max_queue: 256, min_gap_ms: 0, reset_after_ms: 0, reset_value: 0,
 #     #   sync: { pings: 10, interval_s: 60 }
 #     # More for serial: data_bits: 8, stop_bits: 1, parity: none, flow_control: none, usb_filters: [{ usb_vendor_id: 0, usb_product_id: 0 }]
+#     # On Android the same serial sink talks to the device over WebUSB (CDC-ACM). usb_filters is optional: leave it out to pick from every device.
+#     # capture: { raw: false } - true keeps every byte the device sends and every byte written, with times, in the zip (device/<id>_rx.bin, _tx.bin, _index.csv); not uploaded to Firebase
 #   defaults: { min_gap_ms: 0 }
 #   rules:                    # when to send what (docs/yaml/triggers.md)
 #     - { id: stimulus_on, on: phase.onset, value: 1 }

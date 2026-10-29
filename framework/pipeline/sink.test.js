@@ -7,21 +7,23 @@ function setup(config, { transportOverrides = {}, defaults } = {}) {
   const writes = [];
   const statuses = [];
   const syncs = [];
+  const captures = [];
   const handlers = {};
   const transport = {
     connect: async () => {},
     write: async (data) => { writes.push({ data, at: time.now }); },
     close: async () => {},
     onMessage: (h) => { handlers.message = h; },
+    onData: (h) => { handlers.data = h; },
     onClose: (h) => { handlers.close = h; },
     onOpen: (h) => { handlers.open = h; },
     ...transportOverrides,
   };
   const sink = createSink({ id: 's', type: 'serial', format: 'raw', ...config }, transport, {
     clock: time.clock, schedule: time.schedule, defaults,
-    report: { status: (state, detail) => statuses.push([state, detail]), sync: (s) => syncs.push(s) },
+    report: { status: (state, detail) => statuses.push([state, detail]), sync: (s) => syncs.push(s), capture: (c) => captures.push(c) },
   });
-  return { sink, time, writes, statuses, syncs, handlers, bytes: () => writes.map((w) => [...w.data]) };
+  return { sink, time, writes, statuses, syncs, captures, handlers, bytes: () => writes.map((w) => [...w.data]) };
 }
 
 describe('connecting', () => {
@@ -273,5 +275,33 @@ describe('close', () => {
     expect(await pending).toEqual({ sent: false, reason: 'disconnected' });
     expect(closed).toBe(true);
     expect(t.sink.state).toBe('idle');
+  });
+});
+
+describe('raw capture', () => {
+  it('hands every received chunk and every written message on, uninterpreted, with the time', async () => {
+    const t = setup({ capture: { raw: true } });
+    await t.sink.connect();
+    t.time.now = 5;
+    t.handlers.data(Uint8Array.from([0x31, 0x41, 0x0a]));
+    t.time.now = 8;
+    expect(await t.sink.send({ value: 17 })).toMatchObject({ sent: true });
+    expect(t.captures).toEqual([
+      { dir: 'rx', t: 5, bytes: Uint8Array.from([0x31, 0x41, 0x0a]) },
+      { dir: 'tx', t: 8, bytes: Uint8Array.from([17]) },
+    ]);
+  });
+
+  it('turns text into bytes, and does nothing unless it is asked to', async () => {
+    const text = setup({ format: 'template', template: 'T{value}', newline: 'lf', capture: { raw: true } });
+    await text.sink.connect();
+    await text.sink.send({ value: 5 });
+    expect(text.captures[0].bytes).toEqual(new TextEncoder().encode('T5\n'));
+
+    const off = setup({});
+    await off.sink.connect();
+    expect(off.handlers.data).toBeUndefined();
+    await off.sink.send({ value: 1 });
+    expect(off.captures).toEqual([]);
   });
 });

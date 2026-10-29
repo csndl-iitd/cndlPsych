@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { unzip, unzipBytes } from '../../tools/unzip.js';
-import { crc32, eventsCsv, eventsJsonl, sessionArchive, SUPPORTED_FORMATS, webcamFiles, zip } from './export.js';
+import { crc32, deviceCaptureFiles, eventsCsv, eventsJsonl, sessionArchive, SUPPORTED_FORMATS, webcamFiles, zip } from './export.js';
 
 const events = [
   { v: 1, seq: 0, t: 1.5, source: 'system', type: 'session.start', data: { profile: 'phone' }, block: null, trial: null, phase: null, caused_by: null },
@@ -88,5 +88,30 @@ describe('webcam video the browser kept', () => {
   it('is not in the zip', () => {
     const stored = unzipBytes(sessionArchive(record, [], ['jsonl']).data);
     expect(Object.keys(stored)).toEqual(['session.json', 'events.jsonl']);
+  });
+});
+
+describe('deviceCaptureFiles', () => {
+  const piece = (segment, index, chunks, bytes) => ({ segment, index, chunks, data: Uint8Array.from(bytes) });
+  const text = (file) => (typeof file.data === 'string' ? file.data : new TextDecoder().decode(file.data));
+
+  it('writes per sink the bytes received, the bytes written and an index that finds each chunk', () => {
+    const files = deviceCaptureFiles([
+      piece(1, 0, [{ sink: 'rx', dir: 'rx', t: 10.5, n: 3 }, { sink: 'rx', dir: 'tx', t: 12, n: 1 }, { sink: 'rx', dir: 'rx', t: 13, n: 2 }], [1, 2, 3, 9, 4, 5]),
+      piece(2, 0, [{ sink: 'rx', dir: 'rx', t: 1, n: 1 }, { sink: 'other', dir: 'rx', t: 2, n: 1 }], [6, 7]),
+    ]);
+    const byName = Object.fromEntries(files.map((file) => [file.name, file]));
+    expect(Object.keys(byName)).toEqual(['device/rx_rx.bin', 'device/rx_tx.bin', 'device/rx_index.csv', 'device/other_rx.bin', 'device/other_tx.bin', 'device/other_index.csv']);
+    expect([...byName['device/rx_rx.bin'].data]).toEqual([1, 2, 3, 4, 5, 6]);
+    expect([...byName['device/rx_tx.bin'].data]).toEqual([9]);
+    expect(text(byName['device/rx_index.csv'])).toBe(['segment,seq,dir,t_ms,offset,length', '1,0,rx,10.5,0,3', '1,1,tx,12,0,1', '1,2,rx,13,3,2', '2,3,rx,1,5,1', ''].join('\r\n'));
+    expect([...byName['device/other_rx.bin'].data]).toEqual([7]);
+  });
+
+  it('is nothing for no capture, and the files go into the zip as they are', () => {
+    expect(deviceCaptureFiles([])).toEqual([]);
+    const archive = sessionArchive({ subject_id: 's', session_id: 'x' }, events, ['jsonl'], deviceCaptureFiles([piece(1, 0, [{ sink: 'rx', dir: 'rx', t: 1, n: 2 }], [8, 9])]));
+    const files = unzip(archive.data);
+    expect(Object.keys(files)).toEqual(['session.json', 'events.jsonl', 'device/rx_rx.bin', 'device/rx_tx.bin', 'device/rx_index.csv']);
   });
 });

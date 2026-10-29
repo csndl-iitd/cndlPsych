@@ -2,7 +2,7 @@
 // "Select all"), and what to do with the selection: delete (after a confirmation), download,
 // or resume one. Open it with ?manage=1 on the experiment page. It never records anything.
 import { askAction, askSelection } from '../authoring/modules/survey.js';
-import { sessionArchive } from '../storage/export.js';
+import { deviceCaptureFiles, sessionArchive } from '../storage/export.js';
 import { downloadFile, downloadWebcamVideo } from './download.js';
 import { RESUMABLE_STATUSES } from './resume.js';
 
@@ -70,7 +70,7 @@ export async function manageSessions({ screen, store, formats, doc, check }) {
     } else if (action === 'download') {
       for (const item of chosen) {
         const { record, events } = await store.read(item.key);
-        const archive = sessionArchive(record, events, formats.length ? formats : ['jsonl']);
+        const archive = sessionArchive(record, events, formats.length ? formats : ['jsonl'], deviceCaptureFiles((await store.readStreams?.(item.key)) ?? []));
         downloadFile(doc, { name: archive.name, data: archive.data });
         await downloadWebcamVideo(doc, store, record, item.key);
       }

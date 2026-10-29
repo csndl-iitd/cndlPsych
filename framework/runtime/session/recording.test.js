@@ -12,12 +12,15 @@ describe('connectStore', () => {
     const bus = busWith();
     const leave = [];
     const store = { appended: [], flushes: 0, append(event) { this.appended.push(event); }, flush() { this.flushes += 1; } };
-    connectStore({ services: { bus, input: { onLeave: (handler) => leave.push(handler) } }, store });
+    const sinkSet = { attached: [], captureFlushes: 0, attachStore(target) { this.attached.push(target); }, flushCapture() { this.captureFlushes += 1; } };
+    connectStore({ services: { bus, sinkSet, input: { onLeave: (handler) => leave.push(handler) } }, store });
     expect(bus.handlers.map(([type]) => type)).toEqual(['*']);
     bus.handlers[0][1]({ seq: 0 });
     leave[0]();
     expect(store.appended).toEqual([{ seq: 0 }]);
     expect(store.flushes).toBe(1);
+    expect(sinkSet.attached).toEqual([store]); // the raw device data goes to the same store
+    expect(sinkSet.captureFlushes).toBe(1);
   });
 });
 

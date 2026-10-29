@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { sessionProblems } from '../../tools/validators.js';
 import { answerPostTask, continueDeviceScreen, finished, installAutopilot, passEntryScreens, recorded, startSession } from '../../tools/e2e/session-helpers.js';
-import { installFakeSerial, serialWrites, sinksMerge, startTestRelay } from '../../tools/e2e/trigger-helpers.js';
+import { installFakeSerial, installFakeUsb, serialWrites, sinksMerge, startTestRelay } from '../../tools/e2e/trigger-helpers.js';
 
 test.setTimeout(180_000);
 
@@ -67,7 +67,7 @@ test('the example sends its triggers to a serial device and, through the relay, 
   expect(ofType(events, 'sink.sync').every((e) => e.data.offset_ms === null && e.data.rtt_ms >= 0)).toBe(true);
 
   expect(record.sinks.trigger).toEqual([
-    { id: 'eeg_serial', type: 'serial', format: 'raw', required: true, connected: true },
+    { id: 'eeg_serial', type: 'serial', format: 'raw', required: true, connected: true, transport: 'serial' },
     { id: 'lab_ws', type: 'websocket', format: 'ndjson', required: false, connected: true },
   ]);
   expect(sessionProblems(record)).toEqual([]);
@@ -89,6 +89,36 @@ test('on a phone the same triggers go through a websocket sink and the relay', a
   expect(sentValues.length).toBe(Object.values(EXPECTED_COUNTS).reduce((a, b) => a + b, 0));
   await expect.poll(() => pair.b.received.length).toBe(sentValues.length);
   expect(pair.b.received).toEqual(sentValues);
+});
+
+test('on a phone a serial sink talks to the device over WebUSB, and the raw traffic is kept with times', async ({ page, isMobile }) => {
+  test.skip(!isMobile, 'Android Chrome has WebUSB and no Web Serial; the desktop uses Web Serial');
+  await installFakeUsb(page);
+  const sink = { id: 'rx', type: 'serial', format: 'raw', template: '{value:02x}', required: true, capture: { raw: true } };
+  await startSession(page, { merge: { ...FAST, triggers: { sinks: [sink] }, device: { allowed: ['phone', 'tablet'] } } });
+  await installAutopilot(page, { touch: true });
+  await passEntryScreens(page, { connect: true });
+  await page.locator('[data-name="difficulty"]').waitFor({ timeout: 120_000 });
+  await answerPostTask(page);
+  expect(await finished(page)).toBe('complete');
+  const { events, record } = await recorded(page);
+
+  const sent = ofType(events, 'trigger.sent').map((e) => e.data.value);
+  expect(sent.length).toBeGreaterThan(50);
+  expect((await page.evaluate(() => window.__usb.writes)).map((bytes) => bytes[0])).toEqual(expect.arrayContaining(sent.slice(0, 3)));
+  expect(await page.evaluate(() => window.__usb.control)).toEqual([0x20, 0x22]); // line coding, then DTR and RTS
+
+  const pieces = await page.evaluate(async () => (await window.sessionStore.readStreams()).map((piece) => ({ segment: piece.segment, chunks: piece.chunks, data: [...piece.data] })));
+  const chunks = pieces.flatMap((piece) => piece.chunks);
+  const text = (dir) => new TextDecoder().decode(Uint8Array.from(pieces.flatMap((piece) => { let at = 0; return piece.chunks.flatMap((chunk) => { const part = chunk.dir === dir ? piece.data.slice(at, at + chunk.n) : []; at += chunk.n; return part; }); })));
+  expect(pieces.every((piece) => piece.segment === 1)).toBe(true);
+  expect(text('rx')).toMatch(/^[0-9A-F]{4}7FF\n/); // the device's lines, as they came
+  expect(text('rx')).toContain('ECHO ');
+  expect(chunks.filter((chunk) => chunk.dir === 'tx').length).toBe(await page.evaluate(() => window.__usb.writes.length)); // every write, the reset bytes too
+  expect(chunks.every((chunk, i) => i === 0 || chunk.t >= chunks[i - 1].t - 50)).toBe(true); // in capture order; a write is stamped when it begins, so it can trail a read that arrived while it was in progress
+  expect(record.sinks.trigger[0]).toMatchObject({ id: 'rx', transport: 'webusb', connected: true });
+  expect(record.sinks.trigger[0].capture.rx_bytes).toBeGreaterThan(100);
+  expect(sessionProblems(record)).toEqual([]);
 });
 
 test('a required sink that cannot connect blocks the session; cancelling leaves no trace', async ({ page, isMobile }, testInfo) => {

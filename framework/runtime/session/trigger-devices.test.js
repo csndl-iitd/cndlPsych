@@ -28,26 +28,6 @@ const run = async (specs, answersGiven, options) => {
   return { outcome, sinkSet };
 };
 
-describe('connectSinks on a phone or tablet', () => {
-  it('does not try a serial sink: it is left out with a warning, and nothing is asked', async () => {
-    const { outcome, sinkSet } = await run([{ id: 'eeg', type: 'serial', results: ['no port'] }], [], { mobile: true });
-    expect(outcome).toEqual({ ok: true, warnings: [{ id: 'eeg', error: 'Web Serial is not used on phones and tablets' }] });
-    expect(sinkSet.skipped).toEqual(['eeg']);
-    expect(sinkSet.sinks.get('eeg').connects).toBe(0);
-    expect(screens).toEqual([]);
-  });
-
-  it('still tries the others (a websocket sink works on a phone), and serial on a computer', async () => {
-    const { outcome, sinkSet } = await run([{ id: 'lab' }, { id: 'eeg', type: 'serial' }], ['connect'], { mobile: true });
-    expect(outcome.ok).toBe(true);
-    expect(sinkSet.sinks.get('lab').connects).toBe(1);
-    expect(sinkSet.skipped).toEqual(['eeg']);
-    const computer = await run([{ id: 'eeg', type: 'serial' }], ['connect'], { mobile: false });
-    expect(computer.sinkSet.sinks.get('eeg').connects).toBe(1);
-    expect(computer.sinkSet.skipped).toEqual([]);
-  });
-});
-
 describe('a required device that cannot connect', () => {
   const choicesOf = (screen) => screen.choices.map((choice) => choice.value);
 

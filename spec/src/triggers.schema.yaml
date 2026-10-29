@@ -123,8 +123,19 @@ definitions:
       stop_bits: {enum: [1, 2], default: 1}
       parity: {enum: [none, even, odd], default: none}
       flow_control: {enum: [none, hardware], default: none}
+      capture:
+        description: >
+          Keep what the device sends, and what is written to it, exactly as bytes with the time each chunk arrived or was
+          written (the session clock). Nothing is interpreted, so the device and its formats can change. The data stays in the
+          browser and is added to the downloaded zip as device/<id>_rx.bin, _tx.bin and _index.csv; it is not uploaded to Firebase.
+        type: object
+        properties:
+          raw: {type: boolean, default: false}
+        additionalProperties: false
       usb_filters:
-        description: Restrict the browser's port picker.
+        description: >
+          Restrict the browser's port picker to these devices; leave it out to choose from every device. On Android the
+          same sink talks to the device over WebUSB (CDC-ACM serial), since Chrome there has no Web Serial.
         type: array
         items:
           type: object

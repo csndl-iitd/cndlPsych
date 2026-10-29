@@ -180,7 +180,17 @@ properties:
             format: {enum: [raw, ndjson, template]}
             required: {type: boolean}
             connected: {type: boolean}
-            skipped: {type: boolean, description: "left out: not used on this device (Web Serial on a phone), or the experimenter went on without it"}
+            skipped: {type: boolean, description: "left out: the experimenter went on without it"}
+            transport: {enum: [serial, webusb], description: "how a serial sink reached the device: Web Serial, or WebUSB (CDC-ACM) on Android"}
+            capture:
+              description: "what the raw capture kept (see triggers.sinks[].capture)"
+              type: object
+              properties:
+                rx_chunks: {type: integer, minimum: 0}
+                rx_bytes: {type: integer, minimum: 0}
+                tx_chunks: {type: integer, minimum: 0}
+                tx_bytes: {type: integer, minimum: 0}
+              additionalProperties: false
           additionalProperties: false
       storage:
         type: array
