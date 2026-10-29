@@ -48,7 +48,6 @@ export function readEnvironment(win = globalThis) {
     any_coarse: query('(any-pointer: coarse)') || pointer === 'coarse',
     any_hover: query('(any-hover: hover)') || query('(hover: hover)'),
     keyboard: pointer === 'fine' || runsDesktopSystem(win.navigator),
-    mobile: isMobileSystem(win.navigator),
     touch: touchPoints > 0,
     touch_points: touchPoints,
     short_side_px: Math.min(screen.width ?? width, screen.height ?? height),

@@ -3,7 +3,8 @@
 /** Wire the store to the bus; call just before recording starts. */
 export function connectStore({ services, store }) {
   services.bus.on('*', (event) => store.append(event));
-  services.input.onLeave(() => store.flush());
+  services.sinkSet.attachStore(store);
+  services.input.onLeave(() => { store.flush(); services.sinkSet.flushCapture(); });
 }
 
 /** 'closed' is not logged: it would come after the last event the record counts. A status names its sink; the local store's does not. */

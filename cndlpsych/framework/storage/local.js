@@ -10,11 +10,12 @@
 // memory: the session carries on, exports still work, and `storage.status` says so.
 import { schedule as defaultSchedule } from '../foundation/clock.js';
 
-const VERSION = 2;
+const VERSION = 3;
 const MAX_BUFFER = 200;
 const SESSIONS = 'sessions';
 const EVENTS = 'events';
 const MEDIA = 'media'; // webcam video, in pieces: {session, segment, index, blob}
+const STREAMS = 'streams'; // raw device data, in batches: {session, segment, index, chunks, data}
 
 const request = (req) => new Promise((resolve, reject) => {
   req.onsuccess = () => resolve(req.result);
@@ -33,6 +34,7 @@ export function createLocalStore({
   let buffer = [];
   let memory = [];
   let memoryMedia = [];
+  let memoryStreams = [];
   let lastSeq = -1;
   let degraded = false;
   let cancelFlush = null;
@@ -65,6 +67,7 @@ export function createLocalStore({
         if (!names.contains(SESSIONS)) req.result.createObjectStore(SESSIONS, { keyPath: 'key' });
         if (!names.contains(EVENTS)) req.result.createObjectStore(EVENTS, { keyPath: ['session', 'seq'] });
         if (!names.contains(MEDIA)) req.result.createObjectStore(MEDIA, { keyPath: ['session', 'segment', 'index'] });
+        if (!names.contains(STREAMS)) req.result.createObjectStore(STREAMS, { keyPath: ['session', 'segment', 'index'] });
       };
       req.onsuccess = () => resolve(req.result);
       req.onerror = () => reject(req.error);
@@ -201,6 +204,35 @@ export function createLocalStore({
       return [...stored.map(({ segment, index, blob }) => ({ segment, index, blob })), ...kept].sort((a, b) => a.segment - b.segment || a.index - b.index);
     },
 
+    // ---- raw device data ----------------------------------------------------------------------
+    /** One batch of the trigger device's traffic ({segment, index, chunks, data}). Rejects when it could not be kept on disk (it is kept in memory). */
+    async addStream(piece) {
+      await chain;
+      if (degraded || !db) {
+        memoryStreams.push(piece);
+        return;
+      }
+      try {
+        await work([STREAMS], 'readwrite', (streams) => { streams.put({ session: session.key, ...piece }); });
+      } catch (error) {
+        memoryStreams.push(piece);
+        throw error;
+      }
+    },
+
+    /** The batches of a session (the current one by default), in order. */
+    async readStreams(key = session?.key) {
+      await ready();
+      const kept = key === session?.key ? memoryStreams : [];
+      const stored = db && key ? await work([STREAMS], 'readonly', (streams) => request(streams.getAll(mediaRange(key)))) : [];
+      return [...stored.map(({ segment, index, chunks, data }) => ({ segment, index, chunks, data })), ...kept].sort((a, b) => a.segment - b.segment || a.index - b.index);
+    },
+
+    /** The number for the next run of device data in this session: one more than the highest kept (a resumed session has earlier ones). */
+    async nextStreamSegment() {
+      return (await store.readStreams()).reduce((highest, piece) => Math.max(highest, piece.segment), 0) + 1;
+    },
+
     /** The record and every event so far, from disk (or memory when degraded). */
     async snapshot() {
       await flush();
@@ -246,6 +278,7 @@ export function createLocalStore({
       buffer = [];
       memory = [];
       memoryMedia = [];
+      memoryStreams = [];
       await putSession({ record, status: 'in_progress' });
       setStatus('ready');
       return { lastSeq: row.last_seq };
@@ -281,10 +314,11 @@ export function createLocalStore({
 
     async remove(key) {
       await ready();
-      await work([SESSIONS, EVENTS, MEDIA], 'readwrite', async (sessions, events, media) => {
+      await work([SESSIONS, EVENTS, MEDIA, STREAMS], 'readwrite', async (sessions, events, media, streams) => {
         sessions.delete(key);
         events.delete(range(key));
         media.delete(mediaRange(key));
+        streams.delete(mediaRange(key));
       });
     },
 

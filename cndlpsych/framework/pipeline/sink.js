@@ -1,7 +1,8 @@
 // A trigger sink: formats a message, queues it, and hands it to a transport (serial,
 // websocket or USB). The queue enforces `min_gap_ms` between writes, `max_queue` bounds
 // memory, `reset_after_ms` writes the reset byte after a raw pulse, and `ack` / `sync` measure
-// round trips to a receiver that answers. Failures become `dropped` results with a reason,
+// round trips to a receiver that answers. With `capture.raw` every byte received and every byte written is
+// handed to `report.capture` with the time, uninterpreted. Failures become `dropped` results with a reason,
 // never exceptions into the bus.
 import { schedule as defaultSchedule } from '../foundation/clock.js';
 import { formatMessage } from '../foundation/format.js';
@@ -21,11 +22,12 @@ function parseJson(data) {
 /**
  * @param {object} config the sink from experiment.yaml (id, type, format, template, fields, ...)
  * @param {object} transport {connect, write, close, onMessage?, onClose?, onOpen?}
- * @param {{clock: {now: () => number}, schedule?: Function, defaults?: {min_gap_ms?: number}, report: {status: Function, sync: Function}}} options
+ * @param {{clock: {now: () => number}, schedule?: Function, defaults?: {min_gap_ms?: number}, report: {status: Function, sync: Function, capture?: Function}}} options
  */
 export function createSink(config, transport, { clock, schedule = defaultSchedule, defaults = {}, report }) {
   const minGap = config.min_gap_ms ?? defaults.min_gap_ms ?? 0;
   const maxQueue = config.max_queue ?? DEFAULT_MAX_QUEUE;
+  const capturing = config.capture?.raw === true && report.capture !== undefined;
   const queue = [];
   const pendingAcks = [];
   const pings = new Map();
@@ -121,6 +123,7 @@ export function createSink(config, transport, { clock, schedule = defaultSchedul
       return false;
     }
     lastWriteAt = tSent;
+    if (capturing) report.capture({ dir: 'tx', t: tSent, bytes: typeof message === 'string' ? encoder.encode(message) : message });
     if (config.ack && !item.internal) pendingAcks.push(tSent);
     item.resolve({ sent: true, bytes: byteLength(message), t_sent: tSent });
     if (!item.internal) scheduleReset();
@@ -141,6 +144,7 @@ export function createSink(config, transport, { clock, schedule = defaultSchedul
   }
 
   transport.onMessage?.(handleMessage);
+  if (capturing) transport.onData?.((bytes) => report.capture({ dir: 'rx', t: clock.now(), bytes }));
   transport.onClose?.((detail) => {
     if (state === 'connected') setState('disconnected', detail);
     flush('disconnected');
@@ -153,6 +157,7 @@ export function createSink(config, transport, { clock, schedule = defaultSchedul
     id: config.id,
     type: config.type,
     format: config.format,
+    transport: transport.kind,
     required: config.required !== false,
     get state() { return state; },
     get connected() { return state === 'connected'; },

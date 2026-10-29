@@ -101,14 +101,52 @@ export function webcamFiles(record, pieces) {
 }
 
 /**
+ * What a trigger device sent and was sent, uninterpreted: per sink, the bytes received (`<sink>_rx.bin`) and written
+ * (`<sink>_tx.bin`) and an index of the chunks (`<sink>_index.csv`: segment, seq, dir, t_ms, offset, length). `t_ms` is the
+ * session clock when the chunk arrived (rx) or when the write to the device began (tx); rows are in the order they were captured, so a write can follow a read that arrived while it was in progress; `offset` and `length` find it in the .bin of
+ * its direction. A resumed session's chunks are a new `segment`, with their own clock anchor in the events.
+ * @param {{segment: number, index: number, chunks: {sink: string, dir: 'rx'|'tx', t: number, n: number}[], data: Uint8Array}[]} pieces from the store's readStreams(), in order
+ * @returns {{name: string, data: string|Uint8Array}[]}
+ */
+export function deviceCaptureFiles(pieces) {
+  const sinks = new Map(); // id -> {rx: [], tx: [], offset: {rx, tx}, rows: []}
+  for (const piece of pieces) {
+    let at = 0;
+    for (const chunk of piece.chunks) {
+      const sink = sinks.get(chunk.sink) ?? { rx: [], tx: [], offset: { rx: 0, tx: 0 }, rows: [] };
+      sinks.set(chunk.sink, sink);
+      sink[chunk.dir].push(piece.data.subarray(at, at + chunk.n));
+      sink.rows.push([piece.segment, sink.rows.length, chunk.dir, chunk.t, sink.offset[chunk.dir], chunk.n].join(','));
+      sink.offset[chunk.dir] += chunk.n;
+      at += chunk.n;
+    }
+  }
+  const join = (parts, length) => {
+    const out = new Uint8Array(length);
+    let at = 0;
+    for (const part of parts) {
+      out.set(part, at);
+      at += part.length;
+    }
+    return out;
+  };
+  return [...sinks].flatMap(([id, sink]) => [
+    { name: `device/${id}_rx.bin`, data: join(sink.rx, sink.offset.rx) },
+    { name: `device/${id}_tx.bin`, data: join(sink.tx, sink.offset.tx) },
+    { name: `device/${id}_index.csv`, data: `${['segment,seq,dir,t_ms,offset,length', ...sink.rows].join('\r\n')}\r\n` },
+  ]);
+}
+
+/**
  * The files for one session, packed in a single zip named after the subject and session.
  * @param {object} record session record
  * @param {object[]} events
  * @param {string[]} formats entries of storage.local.export_on_finish; unsupported ones are skipped
+ * @param {{name: string, data: string|Uint8Array}[]} [extraFiles] added as they are (the raw device data)
  * @returns {{name: string, data: Uint8Array, skipped: string[]}}
  */
-export function sessionArchive(record, events, formats = ['jsonl']) {
+export function sessionArchive(record, events, formats = ['jsonl'], extraFiles = []) {
   const wanted = formats.filter((format) => format in EXPORTERS);
-  const files = [{ name: 'session.json', data: `${JSON.stringify(record, null, 2)}\n` }, ...wanted.flatMap((format) => EXPORTERS[format](record, events))];
+  const files = [{ name: 'session.json', data: `${JSON.stringify(record, null, 2)}\n` }, ...wanted.flatMap((format) => EXPORTERS[format](record, events)), ...extraFiles];
   return { name: `${record.mode === 'test' ? 'test_' : ''}${record.subject_id}_${record.session_id}.zip`, data: zip(files), skipped: formats.filter((format) => !(format in EXPORTERS)) };
 }
